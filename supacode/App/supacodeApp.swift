@@ -9,8 +9,6 @@ import AppKit
 import ComposableArchitecture
 import Foundation
 import GhosttyKit
-import PostHog
-import Sentry
 import Sharing
 import SwiftUI
 
@@ -88,23 +86,6 @@ struct SupacodeApp: App {
     @Shared(.settingsFile) var settingsFile
     let initialSettings = settingsFile.global
     #if !DEBUG
-      if initialSettings.crashReportsEnabled {
-        SentrySDK.start { options in
-          options.dsn = "__SENTRY_DSN__"
-          options.tracesSampleRate = 1.0
-          options.enableAppHangTracking = false
-        }
-      }
-      if initialSettings.analyticsEnabled {
-        let posthogAPIKey = "__POSTHOG_API_KEY__"
-        let posthogHost = "__POSTHOG_HOST__"
-        let config = PostHogConfig(apiKey: posthogAPIKey, host: posthogHost)
-        config.enableSwizzling = false
-        PostHogSDK.shared.setup(config)
-        if let hardwareUUID = HardwareInfo.uuid {
-          PostHogSDK.shared.identify(hardwareUUID)
-        }
-      }
     #endif
     if let resourceURL = Bundle.main.resourceURL?.appendingPathComponent("ghostty") {
       setenv("GHOSTTY_RESOURCES_DIR", resourceURL.path, 1)

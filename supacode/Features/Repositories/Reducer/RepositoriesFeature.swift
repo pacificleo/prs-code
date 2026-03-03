@@ -2,7 +2,6 @@ import AppKit
 import ComposableArchitecture
 import Foundation
 import IdentifiedCollections
-import PostHog
 import SwiftUI
 
 private enum CancelID {

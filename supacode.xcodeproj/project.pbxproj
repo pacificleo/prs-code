@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		32513D1E25BB4F418CABB2A8 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 8B2985744DB94333AE1B5878 /* Sentry */; };
 		886A649F771240E8A5AC792D /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = 8D787DCF45744283A83F226F /* Dependencies */; };
 		C8B33B9AFE69E738ABFA08BE /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = 497B582F42253CBC8FBF101F /* ComposableArchitecture */; };
 		D63D00F72F2A5EEE00018D05 /* DependenciesTestSupport in Frameworks */ = {isa = PBXBuildFile; productRef = D63D00F62F2A5EEE00018D05 /* DependenciesTestSupport */; };
@@ -17,7 +16,6 @@
 		D661760B2F250A60000FC27C /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = D661760A2F250A60000FC27C /* CasePaths */; };
 		D6A1CB312F1F4ABF004FDABD /* GhosttyKit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A1CB2F2F1F4A48004FDABD /* GhosttyKit.xcframework */; };
 		D6A1CB362F1F4ACB004FDABD /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A1CB342F1F4AC2004FDABD /* Carbon.framework */; };
-		D6D054282F2E3EBF00D70ED5 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = D6D054272F2E3EBF00D70ED5 /* PostHog */; };
 		DFE570C142184CC387C1BC78 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = B5698573F7354B14B940EA60 /* Sparkle */; };
 /* End PBXBuildFile section */
 
@@ -75,11 +73,9 @@
 				C8B33B9AFE69E738ABFA08BE /* ComposableArchitecture in Frameworks */,
 				886A649F771240E8A5AC792D /* Dependencies in Frameworks */,
 				D6A1CB312F1F4ABF004FDABD /* GhosttyKit.xcframework in Frameworks */,
-				D6D054282F2E3EBF00D70ED5 /* PostHog in Frameworks */,
 				D661760B2F250A60000FC27C /* CasePaths in Frameworks */,
 				D6A1CB362F1F4ACB004FDABD /* Carbon.framework in Frameworks */,
 				DFE570C142184CC387C1BC78 /* Sparkle in Frameworks */,
-				32513D1E25BB4F418CABB2A8 /* Sentry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -150,8 +146,6 @@
 				B5698573F7354B14B940EA60 /* Sparkle */,
 				497B582F42253CBC8FBF101F /* ComposableArchitecture */,
 				D661760A2F250A60000FC27C /* CasePaths */,
-				8B2985744DB94333AE1B5878 /* Sentry */,
-				D6D054272F2E3EBF00D70ED5 /* PostHog */,
 			);
 			productName = supacode;
 			productReference = D69CE04A2F1F378200584C57 /* supacode.app */;
@@ -214,8 +208,6 @@
 				8E10C2184F9342AC850013F5 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				46ECCA2394D141A89BE74516 /* XCRemoteSwiftPackageReference "swift-dependencies" */,
 				B43B9188E1D223E6F7344501 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */,
-				899A0B6B6B42424B92CD20C2 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
-				D6D054262F2E3EB300D70ED5 /* XCRemoteSwiftPackageReference "posthog-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D69CE04B2F1F378200584C57 /* Products */;
@@ -621,14 +613,6 @@
 				minimumVersion = 1.10.1;
 			};
 		};
-		899A0B6B6B42424B92CD20C2 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/getsentry/sentry-cocoa/";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 9.0.0;
-			};
-		};
 		8E10C2184F9342AC850013F5 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sparkle-project/Sparkle";
@@ -653,14 +637,6 @@
 				minimumVersion = 1.0.0;
 			};
 		};
-		D6D054262F2E3EB300D70ED5 /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/PostHog/posthog-ios.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 3.38.0;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -668,11 +644,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = B43B9188E1D223E6F7344501 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */;
 			productName = ComposableArchitecture;
-		};
-		8B2985744DB94333AE1B5878 /* Sentry */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 899A0B6B6B42424B92CD20C2 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
-			productName = Sentry;
 		};
 		8D787DCF45744283A83F226F /* Dependencies */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -693,11 +664,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 911B4AAD84AF4B34BE232133 /* XCRemoteSwiftPackageReference "swift-case-paths" */;
 			productName = CasePaths;
-		};
-		D6D054272F2E3EBF00D70ED5 /* PostHog */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = D6D054262F2E3EB300D70ED5 /* XCRemoteSwiftPackageReference "posthog-ios" */;
-			productName = PostHog;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
