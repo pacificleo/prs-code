@@ -1,8 +1,8 @@
 strict: true
 
 included:
-  - supacode
-  - supacodeTests
+  - cherrylily
+  - cherrylilyTests
 excluded:
   - ThirdParty/ghostty
 
@@ -41,4 +41,4 @@ custom_rules:
     regex: "\\bstore\\.[A-Za-z0-9_]+\\s*(?:\\+=|-=|\\*=|/=|=(?!=))"
     message: "Do not mutate store state directly in views. Send actions instead."
     severity: error
-    included: "supacode/.*/Views/.*\\.swift"
+    included: "cherrylily/.*/Views/.*\\.swift"

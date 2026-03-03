@@ -1,8 +1,8 @@
-# Supacode
+# CherryLily
 
 Native terminal coding agents command center.
 
-![screenshot](https://www.supacode.sh/screenshot.png)
+![screenshot](https://www.cherrylily.sh/screenshot.png)
 
 ## Technical Stack
 

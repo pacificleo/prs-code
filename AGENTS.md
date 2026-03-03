@@ -9,15 +9,15 @@ make format                      # Run swift-format only
 make lint                        # Run swiftlint only (fix + lint)
 make check                       # Run both format and lint
 make test                        # Run all tests
-make log-stream                  # Stream app logs (subsystem: app.supabit.supacode)
+make log-stream                  # Stream app logs (subsystem: app.supabit.cherrylily)
 make bump-version                # Bump patch version and create git tag
 make bump-and-release            # Bump version and push to trigger release
 ```
 
 Run a single test class or method:
 ```bash
-xcodebuild test -project supacode.xcodeproj -scheme supacode -destination "platform=macOS" \
-  -only-testing:supacodeTests/TerminalTabManagerTests \
+xcodebuild test -project cherrylily.xcodeproj -scheme cherrylily -destination "platform=macOS" \
+  -only-testing:cherrylilyTests/TerminalTabManagerTests \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -skipMacroValidation
 ```
 
@@ -25,7 +25,7 @@ Requires [mise](https://mise.jdx.dev/) for zig, swiftlint, and xcsift tooling.
 
 ## Architecture
 
-Supacode is a macOS orchestrator for running multiple coding agents in parallel, using GhosttyKit as the underlying terminal.
+CherryLily is a macOS orchestrator for running multiple coding agents in parallel, using GhosttyKit as the underlying terminal.
 
 ### Core Data Flow
 
@@ -59,7 +59,7 @@ Reducer ← .terminalEvent(Event) ← AsyncStream<Event>
 
 - **Commands**: `createTab`, `closeFocusedTab`, `prune`, `setSelectedWorktreeID`, etc.
 - **Events**: `notificationReceived`, `tabCreated`, `tabClosed`, `focusChanged`, `taskStatusChanged`
-- Wired in `supacodeApp.swift`, subscribed in `AppFeature.task`
+- Wired in `cherrylilyApp.swift`, subscribed in `AppFeature.task`
 
 ### Key Dependencies
 
@@ -116,4 +116,4 @@ Reducer ← .terminalEvent(Event) ← AsyncStream<Event>
 ## Submodules
 
 - `ThirdParty/ghostty` (`https://github.com/ghostty-org/ghostty`): Source dependency used to build `Frameworks/GhosttyKit.xcframework` and terminal resources.
-- `Resources/git-wt` (`https://github.com/khoi/git-wt.git`): Bundled `wt` CLI used by Supacode Git worktree flows at runtime.
+- `Resources/git-wt` (`https://github.com/khoi/git-wt.git`): Bundled `wt` CLI used by CherryLily Git worktree flows at runtime.
