@@ -243,7 +243,7 @@ struct AppFeature {
             rootURL: repository.rootURL,
             settings: repositorySettings
           )
-        case .general, .notifications, .worktree, .updates, .advanced, .github:
+        case .general, .notifications, .worktree, .updates, .advanced, .appLauncher, .github:
           state.settings.repositorySettings = nil
         }
         return .none
@@ -255,9 +255,11 @@ struct AppFeature {
         if let selectedWorktree = state.repositories.worktree(for: state.repositories.selectedWorktreeID) {
           let rootURL = selectedWorktree.repositoryRootURL
           @Shared(.repositorySettings(rootURL)) var repositorySettings
+          @Shared(.settingsFile) var settingsFile
           state.openActionSelection = OpenWorktreeAction.fromSettingsID(
             repositorySettings.openActionID,
-            defaultEditorID: settings.defaultEditorID
+            defaultEditorID: settings.defaultEditorID,
+            globalSettings: settingsFile.global
           )
         }
         return .merge(
@@ -324,7 +326,8 @@ struct AppFeature {
         return .none
 
       case .openSelectedWorktree:
-        return .send(.openWorktree(OpenWorktreeAction.availableSelection(state.openActionSelection)))
+        @Shared(.settingsFile) var settingsFile
+        return .send(.openWorktree(OpenWorktreeAction.availableSelection(state.openActionSelection, settings: settingsFile.global)))
 
       case .openWorktree(let action):
         guard let worktree = state.repositories.worktree(for: state.repositories.selectedWorktreeID) else {
@@ -536,7 +539,8 @@ struct AppFeature {
         )
         state.openActionSelection = OpenWorktreeAction.fromSettingsID(
           settings.openActionID,
-          defaultEditorID: normalizedDefaultEditorID
+          defaultEditorID: normalizedDefaultEditorID,
+          globalSettings: settingsFile.global
         )
         state.selectedRunScript = settings.runScript
         return .none

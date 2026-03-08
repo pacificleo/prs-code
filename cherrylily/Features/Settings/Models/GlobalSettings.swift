@@ -1,3 +1,12 @@
+import Foundation
+
+nonisolated struct CustomWorktreeAction: Codable, Equatable, Identifiable, Sendable {
+  var id: String
+  var name: String
+  var url: URL
+  var icon: Data?
+}
+
 nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
   var appearanceMode: AppearanceMode
   var defaultEditorID: String
@@ -16,9 +25,12 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
   var automaticallyArchiveMergedWorktrees: Bool
   var promptForWorktreeCreation: Bool
 
+  var disabledWorktreeActions: Set<String>
+  var customWorktreeActions: [CustomWorktreeAction]
+
   static let `default` = GlobalSettings(
     appearanceMode: .dark,
-    defaultEditorID: OpenWorktreeAction.automaticSettingsID,
+    defaultEditorID: "auto",
     confirmBeforeQuit: true,
     updateChannel: .stable,
     updatesAutomaticallyCheckForUpdates: true,
@@ -32,7 +44,9 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     githubIntegrationEnabled: true,
     deleteBranchOnDeleteWorktree: true,
     automaticallyArchiveMergedWorktrees: false,
-    promptForWorktreeCreation: true
+    promptForWorktreeCreation: true,
+    disabledWorktreeActions: [],
+    customWorktreeActions: []
   )
 
   init(
@@ -51,7 +65,9 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     githubIntegrationEnabled: Bool,
     deleteBranchOnDeleteWorktree: Bool,
     automaticallyArchiveMergedWorktrees: Bool,
-    promptForWorktreeCreation: Bool
+    promptForWorktreeCreation: Bool,
+    disabledWorktreeActions: Set<String> = [],
+    customWorktreeActions: [CustomWorktreeAction] = []
   ) {
     self.appearanceMode = appearanceMode
     self.defaultEditorID = defaultEditorID
@@ -69,6 +85,8 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     self.deleteBranchOnDeleteWorktree = deleteBranchOnDeleteWorktree
     self.automaticallyArchiveMergedWorktrees = automaticallyArchiveMergedWorktrees
     self.promptForWorktreeCreation = promptForWorktreeCreation
+    self.disabledWorktreeActions = disabledWorktreeActions
+    self.customWorktreeActions = customWorktreeActions
   }
 
   init(from decoder: any Decoder) throws {
@@ -115,5 +133,11 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     promptForWorktreeCreation =
       try container.decodeIfPresent(Bool.self, forKey: .promptForWorktreeCreation)
       ?? Self.default.promptForWorktreeCreation
+    disabledWorktreeActions =
+      try container.decodeIfPresent(Set<String>.self, forKey: .disabledWorktreeActions)
+      ?? Self.default.disabledWorktreeActions
+    customWorktreeActions =
+      try container.decodeIfPresent([CustomWorktreeAction].self, forKey: .customWorktreeActions)
+      ?? Self.default.customWorktreeActions
   }
 }

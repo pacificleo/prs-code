@@ -1,5 +1,7 @@
 import ComposableArchitecture
 import Foundation
+import AppKit
+import UniformTypeIdentifiers
 
 @Reducer
 struct SettingsFeature {
@@ -21,6 +23,8 @@ struct SettingsFeature {
     var deleteBranchOnDeleteWorktree: Bool
     var automaticallyArchiveMergedWorktrees: Bool
     var promptForWorktreeCreation: Bool
+    var disabledWorktreeActions: Set<String>
+    var customWorktreeActions: [CustomWorktreeAction]
     var selection: SettingsSection? = .general
     var repositorySettings: RepositorySettingsFeature.State?
 
@@ -42,6 +46,8 @@ struct SettingsFeature {
       deleteBranchOnDeleteWorktree = settings.deleteBranchOnDeleteWorktree
       automaticallyArchiveMergedWorktrees = settings.automaticallyArchiveMergedWorktrees
       promptForWorktreeCreation = settings.promptForWorktreeCreation
+      disabledWorktreeActions = settings.disabledWorktreeActions
+      customWorktreeActions = settings.customWorktreeActions
     }
 
     var globalSettings: GlobalSettings {
@@ -61,7 +67,9 @@ struct SettingsFeature {
         githubIntegrationEnabled: githubIntegrationEnabled,
         deleteBranchOnDeleteWorktree: deleteBranchOnDeleteWorktree,
         automaticallyArchiveMergedWorktrees: automaticallyArchiveMergedWorktrees,
-        promptForWorktreeCreation: promptForWorktreeCreation
+        promptForWorktreeCreation: promptForWorktreeCreation,
+        disabledWorktreeActions: disabledWorktreeActions,
+        customWorktreeActions: customWorktreeActions
       )
     }
   }
@@ -71,6 +79,8 @@ struct SettingsFeature {
     case settingsLoaded(GlobalSettings)
     case setSelection(SettingsSection?)
     case setSystemNotificationsEnabled(Bool)
+    case addCustomApplicationButtonTapped
+    case removeCustomAction(String)
     case repositorySettings(RepositorySettingsFeature.Action)
     case delegate(Delegate)
     case binding(BindingAction<State>)
@@ -119,6 +129,8 @@ struct SettingsFeature {
         state.deleteBranchOnDeleteWorktree = normalizedSettings.deleteBranchOnDeleteWorktree
         state.automaticallyArchiveMergedWorktrees = normalizedSettings.automaticallyArchiveMergedWorktrees
         state.promptForWorktreeCreation = normalizedSettings.promptForWorktreeCreation
+        state.disabledWorktreeActions = normalizedSettings.disabledWorktreeActions
+        state.customWorktreeActions = normalizedSettings.customWorktreeActions
         return .send(.delegate(.settingsChanged(normalizedSettings)))
 
       case .binding:
@@ -131,6 +143,58 @@ struct SettingsFeature {
       case .setSelection(let selection):
         state.selection = selection ?? .general
         return .none
+
+      case .addCustomApplicationButtonTapped:
+        return .run { send in
+          let newApp: CustomWorktreeAction? = await MainActor.run {
+            let panel = NSOpenPanel()
+            panel.canChooseFiles = true
+            panel.canChooseDirectories = false
+            panel.allowsMultipleSelection = false
+            panel.allowedContentTypes = [.application]
+            panel.prompt = "Add Application"
+
+            guard panel.runModal() == .OK, let url = panel.url else {
+                return nil
+            }
+            
+            let bundle = Bundle(url: url)
+            let bundleID = bundle?.bundleIdentifier ?? url.lastPathComponent
+            
+            let name: String
+            if let displayName = FileManager.default.displayName(atPath: url.path) as String?, !displayName.isEmpty {
+                name = displayName.replacingOccurrences(of: ".app", with: "")
+            } else {
+                name = url.deletingPathExtension().lastPathComponent
+            }
+            
+            let iconData: Data?
+            if let image = NSWorkspace.shared.icon(forFile: url.path) as NSImage? {
+                iconData = image.tiffRepresentation
+            } else {
+                iconData = nil
+            }
+            
+            return CustomWorktreeAction(id: "custom.\(bundleID)", name: name, url: url, icon: iconData)
+          }
+
+          if let newApp {
+            await MainActor.run {
+                @Shared(.settingsFile) var settingsFile
+                var currentSettings = settingsFile.global
+                if !currentSettings.customWorktreeActions.contains(where: { $0.url == newApp.url }) {
+                    currentSettings.customWorktreeActions.append(newApp)
+                    $settingsFile.withLock { $0.global = currentSettings }
+                    analyticsClient.capture("custom_app_added", ["app_name": newApp.name, "bundle_id": newApp.id])
+                }
+            }
+            await send(.task)
+          }
+        }
+
+      case .removeCustomAction(let id):
+        state.customWorktreeActions.removeAll { $0.id == id }
+        return persist(state)
 
       case .repositorySettings:
         return .none

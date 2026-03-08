@@ -39,6 +39,8 @@ struct SettingsView: View {
             .tag(SettingsSection.updates)
           Label("Advanced", systemImage: "gearshape.2")
             .tag(SettingsSection.advanced)
+          Label("App Launcher", systemImage: "sparkles.square.filled.on.square")
+            .tag(SettingsSection.appLauncher)
           Label("GitHub", systemImage: "arrow.triangle.branch")
             .tag(SettingsSection.github)
 
@@ -85,6 +87,12 @@ struct SettingsView: View {
           AdvancedSettingsView(store: settingsStore)
             .navigationTitle("Advanced")
             .navigationSubtitle("Analytics and diagnostics")
+        }
+      case .appLauncher:
+        SettingsDetailView {
+          AppLauncherSettingsView(store: settingsStore)
+            .navigationTitle("App Launcher")
+            .navigationSubtitle("Built-in integrations and custom tools")
         }
       case .github:
         SettingsDetailView {

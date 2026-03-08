@@ -22,7 +22,8 @@ struct OpenWorktreeActionMenuLabelView: View {
     HStack(spacing: 6) {
       if let icon = action.menuIcon {
         switch icon {
-        case .app(let image):
+        case .app(let imageData):
+          let image = NSImage(data: imageData) ?? NSImage()
           Image(nsImage: resizedIcon(image, size: CGSize(width: 16, height: 16)))
             .renderingMode(.original)
             .accessibilityHidden(true)

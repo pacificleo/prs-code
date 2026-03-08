@@ -25,7 +25,7 @@ nonisolated struct RepositorySettings: Codable, Equatable, Sendable {
     setupScript: "",
     archiveScript: "",
     runScript: "",
-    openActionID: OpenWorktreeAction.automaticSettingsID,
+    openActionID: "auto",
     worktreeBaseRef: nil,
     copyIgnoredOnWorktreeCreate: false,
     copyUntrackedOnWorktreeCreate: false,

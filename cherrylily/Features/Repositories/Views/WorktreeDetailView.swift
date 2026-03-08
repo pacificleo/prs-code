@@ -327,8 +327,9 @@ struct WorktreeDetailView: View {
 
     @ViewBuilder
     private func openMenu(openActionSelection: OpenWorktreeAction, showExtras: Bool) -> some View {
-      let availableActions = OpenWorktreeAction.availableCases
-      let resolvedOpenActionSelection = OpenWorktreeAction.availableSelection(openActionSelection)
+      @Shared(.settingsFile) var settingsFile
+      let availableActions = OpenWorktreeAction.availableCases(settings: settingsFile.global)
+      let resolvedOpenActionSelection = OpenWorktreeAction.availableSelection(openActionSelection, settings: settingsFile.global)
       Button {
         onOpenWorktree(resolvedOpenActionSelection)
       } label: {

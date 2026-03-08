@@ -5,7 +5,7 @@ struct AppearanceSettingsView: View {
   @Bindable var store: StoreOf<SettingsFeature>
 
   var body: some View {
-    let openActionOptions = OpenWorktreeAction.availableCases
+    let openActionOptions = OpenWorktreeAction.availableCases(settings: store.state.globalSettings)
     VStack(alignment: .leading) {
       Form {
         Section("Appearance") {
