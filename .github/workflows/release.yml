@@ -192,9 +192,9 @@ jobs:
           cp "$ARCHIVE" "$STAGING/"
           cp "$NOTES_FILE" "$STAGING/$ARCHIVE_BASE.md"
 
-          curl -fsSL "https://cherrylily.sh/download/latest/appcast.xml" -o "$STAGING/appcast.xml" || true
+          curl -fsSL "https://github.com/pacificleo/prs-code/releases/latest/download/appcast.xml" -o "$STAGING/appcast.xml" || true
 
-          RELEASE_REPO="supabitapp/cherrylily"
+          RELEASE_REPO="pacificleo/prs-code"
           SEEN_VERSIONS=""
           for i in $(seq 1 $MAX_DELTAS); do
             PREV_TAG=$(gh release list --limit $i --exclude-drafts --exclude-pre-releases -R "$RELEASE_REPO" --json tagName --jq ".[$((i-1))].tagName" 2>/dev/null || true)
@@ -214,7 +214,7 @@ jobs:
             fi
           done
 
-          printf "%s" "$SPARKLE_PRIVATE_KEY" | tr -d '\r\n\t ' | ./bins/generate_appcast --download-url-prefix "https://cherrylily.sh/download/$TAG/" --full-release-notes-url "https://github.com/supabitapp/cherrylily/releases" --embed-release-notes --maximum-versions $MAX_DELTAS --maximum-deltas $MAX_DELTAS --delta-compression lzma --ed-key-file - "$STAGING"
+          printf "%s" "$SPARKLE_PRIVATE_KEY" | tr -d '\r\n\t ' | ./bins/generate_appcast --download-url-prefix "https://github.com/pacificleo/prs-code/releases/download/$TAG/" --full-release-notes-url "https://github.com/pacificleo/prs-code/releases" --embed-release-notes --maximum-versions $MAX_DELTAS --maximum-deltas $MAX_DELTAS --delta-compression lzma --ed-key-file - "$STAGING"
           cp "$STAGING/appcast.xml" build/appcast.xml
           find "$STAGING" -name "*.delta" -exec cp {} build/ \; 2>/dev/null || true
       - uses: actions/upload-artifact@v6
@@ -251,7 +251,7 @@ jobs:
     permissions:
       contents: write
     env:
-      RELEASE_REPO: supabitapp/cherrylily
+      RELEASE_REPO: pacificleo/prs-code
     steps:
       - run: echo "TAG=${{ github.event.release.tag_name }}" >> "$GITHUB_ENV"
       - uses: actions/download-artifact@v7
@@ -263,7 +263,4 @@ jobs:
           gh release upload "$TAG" build/cherrylily.app.zip build/cherrylily.dmg build/appcast.xml $DELTA_FILES --clobber -R "$RELEASE_REPO"
         env:
           GH_TOKEN: ${{ github.token }}
-      - run: |
-          set -euo pipefail
-          curl -fsSL "https://cherrylily.sh/download/$TAG/cherrylily.app.zip" -o /dev/null
-          curl -fsSL "https://cherrylily.sh/download/$TAG/cherrylily.dmg" -o /dev/null
+

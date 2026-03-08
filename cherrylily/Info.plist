@@ -33,7 +33,7 @@
 	<key>NSSystemAdministrationUsageDescription</key>
 	<string>A program running within CherryLily requires elevated privileges.</string>
 	<key>SUFeedURL</key>
-    <string>https://cherrylily.sh/download/latest/appcast.xml</string>
+    <string>https://github.com/pacificleo/prs-code/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>eBdTbl+6sR8gxO1zyzyvdQHuJrXMLxD31oCc+JoW5jo=</string>
 	<key>SUEnableAutomaticChecks</key>

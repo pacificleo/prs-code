@@ -195,7 +195,7 @@ jobs:
           done
 
           printf "%s" "$SPARKLE_PRIVATE_KEY" | tr -d '\r\n\t ' | ./bins/generate_appcast \
-            --download-url-prefix "https://cherrylily.sh/download/tip/" \
+            --download-url-prefix "https://github.com/pacificleo/prs-code/releases/download/tip/" \
             --maximum-versions $((MAX_DELTAS + 1)) \
             --maximum-deltas $MAX_DELTAS \
             --delta-compression lzma \
