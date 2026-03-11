@@ -1396,6 +1396,51 @@ struct RepositoriesFeatureTests {
     )
   }
 
+  @Test func worktreeRowSectionsAlphabeticalSortFlattensAndSorts() {
+    let repoRoot = "/tmp/repo"
+    let main = makeWorktree(id: repoRoot, name: "main", repoRoot: repoRoot)
+    let cherry = makeWorktree(id: "/tmp/repo/cherry", name: "cherry", repoRoot: repoRoot)
+    let apple = makeWorktree(id: "/tmp/repo/apple", name: "apple", repoRoot: repoRoot)
+    let banana = makeWorktree(id: "/tmp/repo/banana", name: "banana", repoRoot: repoRoot)
+    let repository = makeRepository(
+      id: repoRoot,
+      worktrees: [main, cherry, apple, banana]
+    )
+    var state = makeState(repositories: [repository])
+    state.pinnedWorktreeIDs = [cherry.id]
+    state.$sortWorktreesAlphabetically.withLock { $0 = true }
+
+    let sections = state.worktreeRowSections(in: repository)
+
+    #expect(sections.main?.id == repoRoot)
+    #expect(sections.pinned.isEmpty)
+    #expect(sections.pending.isEmpty)
+    expectNoDifference(
+      sections.unpinned.map(\.name),
+      ["apple", "banana", "cherry"]
+    )
+  }
+
+  @Test func worktreeRowSectionsManualSortPreservesSections() {
+    let repoRoot = "/tmp/repo"
+    let main = makeWorktree(id: repoRoot, name: "main", repoRoot: repoRoot)
+    let cherry = makeWorktree(id: "/tmp/repo/cherry", name: "cherry", repoRoot: repoRoot)
+    let apple = makeWorktree(id: "/tmp/repo/apple", name: "apple", repoRoot: repoRoot)
+    let repository = makeRepository(
+      id: repoRoot,
+      worktrees: [main, cherry, apple]
+    )
+    var state = makeState(repositories: [repository])
+    state.pinnedWorktreeIDs = [cherry.id]
+    state.$sortWorktreesAlphabetically.withLock { $0 = false }
+
+    let sections = state.worktreeRowSections(in: repository)
+
+    #expect(sections.main?.id == repoRoot)
+    expectNoDifference(sections.pinned.map(\.id), [cherry.id])
+    expectNoDifference(sections.unpinned.map(\.id), [apple.id])
+  }
+
   @Test func orderedUnpinnedWorktreesPutMissingFirst() {
     let repoRoot = "/tmp/repo"
     let worktree1 = makeWorktree(id: "/tmp/repo/wt1", name: "wt1", repoRoot: repoRoot)

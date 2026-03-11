@@ -92,6 +92,7 @@ struct RepositoriesFeature {
     var queuedPullRequestRefreshByRepositoryID: [Repository.ID: PendingPullRequestRefresh] = [:]
     var sidebarSelectedWorktreeIDs: Set<Worktree.ID> = []
     @Shared(.appStorage("sidebarCollapsedRepositoryIDs")) var collapsedRepositoryIDs: [Repository.ID] = []
+    @Shared(.appStorage("sidebarSortWorktreesAlphabetically")) var sortWorktreesAlphabetically = false
     @Presents var worktreeCreationPrompt: WorktreeCreationPromptFeature.State?
     @Presents var alert: AlertState<Alert>?
   }
@@ -226,6 +227,7 @@ struct RepositoriesFeature {
     case setGithubIntegrationEnabled(Bool)
     case setAutomaticallyArchiveMergedWorktrees(Bool)
     case setMoveNotifiedWorktreeToTop(Bool)
+    case toggleWorktreeSortOrder
     case pullRequestAction(Worktree.ID, PullRequestAction)
     case showToast(StatusToast)
     case dismissToast
@@ -2498,6 +2500,10 @@ struct RepositoriesFeature {
         state.moveNotifiedWorktreeToTop = isEnabled
         return .none
 
+      case .toggleWorktreeSortOrder:
+        state.$sortWorktreesAlphabetically.withLock { $0.toggle() }
+        return .none
+
       case .openRepositorySettings(let repositoryID):
         return .send(.delegate(.openRepositorySettings(repositoryID)))
 
@@ -3101,6 +3107,16 @@ extension RepositoriesFeature.State {
           isPinned: false,
           isMainWorktree: false
         )
+      )
+    }
+    if sortWorktreesAlphabetically {
+      var allNonMain = pinnedRows + pendingRows + unpinnedRows
+      allNonMain.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+      return WorktreeRowSections(
+        main: mainRow,
+        pinned: [],
+        pending: [],
+        unpinned: allNonMain
       )
     }
     return WorktreeRowSections(

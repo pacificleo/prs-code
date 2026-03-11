@@ -22,6 +22,15 @@ struct SidebarFooterView: View {
       }
       .help("Add Repository (\(AppShortcuts.openRepository.display))")
       Spacer()
+      Button {
+        store.send(.toggleWorktreeSortOrder)
+      } label: {
+        Image(systemName: store.sortWorktreesAlphabetically ? "textformat.abc" : "arrow.up.arrow.down")
+          .accessibilityLabel(
+            store.sortWorktreesAlphabetically ? "Sort by manual order" : "Sort alphabetically"
+          )
+      }
+      .help(store.sortWorktreesAlphabetically ? "Sort by manual order" : "Sort alphabetically")
       Menu {
         Button("Submit GitHub issue", systemImage: "exclamationmark.bubble") {
           if let url = URL(string: "https://github.com/pacificleo/prs-code/issues/new") {

@@ -30,9 +30,11 @@ struct WorktreeRowsView: View {
       uniqueKeysWithValues: allRows.enumerated().map { ($0.element.id, $0.offset) }
     )
     let rowIDs = sections.allRows.map(\.id)
+    let isSortedAlphabetically = state.sortWorktreesAlphabetically
     return rowsGroup(
       sections: sections,
       isRepositoryRemoving: isRepositoryRemoving,
+      isSortedAlphabetically: isSortedAlphabetically,
       showShortcutHints: showShortcutHints,
       shortcutIndexByID: shortcutIndexByID
     )
@@ -43,6 +45,7 @@ struct WorktreeRowsView: View {
   private func rowsGroup(
     sections: WorktreeRowSections,
     isRepositoryRemoving: Bool,
+    isSortedAlphabetically: Bool,
     showShortcutHints: Bool,
     shortcutIndexByID: [Worktree.ID: Int]
   ) -> some View {
@@ -58,7 +61,7 @@ struct WorktreeRowsView: View {
       rowView(
         row,
         isRepositoryRemoving: isRepositoryRemoving,
-        moveDisabled: isRepositoryRemoving || row.isDeleting || row.isArchiving,
+        moveDisabled: isSortedAlphabetically || isRepositoryRemoving || row.isDeleting || row.isArchiving,
         shortcutHint: showShortcutHints ? worktreeShortcutHint(for: shortcutIndexByID[row.id]) : nil
       )
     }
@@ -77,7 +80,7 @@ struct WorktreeRowsView: View {
       rowView(
         row,
         isRepositoryRemoving: isRepositoryRemoving,
-        moveDisabled: isRepositoryRemoving || row.isDeleting || row.isArchiving,
+        moveDisabled: isSortedAlphabetically || isRepositoryRemoving || row.isDeleting || row.isArchiving,
         shortcutHint: showShortcutHints ? worktreeShortcutHint(for: shortcutIndexByID[row.id]) : nil
       )
     }
