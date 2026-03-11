@@ -24,6 +24,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
   var deleteBranchOnDeleteWorktree: Bool
   var automaticallyArchiveMergedWorktrees: Bool
   var promptForWorktreeCreation: Bool
+  var defaultWorktreeBaseDirectoryPath: String?
 
   var disabledWorktreeActions: Set<String>
   var customWorktreeActions: [CustomWorktreeAction]
@@ -45,6 +46,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     deleteBranchOnDeleteWorktree: true,
     automaticallyArchiveMergedWorktrees: false,
     promptForWorktreeCreation: true,
+    defaultWorktreeBaseDirectoryPath: nil,
     disabledWorktreeActions: [],
     customWorktreeActions: []
   )
@@ -66,6 +68,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     deleteBranchOnDeleteWorktree: Bool,
     automaticallyArchiveMergedWorktrees: Bool,
     promptForWorktreeCreation: Bool,
+    defaultWorktreeBaseDirectoryPath: String? = nil,
     disabledWorktreeActions: Set<String> = [],
     customWorktreeActions: [CustomWorktreeAction] = []
   ) {
@@ -85,6 +88,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     self.deleteBranchOnDeleteWorktree = deleteBranchOnDeleteWorktree
     self.automaticallyArchiveMergedWorktrees = automaticallyArchiveMergedWorktrees
     self.promptForWorktreeCreation = promptForWorktreeCreation
+    self.defaultWorktreeBaseDirectoryPath = defaultWorktreeBaseDirectoryPath
     self.disabledWorktreeActions = disabledWorktreeActions
     self.customWorktreeActions = customWorktreeActions
   }
@@ -133,6 +137,9 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     promptForWorktreeCreation =
       try container.decodeIfPresent(Bool.self, forKey: .promptForWorktreeCreation)
       ?? Self.default.promptForWorktreeCreation
+    defaultWorktreeBaseDirectoryPath =
+      try container.decodeIfPresent(String.self, forKey: .defaultWorktreeBaseDirectoryPath)
+      ?? Self.default.defaultWorktreeBaseDirectoryPath
     disabledWorktreeActions =
       try container.decodeIfPresent(Set<String>.self, forKey: .disabledWorktreeActions)
       ?? Self.default.disabledWorktreeActions

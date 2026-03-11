@@ -237,16 +237,16 @@ struct GitClient {
   nonisolated func createWorktree(
     named name: String,
     in repoRoot: URL,
-    copyIgnored: Bool,
-    copyUntracked: Bool,
+    baseDirectory: URL,
+    copyFiles: (ignored: Bool, untracked: Bool),
     baseRef: String
   ) async throws -> Worktree {
     var createdWorktree: Worktree?
     for try await event in createWorktreeStream(
       named: name,
       in: repoRoot,
-      copyIgnored: copyIgnored,
-      copyUntracked: copyUntracked,
+      baseDirectory: baseDirectory,
+      copyFiles: copyFiles,
       baseRef: baseRef
     ) {
       if case .finished(let worktree) = event {
@@ -254,15 +254,14 @@ struct GitClient {
       }
     }
     guard let createdWorktree else {
-      let repositoryRootURL = repoRoot.standardizedFileURL
       let wtURL = try wtScriptURL()
       let command =
         ([wtURL.lastPathComponent]
         + createWorktreeArguments(
-          repositoryRootURL: repositoryRootURL,
+          baseDirectory: baseDirectory,
           name: name,
-          copyIgnored: copyIgnored,
-          copyUntracked: copyUntracked,
+          copyIgnored: copyFiles.ignored,
+          copyUntracked: copyFiles.untracked,
           baseRef: baseRef
         )).joined(separator: " ")
       throw GitClientError.commandFailed(command: command, message: "Empty output")
@@ -273,8 +272,8 @@ struct GitClient {
   nonisolated func createWorktreeStream(
     named name: String,
     in repoRoot: URL,
-    copyIgnored: Bool,
-    copyUntracked: Bool,
+    baseDirectory: URL,
+    copyFiles: (ignored: Bool, untracked: Bool),
     baseRef: String
   ) -> AsyncThrowingStream<GitWorktreeCreateEvent, Error> {
     AsyncThrowingStream { continuation in
@@ -283,10 +282,10 @@ struct GitClient {
         do {
           let wtURL = try wtScriptURL()
           let arguments = createWorktreeArguments(
-            repositoryRootURL: repositoryRootURL,
+            baseDirectory: baseDirectory,
             name: name,
-            copyIgnored: copyIgnored,
-            copyUntracked: copyUntracked,
+            copyIgnored: copyFiles.ignored,
+            copyUntracked: copyFiles.untracked,
             baseRef: baseRef
           )
           let envURL = URL(fileURLWithPath: "/usr/bin/env")
@@ -354,14 +353,13 @@ struct GitClient {
   }
 
   nonisolated private func createWorktreeArguments(
-    repositoryRootURL: URL,
+    baseDirectory: URL,
     name: String,
     copyIgnored: Bool,
     copyUntracked: Bool,
     baseRef: String
   ) -> [String] {
-    let baseDir = CherryLilyPaths.repositoryDirectory(for: repositoryRootURL)
-    var arguments = ["--base-dir", baseDir.path(percentEncoded: false), "sw"]
+    var arguments = ["--base-dir", baseDirectory.path(percentEncoded: false), "sw"]
     if copyIgnored {
       arguments.append("--copy-ignored")
     }

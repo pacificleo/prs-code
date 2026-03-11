@@ -23,6 +23,7 @@ struct SettingsFeature {
     var deleteBranchOnDeleteWorktree: Bool
     var automaticallyArchiveMergedWorktrees: Bool
     var promptForWorktreeCreation: Bool
+    var defaultWorktreeBaseDirectoryPath: String
     var disabledWorktreeActions: Set<String>
     var customWorktreeActions: [CustomWorktreeAction]
     var selection: SettingsSection? = .general
@@ -46,6 +47,8 @@ struct SettingsFeature {
       deleteBranchOnDeleteWorktree = settings.deleteBranchOnDeleteWorktree
       automaticallyArchiveMergedWorktrees = settings.automaticallyArchiveMergedWorktrees
       promptForWorktreeCreation = settings.promptForWorktreeCreation
+      defaultWorktreeBaseDirectoryPath =
+        CherryLilyPaths.normalizedWorktreeBaseDirectoryPath(settings.defaultWorktreeBaseDirectoryPath) ?? ""
       disabledWorktreeActions = settings.disabledWorktreeActions
       customWorktreeActions = settings.customWorktreeActions
     }
@@ -68,6 +71,9 @@ struct SettingsFeature {
         deleteBranchOnDeleteWorktree: deleteBranchOnDeleteWorktree,
         automaticallyArchiveMergedWorktrees: automaticallyArchiveMergedWorktrees,
         promptForWorktreeCreation: promptForWorktreeCreation,
+        defaultWorktreeBaseDirectoryPath: CherryLilyPaths.normalizedWorktreeBaseDirectoryPath(
+          defaultWorktreeBaseDirectoryPath
+        ),
         disabledWorktreeActions: disabledWorktreeActions,
         customWorktreeActions: customWorktreeActions
       )
@@ -103,12 +109,17 @@ struct SettingsFeature {
 
       case .settingsLoaded(let settings):
         let normalizedDefaultEditorID = OpenWorktreeAction.normalizedDefaultEditorID(settings.defaultEditorID)
+        let normalizedWorktreeBaseDirPath =
+          CherryLilyPaths.normalizedWorktreeBaseDirectoryPath(settings.defaultWorktreeBaseDirectoryPath)
         let normalizedSettings: GlobalSettings
-        if normalizedDefaultEditorID == settings.defaultEditorID {
+        if normalizedDefaultEditorID == settings.defaultEditorID,
+          normalizedWorktreeBaseDirPath == settings.defaultWorktreeBaseDirectoryPath
+        {
           normalizedSettings = settings
         } else {
           var updatedSettings = settings
           updatedSettings.defaultEditorID = normalizedDefaultEditorID
+          updatedSettings.defaultWorktreeBaseDirectoryPath = normalizedWorktreeBaseDirPath
           normalizedSettings = updatedSettings
           @Shared(.settingsFile) var settingsFile
           $settingsFile.withLock { $0.global = normalizedSettings }
@@ -129,15 +140,24 @@ struct SettingsFeature {
         state.deleteBranchOnDeleteWorktree = normalizedSettings.deleteBranchOnDeleteWorktree
         state.automaticallyArchiveMergedWorktrees = normalizedSettings.automaticallyArchiveMergedWorktrees
         state.promptForWorktreeCreation = normalizedSettings.promptForWorktreeCreation
+        state.defaultWorktreeBaseDirectoryPath = normalizedSettings.defaultWorktreeBaseDirectoryPath ?? ""
         state.disabledWorktreeActions = normalizedSettings.disabledWorktreeActions
         state.customWorktreeActions = normalizedSettings.customWorktreeActions
+        state.repositorySettings?.globalDefaultWorktreeBaseDirectoryPath =
+          normalizedSettings.defaultWorktreeBaseDirectoryPath
         return .send(.delegate(.settingsChanged(normalizedSettings)))
 
       case .binding:
+        let defaultWorktreeBaseDirectoryPath = state.globalSettings.defaultWorktreeBaseDirectoryPath
+        state.repositorySettings?.globalDefaultWorktreeBaseDirectoryPath =
+          defaultWorktreeBaseDirectoryPath
         return persist(state)
 
       case .setSystemNotificationsEnabled(let isEnabled):
         state.systemNotificationsEnabled = isEnabled
+        let defaultWorktreeBaseDirectoryPath = state.globalSettings.defaultWorktreeBaseDirectoryPath
+        state.repositorySettings?.globalDefaultWorktreeBaseDirectoryPath =
+          defaultWorktreeBaseDirectoryPath
         return persist(state)
 
       case .setSelection(let selection):

@@ -180,7 +180,8 @@ struct RepositoriesFeature {
       pendingID: Worktree.ID,
       previousSelection: Worktree.ID?,
       repositoryID: Repository.ID,
-      name: String?
+      name: String?,
+      baseDirectory: URL
     )
     case consumeSetupScript(Worktree.ID)
     case consumeTerminalFocus(Worktree.ID)
@@ -811,7 +812,14 @@ struct RepositoriesFeature {
         }
         let previousSelection = state.selectedWorktreeID
         let pendingID = "pending:\(uuid().uuidString)"
+        @Shared(.settingsFile) var settingsFile
         @Shared(.repositorySettings(repository.rootURL)) var repositorySettings
+        let globalDefaultWorktreeBaseDirectoryPath = settingsFile.global.defaultWorktreeBaseDirectoryPath
+        let worktreeBaseDirectory = CherryLilyPaths.worktreeBaseDirectory(
+          for: repository.rootURL,
+          globalDefaultPath: globalDefaultWorktreeBaseDirectoryPath,
+          repositoryOverridePath: repositorySettings.worktreeBaseDirectoryPath
+        )
         let selectedBaseRef = repositorySettings.worktreeBaseRef
         let copyIgnoredOnWorktreeCreate = repositorySettings.copyIgnoredOnWorktreeCreate
         let copyUntrackedOnWorktreeCreate = repositorySettings.copyUntrackedOnWorktreeCreate
@@ -865,7 +873,8 @@ struct RepositoriesFeature {
                     pendingID: pendingID,
                     previousSelection: previousSelection,
                     repositoryID: repository.id,
-                    name: nil
+                    name: nil,
+                    baseDirectory: worktreeBaseDirectory
                   )
                 )
                 return
@@ -881,7 +890,8 @@ struct RepositoriesFeature {
                     pendingID: pendingID,
                     previousSelection: previousSelection,
                     repositoryID: repository.id,
-                    name: nil
+                    name: nil,
+                    baseDirectory: worktreeBaseDirectory
                   )
                 )
                 return
@@ -894,7 +904,8 @@ struct RepositoriesFeature {
                     pendingID: pendingID,
                     previousSelection: previousSelection,
                     repositoryID: repository.id,
-                    name: nil
+                    name: nil,
+                    baseDirectory: worktreeBaseDirectory
                   )
                 )
                 return
@@ -907,7 +918,8 @@ struct RepositoriesFeature {
                     pendingID: pendingID,
                     previousSelection: previousSelection,
                     repositoryID: repository.id,
-                    name: nil
+                    name: nil,
+                    baseDirectory: worktreeBaseDirectory
                   )
                 )
                 return
@@ -920,7 +932,8 @@ struct RepositoriesFeature {
                     pendingID: pendingID,
                     previousSelection: previousSelection,
                     repositoryID: repository.id,
-                    name: nil
+                    name: nil,
+                    baseDirectory: worktreeBaseDirectory
                   )
                 )
                 return
@@ -970,7 +983,7 @@ struct RepositoriesFeature {
               copyUntracked ? ((try? await gitClient.untrackedFileCount(repository.rootURL)) ?? 0) : 0
             progress.stage = .creatingWorktree
             progress.commandText = worktreeCreateCommand(
-              repositoryRootURL: repository.rootURL,
+              baseDirectoryURL: worktreeBaseDirectory,
               name: name,
               copyIgnored: copyIgnored,
               copyUntracked: copyUntracked,
@@ -985,6 +998,7 @@ struct RepositoriesFeature {
             let stream = createWorktreeStream(
               name,
               repository.rootURL,
+              worktreeBaseDirectory,
               copyIgnored,
               copyUntracked,
               resolvedBaseRef
@@ -1044,7 +1058,8 @@ struct RepositoriesFeature {
                 pendingID: pendingID,
                 previousSelection: previousSelection,
                 repositoryID: repository.id,
-                name: newWorktreeName
+                name: newWorktreeName,
+                baseDirectory: worktreeBaseDirectory
               )
             )
           }
@@ -1090,7 +1105,8 @@ struct RepositoriesFeature {
         let pendingID,
         let previousSelection,
         let repositoryID,
-        let name
+        let name,
+        let baseDirectory
       ):
         let previousSelectedWorktree = state.worktree(for: previousSelection)
         removePendingWorktree(pendingID, state: &state)
@@ -1098,6 +1114,7 @@ struct RepositoriesFeature {
         let cleanup = cleanupFailedWorktree(
           repositoryID: repositoryID,
           name: name,
+          baseDirectory: baseDirectory,
           state: &state
         )
         state.alert = messageAlert(title: title, message: message)
@@ -3195,6 +3212,7 @@ private func removeWorktree(
 private func cleanupFailedWorktree(
   repositoryID: Repository.ID,
   name: String?,
+  baseDirectory: URL,
   state: inout RepositoriesFeature.State
 ) -> FailedWorktreeCleanup {
   guard let name, !name.isEmpty else {
@@ -3206,12 +3224,12 @@ private func cleanupFailedWorktree(
     )
   }
   let repositoryRootURL = URL(fileURLWithPath: repositoryID).standardizedFileURL
-  let baseDirectory = CherryLilyPaths.repositoryDirectory(for: repositoryRootURL).standardizedFileURL
+  let normalizedBaseDirectory = baseDirectory.standardizedFileURL
   let worktreeURL =
-    baseDirectory
+    normalizedBaseDirectory
     .appending(path: name, directoryHint: .isDirectory)
     .standardizedFileURL
-  guard isPathInsideBaseDirectory(worktreeURL, baseDirectory: baseDirectory) else {
+  guard isPathInsideBaseDirectory(worktreeURL, baseDirectory: normalizedBaseDirectory) else {
     return FailedWorktreeCleanup(
       didRemoveWorktree: false,
       didUpdatePinned: false,
@@ -3300,13 +3318,13 @@ private nonisolated func archiveScriptCommand(_ script: String) -> String {
 }
 
 private nonisolated func worktreeCreateCommand(
-  repositoryRootURL: URL,
+  baseDirectoryURL: URL,
   name: String,
   copyIgnored: Bool,
   copyUntracked: Bool,
   baseRef: String
 ) -> String {
-  let baseDir = CherryLilyPaths.repositoryDirectory(for: repositoryRootURL).path(percentEncoded: false)
+  let baseDir = baseDirectoryURL.path(percentEncoded: false)
   var parts = ["wt", "--base-dir", baseDir, "sw"]
   if copyIgnored {
     parts.append("--copy-ignored")
