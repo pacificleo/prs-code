@@ -33,7 +33,7 @@
 		D64162AD2F23CAF100260CA3 /* ghostty */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ghostty; path = Resources/ghostty; sourceTree = "<group>"; };
 		D64162AE2F23CAF100260CA3 /* terminfo */ = {isa = PBXFileReference; lastKnownFileType = folder; name = terminfo; path = Resources/terminfo; sourceTree = "<group>"; };
 		D64162AF2F23CAF100260CA3 /* git-wt */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "git-wt"; path = "Resources/git-wt"; sourceTree = "<group>"; };
-		D69CE04A2F1F378200584C57 /* cherrylily.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = cherrylily.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D69CE04A2F1F378200584C57 /* CherryLily.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CherryLily.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D6A1CB2F2F1F4A48004FDABD /* GhosttyKit.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = GhosttyKit.xcframework; sourceTree = "<group>"; };
 		D6A1CB342F1F4AC2004FDABD /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
 		D6F821012F1FCBC1004B4174 /* cherrylilyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = cherrylilyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -106,7 +106,7 @@
 		D69CE04B2F1F378200584C57 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				D69CE04A2F1F378200584C57 /* cherrylily.app */,
+				D69CE04A2F1F378200584C57 /* CherryLily.app */,
 				D6F821012F1FCBC1004B4174 /* cherrylilyTests.xctest */,
 			);
 			name = Products;
@@ -148,7 +148,7 @@
 				D661760A2F250A60000FC27C /* CasePaths */,
 			);
 			productName = cherrylily;
-			productReference = D69CE04A2F1F378200584C57 /* cherrylily.app */;
+			productReference = D69CE04A2F1F378200584C57 /* CherryLily.app */;
 			productType = "com.apple.product-type.application";
 		};
 		D6F821002F1FCBC1004B4174 /* cherrylilyTests */ = {
@@ -456,7 +456,7 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -Xcc -Wno-incomplete-umbrella";
 				PRODUCT_BUNDLE_IDENTIFIER = app.supabit.cherrylily;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = CherryLily;
 				REGISTER_APP_GROUPS = YES;
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
 				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
@@ -511,7 +511,7 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -Xcc -Wno-incomplete-umbrella";
 				PRODUCT_BUNDLE_IDENTIFIER = app.supabit.cherrylily;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = CherryLily;
 				REGISTER_APP_GROUPS = YES;
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
 				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
@@ -546,7 +546,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/cherrylily.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/cherrylily";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CherryLily.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/CherryLily";
 			};
 			name = Debug;
 		};
@@ -568,7 +568,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/cherrylily.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/cherrylily";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CherryLily.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/CherryLily";
 			};
 			name = Release;
 		};

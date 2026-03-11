@@ -122,7 +122,7 @@ jobs:
       - name: Re-sign frameworks
         run: |
           set -ex
-          APP_PATH="$(find build/export -name "cherrylily.app" -maxdepth 3 -print -quit)"
+          APP_PATH="$(find build/export -name "CherryLily.app" -maxdepth 3 -print -quit)"
           SPARKLE="$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B"
 
           codesign -f -s "$DEVELOPER_ID_IDENTITY_SHA" -o runtime --timestamp -v "$SPARKLE/XPCServices/Installer.xpc"
@@ -147,7 +147,7 @@ jobs:
           rm notarization_key.p8
       - name: Build DMG
         run: |
-          APP_PATH="$(find build/export -name "cherrylily.app" -maxdepth 3 -print -quit)"
+          APP_PATH="$(find build/export -name "CherryLily.app" -maxdepth 3 -print -quit)"
 
           mise exec -- create-dmg "$APP_PATH" build/ \
             --overwrite \
@@ -160,7 +160,7 @@ jobs:
           fi
       - name: Notarize and staple
         run: |
-          APP_PATH="$(find build/export -name "cherrylily.app" -maxdepth 3 -print -quit)"
+          APP_PATH="$(find build/export -name "CherryLily.app" -maxdepth 3 -print -quit)"
 
           for attempt in 1 2 3; do
             echo "Notarization attempt $attempt..."
@@ -173,8 +173,8 @@ jobs:
           xcrun stapler staple "$APP_PATH"
       - name: Create app zip for Sparkle
         run: |
-          APP_PATH="$(find build/export -name "cherrylily.app" -maxdepth 3 -print -quit)"
-          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" build/cherrylily.app.zip
+          APP_PATH="$(find build/export -name "CherryLily.app" -maxdepth 3 -print -quit)"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" build/CherryLily.app.zip
       - name: Generate tip appcast
         env:
           GH_TOKEN: ${{ github.token }}
@@ -182,7 +182,7 @@ jobs:
           set -euo pipefail
           MAX_DELTAS=10
           STAGING=$(mktemp -d)
-          cp build/cherrylily.app.zip "$STAGING/"
+          cp build/CherryLily.app.zip "$STAGING/"
 
           # Download previous tip builds stored as history assets
           ASSETS=$(gh release view tip -R "${{ github.repository }}" --json assets --jq '.assets[].name' 2>/dev/null || true)
@@ -209,7 +209,7 @@ jobs:
           name: build-artifacts
           path: |
             build/cherrylily.dmg
-            build/cherrylily.app.zip
+            build/CherryLily.app.zip
             build/appcast.xml
             build/*.delta
 
@@ -273,11 +273,11 @@ jobs:
           done
 
           DELTA_FILES=$(find build -name "*.delta" -type f 2>/dev/null | tr '\n' ' ' || true)
-          gh release upload tip build/cherrylily.dmg build/cherrylily.app.zip build/appcast.xml $DELTA_FILES --clobber -R "${{ github.repository }}"
+          gh release upload tip build/cherrylily.dmg build/CherryLily.app.zip build/appcast.xml $DELTA_FILES --clobber -R "${{ github.repository }}"
 
           # Store current build as history asset for future delta generation
           MAX_DELTAS=10
-          cp build/cherrylily.app.zip "build/cherrylily-history-${{ github.run_number }}.app.zip"
+          cp build/CherryLily.app.zip "build/cherrylily-history-${{ github.run_number }}.app.zip"
           gh release upload tip "build/cherrylily-history-${{ github.run_number }}.app.zip" --clobber -R "${{ github.repository }}"
 
           # Prune oldest history assets beyond MAX_DELTAS
