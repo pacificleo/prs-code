@@ -7,6 +7,13 @@ final class CommandKeyObserver {
   private static let holdDelay: Duration = .milliseconds(300)
 
   var isPressed: Bool
+  var isEnabled: Bool {
+    didSet {
+      if !isEnabled {
+        isPressed = false
+      }
+    }
+  }
   private var monitor: Any?
   private var didBecomeActiveObserver: NSObjectProtocol?
   private var didResignActiveObserver: NSObjectProtocol?
@@ -14,6 +21,7 @@ final class CommandKeyObserver {
 
   init() {
     isPressed = false
+    isEnabled = false
     monitor = nil
     didBecomeActiveObserver = nil
     didResignActiveObserver = nil
@@ -57,7 +65,7 @@ final class CommandKeyObserver {
     holdTask?.cancel()
     holdTask = nil
 
-    if isDown {
+    if isDown, isEnabled {
       holdTask = Task {
         try? await ContinuousClock().sleep(for: Self.holdDelay)
         guard !Task.isCancelled else { return }

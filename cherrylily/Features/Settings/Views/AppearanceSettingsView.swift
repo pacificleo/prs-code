@@ -44,6 +44,13 @@ struct AppearanceSettingsView: View {
           }
           .help("Applies to worktrees without repository overrides.")
         }
+        Section("Keyboard") {
+          Toggle(
+            "Show shortcut hints when holding Command or Control",
+            isOn: $store.showShortcutHints
+          )
+          .help("Show keyboard shortcut hints on worktree rows, tabs, and buttons when holding modifier keys")
+        }
         Section("Quit") {
           Toggle(
             "Confirm before quitting",

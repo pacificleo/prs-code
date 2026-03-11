@@ -23,6 +23,7 @@ struct SettingsFeature {
     var deleteBranchOnDeleteWorktree: Bool
     var automaticallyArchiveMergedWorktrees: Bool
     var promptForWorktreeCreation: Bool
+    var showShortcutHints: Bool
     var defaultWorktreeBaseDirectoryPath: String
     var disabledWorktreeActions: Set<String>
     var customWorktreeActions: [CustomWorktreeAction]
@@ -47,6 +48,7 @@ struct SettingsFeature {
       deleteBranchOnDeleteWorktree = settings.deleteBranchOnDeleteWorktree
       automaticallyArchiveMergedWorktrees = settings.automaticallyArchiveMergedWorktrees
       promptForWorktreeCreation = settings.promptForWorktreeCreation
+      showShortcutHints = settings.showShortcutHints
       defaultWorktreeBaseDirectoryPath =
         CherryLilyPaths.normalizedWorktreeBaseDirectoryPath(settings.defaultWorktreeBaseDirectoryPath) ?? ""
       disabledWorktreeActions = settings.disabledWorktreeActions
@@ -71,6 +73,7 @@ struct SettingsFeature {
         deleteBranchOnDeleteWorktree: deleteBranchOnDeleteWorktree,
         automaticallyArchiveMergedWorktrees: automaticallyArchiveMergedWorktrees,
         promptForWorktreeCreation: promptForWorktreeCreation,
+        showShortcutHints: showShortcutHints,
         defaultWorktreeBaseDirectoryPath: CherryLilyPaths.normalizedWorktreeBaseDirectoryPath(
           defaultWorktreeBaseDirectoryPath
         ),
@@ -140,6 +143,7 @@ struct SettingsFeature {
         state.deleteBranchOnDeleteWorktree = normalizedSettings.deleteBranchOnDeleteWorktree
         state.automaticallyArchiveMergedWorktrees = normalizedSettings.automaticallyArchiveMergedWorktrees
         state.promptForWorktreeCreation = normalizedSettings.promptForWorktreeCreation
+        state.showShortcutHints = normalizedSettings.showShortcutHints
         state.defaultWorktreeBaseDirectoryPath = normalizedSettings.defaultWorktreeBaseDirectoryPath ?? ""
         state.disabledWorktreeActions = normalizedSettings.disabledWorktreeActions
         state.customWorktreeActions = normalizedSettings.customWorktreeActions

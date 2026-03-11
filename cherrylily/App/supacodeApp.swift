@@ -106,6 +106,7 @@ struct CherryLilyApp: App {
     let worktreeInfoWatcher = WorktreeInfoWatcherManager()
     _worktreeInfoWatcher = State(initialValue: worktreeInfoWatcher)
     let keyObserver = CommandKeyObserver()
+    keyObserver.isEnabled = initialSettings.showShortcutHints
     _commandKeyObserver = State(initialValue: keyObserver)
     let appStore = Store(
       initialState: AppFeature.State(settings: SettingsFeature.State(settings: initialSettings))
@@ -147,6 +148,9 @@ struct CherryLilyApp: App {
           .environment(commandKeyObserver)
       }
       .preferredColorScheme(store.settings.appearanceMode.colorScheme)
+      .onChange(of: store.settings.showShortcutHints) { _, newValue in
+        commandKeyObserver.isEnabled = newValue
+      }
     }
     .environment(ghosttyShortcuts)
     .environment(commandKeyObserver)
