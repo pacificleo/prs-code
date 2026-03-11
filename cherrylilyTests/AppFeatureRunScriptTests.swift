@@ -4,7 +4,7 @@ import Foundation
 import Sharing
 import Testing
 
-@testable import cherrylily
+@testable import CherryLily
 
 @MainActor
 struct AppFeatureRunScriptTests {

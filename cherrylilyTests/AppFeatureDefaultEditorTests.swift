@@ -3,7 +3,7 @@ import DependenciesTestSupport
 import Foundation
 import Testing
 
-@testable import cherrylily
+@testable import CherryLily
 
 @MainActor
 struct AppFeatureDefaultEditorTests {
@@ -96,7 +96,7 @@ struct AppFeatureDefaultEditorTests {
   @Test(.dependencies) func selectedWorktreeChangedOnlyUpdatesWatcherSelection() async {
     let worktree = makeWorktree()
     let repositoriesState = makeRepositoriesState(worktree: worktree)
-    let expectedOpenActionSelection = OpenWorktreeAction.preferredDefault()
+    let expectedOpenActionSelection = OpenWorktreeAction.preferredDefault(settings: .default)
     let watcherCommands = LockIsolated<[WorktreeInfoWatcherClient.Command]>([])
     let storage = SettingsTestStorage()
     let settingsFileURL = URL(

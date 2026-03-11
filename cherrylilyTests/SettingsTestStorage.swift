@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import cherrylily
+@testable import CherryLily
 
 nonisolated final class SettingsTestStorage: @unchecked Sendable {
   private let lock = NSLock()

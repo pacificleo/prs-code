@@ -1,7 +1,7 @@
 import AppKit
 import Testing
 
-@testable import cherrylily
+@testable import CherryLily
 
 struct CommandKeyObserverTests {
   @Test func shouldShowShortcutsForCommandOrControl() {

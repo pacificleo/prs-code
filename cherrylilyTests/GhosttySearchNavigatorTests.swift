@@ -1,6 +1,6 @@
 import Testing
 
-@testable import cherrylily
+@testable import CherryLily
 
 struct GhosttySearchNavigatorTests {
   @Test func nextWrapsFromLastToFirst() {

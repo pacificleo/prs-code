@@ -4,7 +4,7 @@ import Foundation
 import IdentifiedCollections
 import Testing
 
-@testable import cherrylily
+@testable import CherryLily
 
 @MainActor
 struct AppFeatureCommandPaletteTests {

@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import cherrylily
+@testable import CherryLily
 
 struct GithubBatchPullRequestsTests {
   @Test func mapsGraphQLAliasesToBranches() throws {

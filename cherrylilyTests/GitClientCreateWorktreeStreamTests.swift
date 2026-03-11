@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import cherrylily
+@testable import CherryLily
 
 nonisolated final class GitShellInvocationRecorder: @unchecked Sendable {
   struct Snapshot {
@@ -232,8 +232,8 @@ struct GitClientCreateWorktreeStreamTests {
       for try await _ in client.createWorktreeStream(
         named: "new-wt",
         in: repoRoot,
-        copyIgnored: false,
-        copyUntracked: false,
+        baseDirectory: repoRoot,
+        copyFiles: (ignored: false, untracked: false),
         baseRef: ""
       ) {}
       Issue.record("Expected createWorktreeStream to throw when stdout path is missing")
@@ -272,8 +272,8 @@ struct GitClientCreateWorktreeStreamTests {
       _ = try await client.createWorktree(
         named: "new-wt",
         in: repoRoot,
-        copyIgnored: false,
-        copyUntracked: false,
+        baseDirectory: repoRoot,
+        copyFiles: (ignored: false, untracked: false),
         baseRef: ""
       )
       Issue.record("Expected createWorktree to throw")

@@ -2,7 +2,7 @@ import CustomDump
 import SwiftUI
 import Testing
 
-@testable import cherrylily
+@testable import CherryLily
 
 @MainActor
 struct AppShortcutsTests {

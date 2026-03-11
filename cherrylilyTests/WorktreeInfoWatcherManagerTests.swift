@@ -2,7 +2,7 @@ import Clocks
 import Foundation
 import Testing
 
-@testable import cherrylily
+@testable import CherryLily
 
 @MainActor
 struct WorktreeInfoWatcherManagerTests {

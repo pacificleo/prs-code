@@ -7,7 +7,7 @@ import IdentifiedCollections
 import Sharing
 import Testing
 
-@testable import cherrylily
+@testable import CherryLily
 
 @MainActor
 struct RepositoriesFeatureTests {

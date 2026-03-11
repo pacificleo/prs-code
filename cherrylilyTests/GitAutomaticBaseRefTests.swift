@@ -1,6 +1,6 @@
 import Testing
 
-@testable import cherrylily
+@testable import CherryLily
 
 struct GitAutomaticBaseRefTests {
   @Test func prefersRemoteWhenAvailable() {

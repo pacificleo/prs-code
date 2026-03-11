@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import cherrylily
+@testable import CherryLily
 
 nonisolated final class LoginStreamCallRecorder: @unchecked Sendable {
   struct Snapshot {

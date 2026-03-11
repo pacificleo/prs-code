@@ -4,7 +4,7 @@ import Foundation
 import Sharing
 import Testing
 
-@testable import cherrylily
+@testable import CherryLily
 
 struct RepositoryPersistenceClientTests {
   @Test(.dependencies) func savesAndLoadsRootsAndPins() async throws {

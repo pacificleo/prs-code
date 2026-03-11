@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import cherrylily
+@testable import CherryLily
 
 actor LineChangesShellCallStore {
   private(set) var calls: [[String]] = []

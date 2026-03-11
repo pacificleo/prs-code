@@ -2,7 +2,7 @@ import ComposableArchitecture
 import DependenciesTestSupport
 import Testing
 
-@testable import cherrylily
+@testable import CherryLily
 
 @MainActor
 struct AppFeatureSettingsChangedTests {
