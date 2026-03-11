@@ -22,6 +22,9 @@ final class WorktreeTerminalManager {
     if handleTabCommand(command) {
       return
     }
+    if handleBindingActionCommand(command) {
+      return
+    }
     if handleSearchCommand(command) {
       return
     }
@@ -47,6 +50,16 @@ final class WorktreeTerminalManager {
       _ = closeFocusedTab(in: worktree)
     case .closeFocusedSurface(let worktree):
       _ = closeFocusedSurface(in: worktree)
+    default:
+      return false
+    }
+    return true
+  }
+
+  private func handleBindingActionCommand(_ command: TerminalClient.Command) -> Bool {
+    switch command {
+    case .performBindingAction(let worktree, let action):
+      state(for: worktree).performBindingActionOnFocusedSurface(action)
     default:
       return false
     }

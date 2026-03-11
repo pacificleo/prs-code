@@ -13,6 +13,7 @@ struct TerminalClient {
     case stopRunScript(Worktree)
     case closeFocusedTab(Worktree)
     case closeFocusedSurface(Worktree)
+    case performBindingAction(Worktree, action: String)
     case startSearch(Worktree)
     case searchSelection(Worktree)
     case navigateSearchNext(Worktree)
