@@ -618,6 +618,10 @@ final class WorktreeTerminalState {
       guard let self, let view else { return }
       self.appendNotification(title: title, body: body, surfaceId: view.id)
     }
+    view.bridge.onBellRang = { [weak self, weak view] in
+      guard let self, let view else { return }
+      self.appendNotification(title: "Bell", body: "", surfaceId: view.id)
+    }
     view.bridge.onCloseRequest = { [weak self, weak view] processAlive in
       guard let self, let view else { return }
       self.handleCloseRequest(for: view, processAlive: processAlive)

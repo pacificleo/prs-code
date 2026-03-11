@@ -5,6 +5,22 @@ import Testing
 
 @MainActor
 struct GhosttySurfaceBridgeTests {
+  @Test func bellRangEmitsCallback() {
+    let bridge = GhosttySurfaceBridge()
+    var bellCount = 0
+    bridge.onBellRang = {
+      bellCount += 1
+    }
+
+    var action = ghostty_action_s()
+    action.tag = GHOSTTY_ACTION_RING_BELL
+    let target = ghostty_target_s()
+    _ = bridge.handleAction(target: target, action: action)
+
+    #expect(bellCount == 1)
+    #expect(bridge.state.bellCount == 1)
+  }
+
   @Test func desktopNotificationEmitsCallback() {
     let bridge = GhosttySurfaceBridge()
     var received: (String, String)?

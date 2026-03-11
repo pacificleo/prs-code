@@ -17,6 +17,7 @@ final class GhosttySurfaceBridge {
   var onCommandPaletteToggle: (() -> Bool)?
   var onProgressReport: ((ghostty_action_progress_report_state_e) -> Void)?
   var onDesktopNotification: ((String, String) -> Void)?
+  var onBellRang: (() -> Void)?
   private var progressResetTask: Task<Void, Never>?
 
   deinit {
@@ -245,6 +246,7 @@ final class GhosttySurfaceBridge {
 
     case GHOSTTY_ACTION_RING_BELL:
       state.bellCount += 1
+      onBellRang?()
       return true
 
     default:
