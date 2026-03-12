@@ -126,6 +126,9 @@ final class GhosttyRuntime {
     lastColorScheme = ghosttyScheme
     ghostty_app_set_color_scheme(app, ghosttyScheme)
     applyColorSchemeToSurfaces(ghosttyScheme)
+    var target = ghostty_target_s()
+    target.tag = GHOSTTY_TARGET_APP
+    reloadConfig(soft: false, target: target)
   }
 
   func registerSurface(_ surface: ghostty_surface_t) -> SurfaceReference {
