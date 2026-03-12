@@ -18,7 +18,7 @@ VERSION ?=
 BUILD ?=
 XCODEBUILD_FLAGS ?=
 .DEFAULT_GOAL := help
-.PHONY: build-ghostty-xcframework build-app run-app install-dev-build archive export-archive format lint check test bump-version bump-and-release log-stream
+.PHONY: build-ghostty-xcframework build-app run-app install-dev-build build-release install-release-build archive export-archive format lint check test bump-version bump-and-release log-stream
 
 help:  # Display this help.
 	@-+echo "Run make with one of the following targets:"
@@ -51,6 +51,24 @@ run-app: build-app # Build then launch (Debug) with log streaming
 
 install-dev-build: build-app # install dev build to /Applications
 	@settings="$$(xcodebuild -project cherrylily.xcodeproj -scheme cherrylily -configuration Debug -showBuildSettings -json 2>/dev/null)"; \
+	build_dir="$$(echo "$$settings" | jq -r '.[0].buildSettings.BUILT_PRODUCTS_DIR')"; \
+	product="$$(echo "$$settings" | jq -r '.[0].buildSettings.FULL_PRODUCT_NAME')"; \
+	src="$$build_dir/$$product"; \
+	dst="/Applications/$$product"; \
+	if [ ! -d "$$src" ]; then \
+		echo "app not found: $$src"; \
+		exit 1; \
+	fi; \
+	echo "copying $$src -> $$dst"; \
+	rm -rf "$$dst"; \
+	ditto "$$src" "$$dst"; \
+	echo "installed $$dst"
+
+build-release: build-ghostty-xcframework # Build the macOS app (Release, unsigned)
+	bash -o pipefail -c 'xcodebuild -project cherrylily.xcodeproj -scheme cherrylily -configuration Release build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -skipMacroValidation -clonedSourcePackagesDirPath $(SPM_CACHE_DIR) $(XCODEBUILD_FLAGS) 2>&1 | mise exec -- xcsift -qw --format toon'
+
+install-release-build: build-release # install release build to /Applications
+	@settings="$$(xcodebuild -project cherrylily.xcodeproj -scheme cherrylily -configuration Release -showBuildSettings -json 2>/dev/null)"; \
 	build_dir="$$(echo "$$settings" | jq -r '.[0].buildSettings.BUILT_PRODUCTS_DIR')"; \
 	product="$$(echo "$$settings" | jq -r '.[0].buildSettings.FULL_PRODUCT_NAME')"; \
 	src="$$build_dir/$$product"; \
