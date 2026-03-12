@@ -66,6 +66,7 @@ struct OpenWorktreeAction: Identifiable, Equatable, Hashable, Sendable {
   static let terminal = OpenWorktreeAction(bundleIdentifier: "com.apple.Terminal", title: "Terminal", settingsID: "terminal")
   static let vscode = OpenWorktreeAction(bundleIdentifier: "com.microsoft.VSCode", title: "VS Code", settingsID: "vscode")
   static let vscodeInsiders = OpenWorktreeAction(bundleIdentifier: "com.microsoft.VSCodeInsiders", title: "VS Code Insiders", settingsID: "vscode-insiders")
+  static let vscodium = OpenWorktreeAction(bundleIdentifier: "com.vscodium", title: "VSCodium", settingsID: "vscodium")
   static let warp = OpenWorktreeAction(bundleIdentifier: "dev.warp.Warp-Stable", title: "Warp", settingsID: "warp")
   static let webstorm = OpenWorktreeAction(bundleIdentifier: "com.jetbrains.WebStorm", title: "WebStorm", settingsID: "webstorm")
   static let wezterm = OpenWorktreeAction(bundleIdentifier: "com.github.wez.wezterm", title: "WezTerm", settingsID: "wezterm")
@@ -76,14 +77,14 @@ struct OpenWorktreeAction: Identifiable, Equatable, Hashable, Sendable {
   static let allPredefinedCases: [OpenWorktreeAction] = [
     .alacritty, .antigravity, .editor, .finder, .cursor, .githubDesktop, .fork, .gitkraken,
     .gitup, .ghostty, .intellij, .kitty, .pycharm, .rustrover, .smartgit, .sourcetree,
-    .sublimeMerge, .terminal, .vscode, .vscodeInsiders, .warp, .webstorm, .wezterm,
+    .sublimeMerge, .terminal, .vscode, .vscodeInsiders, .vscodium, .warp, .webstorm, .wezterm,
     .windsurf, .xcode, .zed
   ]
 
   static let automaticSettingsID = "auto"
 
   static let editorPriority: [OpenWorktreeAction] = [
-    .cursor, .zed, .vscode, .windsurf, .vscodeInsiders, .intellij, .webstorm, .pycharm,
+    .cursor, .zed, .vscode, .windsurf, .vscodeInsiders, .vscodium, .intellij, .webstorm, .pycharm,
     .rustrover, .antigravity
   ]
 
