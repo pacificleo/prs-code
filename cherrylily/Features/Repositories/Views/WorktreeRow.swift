@@ -22,7 +22,7 @@ struct WorktreeRow: View {
   @Environment(\.colorScheme) private var colorScheme
 
   var body: some View {
-    let showsSpinner = isLoading || taskStatus == .running
+    let showsSpinner = (isLoading || taskStatus == .running) && !showsNotificationIndicator
     let branchIconName = isMainWorktree ? "star.fill" : (isPinned ? "pin.fill" : "arrow.triangle.branch")
     let display = WorktreePullRequestDisplay(
       worktreeName: name,
