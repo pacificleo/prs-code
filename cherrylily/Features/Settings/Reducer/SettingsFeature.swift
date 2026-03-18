@@ -29,6 +29,7 @@ struct SettingsFeature {
     var customWorktreeActions: [CustomWorktreeAction]
     var selection: SettingsSection? = .general
     var repositorySettings: RepositorySettingsFeature.State?
+    @Presents var alert: AlertState<Alert>?
 
     init(settings: GlobalSettings = .default) {
       let normalizedDefaultEditorID = OpenWorktreeAction.normalizedDefaultEditorID(settings.defaultEditorID)
@@ -90,9 +91,16 @@ struct SettingsFeature {
     case setSystemNotificationsEnabled(Bool)
     case addCustomApplicationButtonTapped
     case removeCustomAction(String)
+    case showNotificationPermissionAlert(errorMessage: String?)
     case repositorySettings(RepositorySettingsFeature.Action)
+    case alert(PresentationAction<Alert>)
     case delegate(Delegate)
     case binding(BindingAction<State>)
+  }
+
+  enum Alert: Equatable {
+    case dismiss
+    case openSystemNotificationSettings
   }
 
   @CasePathable
@@ -101,6 +109,7 @@ struct SettingsFeature {
   }
 
   @Dependency(AnalyticsClient.self) private var analyticsClient
+  @Dependency(SystemNotificationClient.self) private var systemNotificationClient
 
   var body: some Reducer<State, Action> {
     BindingReducer()
@@ -164,6 +173,29 @@ struct SettingsFeature {
           defaultWorktreeBaseDirectoryPath
         return persist(state)
 
+      case .showNotificationPermissionAlert(let errorMessage):
+        let message: String
+        if let errorMessage, !errorMessage.isEmpty {
+          message =
+            "CherryLily cannot send system notifications.\n\n"
+            + "Error: \(errorMessage)"
+        } else {
+          message = "CherryLily cannot send system notifications while permission is denied."
+        }
+        state.alert = AlertState {
+          TextState("Enable Notifications in System Settings")
+        } actions: {
+          ButtonState(action: .openSystemNotificationSettings) {
+            TextState("Open System Settings")
+          }
+          ButtonState(role: .cancel, action: .dismiss) {
+            TextState("Cancel")
+          }
+        } message: {
+          TextState(message)
+        }
+        return .none
+
       case .setSelection(let selection):
         state.selection = selection ?? .general
         return .none
@@ -181,24 +213,24 @@ struct SettingsFeature {
             guard panel.runModal() == .OK, let url = panel.url else {
                 return nil
             }
-            
+
             let bundle = Bundle(url: url)
             let bundleID = bundle?.bundleIdentifier ?? url.lastPathComponent
-            
+
             let name: String
             if let displayName = FileManager.default.displayName(atPath: url.path) as String?, !displayName.isEmpty {
                 name = displayName.replacingOccurrences(of: ".app", with: "")
             } else {
                 name = url.deletingPathExtension().lastPathComponent
             }
-            
+
             let iconData: Data?
             if let image = NSWorkspace.shared.icon(forFile: url.path) as NSImage? {
                 iconData = image.tiffRepresentation
             } else {
                 iconData = nil
             }
-            
+
             return CustomWorktreeAction(id: "custom.\(bundleID)", name: name, url: url, icon: iconData)
           }
 
@@ -219,6 +251,19 @@ struct SettingsFeature {
       case .removeCustomAction(let id):
         state.customWorktreeActions.removeAll { $0.id == id }
         return persist(state)
+
+      case .alert(.dismiss):
+        state.alert = nil
+        return .none
+
+      case .alert(.presented(.openSystemNotificationSettings)):
+        state.alert = nil
+        return .run { _ in
+          await systemNotificationClient.openSettings()
+        }
+
+      case .alert:
+        return .none
 
       case .repositorySettings:
         return .none
