@@ -30,6 +30,10 @@ final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
   var appStore: StoreOf<AppFeature>?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
+    // Disable press-and-hold accent menu so that key repeat works in the terminal.
+    UserDefaults.standard.register(defaults: [
+      "ApplePressAndHoldEnabled": false,
+    ])
     appStore?.send(.appLaunched)
   }
 
