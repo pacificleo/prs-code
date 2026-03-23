@@ -18,14 +18,16 @@ struct TerminalCommands: Commands {
       }
       .modifier(KeyboardShortcutModifier(shortcut: ghosttyShortcuts.keyboardShortcut(for: "new_tab")))
       .disabled(newTerminalAction == nil)
-      Button("Close") {
+      Button("Close Terminal") {
         closeSurfaceAction?()
       }
       .modifier(
-        KeyboardShortcutModifier(shortcut: ghosttyShortcuts.keyboardShortcut(for: "close_surface"))
+        KeyboardShortcutModifier(
+          shortcut: closeSurfaceAction == nil ? nil : ghosttyShortcuts.keyboardShortcut(for: "close_surface")
+        )
       )
       .disabled(closeSurfaceAction == nil)
-      Button("Close Tab") {
+      Button("Close Terminal Tab") {
         closeTabAction?()
       }
       .modifier(
@@ -166,17 +168,5 @@ extension FocusedValues {
   var endSearchAction: (() -> Void)? {
     get { self[EndSearchActionKey.self] }
     set { self[EndSearchActionKey.self] = newValue }
-  }
-}
-
-private struct KeyboardShortcutModifier: ViewModifier {
-  let shortcut: KeyboardShortcut?
-
-  func body(content: Content) -> some View {
-    if let shortcut {
-      content.keyboardShortcut(shortcut)
-    } else {
-      content
-    }
   }
 }
