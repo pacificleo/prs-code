@@ -1,3 +1,5 @@
+import Sharing
+
 struct CommandPaletteItem: Identifiable, Equatable {
   static let defaultPriorityTier = 100
 
@@ -47,9 +49,9 @@ struct CommandPaletteItem: Identifiable, Equatable {
   var isGlobal: Bool {
     switch kind {
     case .checkForUpdates, .openRepository, .openSettings, .newWorktree, .refreshWorktrees:
-      return true
+      true
     case .ghosttyCommand:
-      return false
+      false
     case .openPullRequest,
       .markPullRequestReady,
       .mergePullRequest,
@@ -58,12 +60,12 @@ struct CommandPaletteItem: Identifiable, Equatable {
       .copyCiFailureLogs,
       .rerunFailedJobs,
       .openFailingCheckDetails:
-      return true
+      true
     case .worktreeSelect, .removeWorktree, .archiveWorktree:
-      return false
+      false
     #if DEBUG
       case .debugTestToast:
-        return true
+        true
     #endif
     }
   }
@@ -71,9 +73,9 @@ struct CommandPaletteItem: Identifiable, Equatable {
   var isRootAction: Bool {
     switch kind {
     case .checkForUpdates, .openRepository, .openSettings, .newWorktree, .refreshWorktrees:
-      return true
+      true
     case .ghosttyCommand:
-      return false
+      false
     case .openPullRequest,
       .markPullRequestReady,
       .mergePullRequest,
@@ -85,30 +87,23 @@ struct CommandPaletteItem: Identifiable, Equatable {
       .worktreeSelect,
       .removeWorktree,
       .archiveWorktree:
-      return false
+      false
     #if DEBUG
       case .debugTestToast:
-        return false
+        false
     #endif
     }
   }
 
   var appShortcut: AppShortcut? {
     switch kind {
-    case .checkForUpdates:
-      return AppShortcuts.checkForUpdates
-    case .openRepository:
-      return AppShortcuts.openRepository
-    case .openSettings:
-      return AppShortcuts.openSettings
-    case .newWorktree:
-      return AppShortcuts.newWorktree
-    case .refreshWorktrees:
-      return AppShortcuts.refreshWorktrees
-    case .ghosttyCommand:
-      return nil
-    case .openPullRequest:
-      return AppShortcuts.openPullRequest
+    case .checkForUpdates: AppShortcuts.checkForUpdates
+    case .openRepository: AppShortcuts.openRepository
+    case .openSettings: AppShortcuts.openSettings
+    case .newWorktree: AppShortcuts.newWorktree
+    case .refreshWorktrees: AppShortcuts.refreshWorktrees
+    case .ghosttyCommand: nil
+    case .openPullRequest: AppShortcuts.openPullRequest
     case .markPullRequestReady,
       .mergePullRequest,
       .closePullRequest,
@@ -119,19 +114,25 @@ struct CommandPaletteItem: Identifiable, Equatable {
       .worktreeSelect,
       .removeWorktree,
       .archiveWorktree:
-      return nil
+      nil
     #if DEBUG
       case .debugTestToast:
-        return nil
+        nil
     #endif
     }
   }
 
   var appShortcutLabel: String? {
-    appShortcut?.display
+    effectiveAppShortcut?.display
   }
 
   var appShortcutSymbols: [String]? {
-    appShortcut?.displaySymbols
+    effectiveAppShortcut?.displaySymbols
+  }
+
+  private var effectiveAppShortcut: AppShortcut? {
+    guard let shortcut = appShortcut else { return nil }
+    @Shared(.settingsFile) var settingsFile
+    return shortcut.effective(from: settingsFile.global.shortcutOverrides)
   }
 }

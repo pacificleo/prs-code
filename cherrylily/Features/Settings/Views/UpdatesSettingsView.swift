@@ -32,7 +32,11 @@ struct UpdatesSettingsView: View {
         Button("Check for Updates Now") {
           updatesStore.send(.checkForUpdates)
         }
-        .help("Check for Updates (\(AppShortcuts.checkForUpdates.display))")
+        .help(
+          {
+            let display = AppShortcuts.checkForUpdates.effective(from: settingsStore.shortcutOverrides)?.display
+            return "Check for Updates (\(display ?? "none"))"
+          }())
         Spacer()
       }
       .padding(.top)

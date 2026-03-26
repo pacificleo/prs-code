@@ -15,34 +15,20 @@ extension KeyboardShortcut {
 extension KeyEquivalent {
   var display: String {
     switch self {
-    case .delete:
-      return "⌫"
-    case .return:
-      return "↩"
-    case .escape:
-      return "⎋"
-    case .tab:
-      return "⇥"
-    case .space:
-      return "␠"
-    case .upArrow:
-      return "↑"
-    case .downArrow:
-      return "↓"
-    case .leftArrow:
-      return "←"
-    case .rightArrow:
-      return "→"
-    case .home:
-      return "↖"
-    case .end:
-      return "↘"
-    case .pageUp:
-      return "⇞"
-    case .pageDown:
-      return "⇟"
-    default:
-      return String(character).uppercased()
+    case .delete: "⌫"
+    case .return: "↩"
+    case .escape: "⎋"
+    case .tab: "⇥"
+    case .space: "Space"
+    case .upArrow: "↑"
+    case .downArrow: "↓"
+    case .leftArrow: "←"
+    case .rightArrow: "→"
+    case .home: "↖"
+    case .end: "↘"
+    case .pageUp: "⇞"
+    case .pageDown: "⇟"
+    default: String(character).uppercased()
     }
   }
 }

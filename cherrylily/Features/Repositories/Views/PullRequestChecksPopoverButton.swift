@@ -1,3 +1,4 @@
+import Sharing
 import SwiftUI
 
 struct PullRequestChecksPopoverButton<Label: View>: View {
@@ -8,6 +9,7 @@ struct PullRequestChecksPopoverButton<Label: View>: View {
   @State private var isHoveringPopover = false
   @State private var closeTask: Task<Void, Never>?
   @Environment(\.openURL) private var openURL
+  @Shared(.settingsFile) private var settingsFile
 
   var body: some View {
     let pullRequestURL = URL(string: pullRequest.url)
@@ -21,7 +23,13 @@ struct PullRequestChecksPopoverButton<Label: View>: View {
     }
     .buttonStyle(.plain)
     .contentShape(.rect)
-    .help("Open pull request on GitHub (\(AppShortcuts.openPullRequest.display)). Hover to show checks.")
+    .help(
+      {
+        let overrides = settingsFile.global.shortcutOverrides
+        let display = AppShortcuts.openPullRequest.effective(from: overrides)?.display ?? "none"
+        return "Open pull request on GitHub (\(display)). Hover to show checks."
+      }()
+    )
     .accessibilityLabel("Open pull request on GitHub")
     .onHover { hovering in
       isHoveringButton = hovering

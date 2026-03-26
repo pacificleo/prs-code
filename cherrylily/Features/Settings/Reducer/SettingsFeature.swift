@@ -27,6 +27,7 @@ struct SettingsFeature {
     var defaultWorktreeBaseDirectoryPath: String
     var disabledWorktreeActions: Set<String>
     var customWorktreeActions: [CustomWorktreeAction]
+    var shortcutOverrides: [AppShortcutID: AppShortcutOverride]
     var selection: SettingsSection? = .general
     var repositorySettings: RepositorySettingsFeature.State?
     @Presents var alert: AlertState<Alert>?
@@ -50,6 +51,7 @@ struct SettingsFeature {
       automaticallyArchiveMergedWorktrees = settings.automaticallyArchiveMergedWorktrees
       promptForWorktreeCreation = settings.promptForWorktreeCreation
       showShortcutHints = settings.showShortcutHints
+      shortcutOverrides = settings.shortcutOverrides
       defaultWorktreeBaseDirectoryPath =
         CherryLilyPaths.normalizedWorktreeBaseDirectoryPath(settings.defaultWorktreeBaseDirectoryPath) ?? ""
       disabledWorktreeActions = settings.disabledWorktreeActions
@@ -79,7 +81,8 @@ struct SettingsFeature {
           defaultWorktreeBaseDirectoryPath
         ),
         disabledWorktreeActions: disabledWorktreeActions,
-        customWorktreeActions: customWorktreeActions
+        customWorktreeActions: customWorktreeActions,
+        shortcutOverrides: shortcutOverrides
       )
     }
   }
@@ -92,6 +95,9 @@ struct SettingsFeature {
     case addCustomApplicationButtonTapped
     case removeCustomAction(String)
     case showNotificationPermissionAlert(errorMessage: String?)
+    case updateShortcut(id: AppShortcutID, override: AppShortcutOverride?)
+    case toggleShortcutEnabled(id: AppShortcutID, enabled: Bool)
+    case resetAllShortcuts
     case repositorySettings(RepositorySettingsFeature.Action)
     case alert(PresentationAction<Alert>)
     case delegate(Delegate)
@@ -153,6 +159,7 @@ struct SettingsFeature {
         state.automaticallyArchiveMergedWorktrees = normalizedSettings.automaticallyArchiveMergedWorktrees
         state.promptForWorktreeCreation = normalizedSettings.promptForWorktreeCreation
         state.showShortcutHints = normalizedSettings.showShortcutHints
+        state.shortcutOverrides = normalizedSettings.shortcutOverrides
         state.defaultWorktreeBaseDirectoryPath = normalizedSettings.defaultWorktreeBaseDirectoryPath ?? ""
         state.disabledWorktreeActions = normalizedSettings.disabledWorktreeActions
         state.customWorktreeActions = normalizedSettings.customWorktreeActions
@@ -195,6 +202,40 @@ struct SettingsFeature {
           TextState(message)
         }
         return .none
+
+      case .updateShortcut(let id, let override):
+        if let override {
+          state.shortcutOverrides[id] = override
+        } else {
+          state.shortcutOverrides.removeValue(forKey: id)
+        }
+        return persist(state)
+
+      case .toggleShortcutEnabled(let id, let enabled):
+        if enabled {
+          // Re-enable: if override exists with a real binding, just flip the flag.
+          // If it was a disabled sentinel, remove the override entirely (restore default).
+          if var existing = state.shortcutOverrides[id] {
+            existing.isEnabled = true
+            if existing.keyCode == 0, existing.modifiers.isEmpty {
+              state.shortcutOverrides.removeValue(forKey: id)
+            } else {
+              state.shortcutOverrides[id] = existing
+            }
+          }
+        } else {
+          if var existing = state.shortcutOverrides[id] {
+            existing.isEnabled = false
+            state.shortcutOverrides[id] = existing
+          } else {
+            state.shortcutOverrides[id] = .disabled
+          }
+        }
+        return persist(state)
+
+      case .resetAllShortcuts:
+        state.shortcutOverrides = [:]
+        return persist(state)
 
       case .setSelection(let selection):
         state.selection = selection ?? .general

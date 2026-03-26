@@ -1,17 +1,18 @@
+import Sharing
 import SwiftUI
 
 struct SidebarCommands: Commands {
   @FocusedValue(\.toggleLeftSidebarAction) private var toggleLeftSidebarAction
+  @Shared(.settingsFile) private var settingsFile
 
   var body: some Commands {
+    let toggleLeftSidebar = AppShortcuts.toggleLeftSidebar.effective(from: settingsFile.global.shortcutOverrides)
     CommandGroup(replacing: .sidebar) {
       Button("Toggle Left Sidebar") {
         toggleLeftSidebarAction?()
       }
-      .keyboardShortcut(
-        AppShortcuts.toggleLeftSidebar.keyEquivalent, modifiers: AppShortcuts.toggleLeftSidebar.modifiers
-      )
-      .help("Toggle Left Sidebar (\(AppShortcuts.toggleLeftSidebar.display))")
+      .appKeyboardShortcut(toggleLeftSidebar)
+      .help("Toggle Left Sidebar (\(toggleLeftSidebar?.display ?? "none"))")
       .disabled(toggleLeftSidebarAction == nil)
     }
   }

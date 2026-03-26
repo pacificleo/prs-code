@@ -33,4 +33,15 @@ final class GhosttyShortcutManager {
     guard let shortcut = keyboardShortcut(for: action) else { return nil }
     return shortcut.display
   }
+
+  // Display strings for terminal actions that have app-level menu bindings.
+  var reservedDisplayStrings: Set<String> {
+    _ = generation
+    return Set(Self.terminalActions.compactMap { display(for: $0) })
+  }
+
+  private static let terminalActions = [
+    "new_tab", "close_surface", "close_tab",
+    "start_search", "search:next", "search:previous", "end_search", "search_selection",
+  ]
 }

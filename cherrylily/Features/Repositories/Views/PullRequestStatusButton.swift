@@ -1,8 +1,15 @@
+import Sharing
 import SwiftUI
 
 struct PullRequestStatusButton: View {
   let model: PullRequestStatusModel
   @Environment(CommandKeyObserver.self) private var commandKeyObserver
+  @Shared(.settingsFile) private var settingsFile
+
+  private var openPRDisplay: String {
+    let effective = AppShortcuts.openPullRequest.effective(from: settingsFile.global.shortcutOverrides)
+    return effective?.display ?? ""
+  }
 
   var body: some View {
     PullRequestChecksPopoverButton(pullRequest: model.pullRequest) {
@@ -20,11 +27,11 @@ struct PullRequestStatusButton: View {
         if let detailText = model.detailText {
           Text(
             commandKeyObserver.isPressed
-              ? "Open on GitHub \(AppShortcuts.openPullRequest.display)" : detailText
+              ? "Open on GitHub \(openPRDisplay)" : detailText
           )
           .lineLimit(1)
         } else if commandKeyObserver.isPressed {
-          Text("Open on GitHub \(AppShortcuts.openPullRequest.display)")
+          Text("Open on GitHub \(openPRDisplay)")
             .lineLimit(1)
         }
         if model.detailText == nil, !commandKeyObserver.isPressed {

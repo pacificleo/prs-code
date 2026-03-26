@@ -26,6 +26,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
   var promptForWorktreeCreation: Bool
   var showShortcutHints: Bool
   var defaultWorktreeBaseDirectoryPath: String?
+  var shortcutOverrides: [AppShortcutID: AppShortcutOverride]
 
   var disabledWorktreeActions: Set<String>
   var customWorktreeActions: [CustomWorktreeAction]
@@ -50,7 +51,8 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     showShortcutHints: false,
     defaultWorktreeBaseDirectoryPath: nil,
     disabledWorktreeActions: [],
-    customWorktreeActions: []
+    customWorktreeActions: [],
+    shortcutOverrides: [:]
   )
 
   init(
@@ -73,7 +75,8 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     showShortcutHints: Bool = false,
     defaultWorktreeBaseDirectoryPath: String? = nil,
     disabledWorktreeActions: Set<String> = [],
-    customWorktreeActions: [CustomWorktreeAction] = []
+    customWorktreeActions: [CustomWorktreeAction] = [],
+    shortcutOverrides: [AppShortcutID: AppShortcutOverride] = [:]
   ) {
     self.appearanceMode = appearanceMode
     self.defaultEditorID = defaultEditorID
@@ -95,6 +98,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     self.defaultWorktreeBaseDirectoryPath = defaultWorktreeBaseDirectoryPath
     self.disabledWorktreeActions = disabledWorktreeActions
     self.customWorktreeActions = customWorktreeActions
+    self.shortcutOverrides = shortcutOverrides
   }
 
   init(from decoder: any Decoder) throws {
@@ -153,5 +157,8 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     customWorktreeActions =
       try container.decodeIfPresent([CustomWorktreeAction].self, forKey: .customWorktreeActions)
       ?? Self.default.customWorktreeActions
+    shortcutOverrides =
+      try container.decodeIfPresent([AppShortcutID: AppShortcutOverride].self, forKey: .shortcutOverrides)
+      ?? Self.default.shortcutOverrides
   }
 }

@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import Sharing
 import SwiftUI
 
 struct SidebarFooterView: View {
@@ -6,8 +7,14 @@ struct SidebarFooterView: View {
   @Environment(\.surfaceBottomChromeBackgroundOpacity) private var surfaceBottomChromeBackgroundOpacity
   @Environment(\.openURL) private var openURL
   @Environment(CommandKeyObserver.self) private var commandKeyObserver
+  @Shared(.settingsFile) private var settingsFile
 
   var body: some View {
+    let overrides = settingsFile.global.shortcutOverrides
+    let openRepo = AppShortcuts.openRepository.effective(from: overrides)
+    let refresh = AppShortcuts.refreshWorktrees.effective(from: overrides)
+    let archived = AppShortcuts.archivedWorktrees.effective(from: overrides)
+    let settings = AppShortcuts.openSettings.effective(from: overrides)
     HStack {
       Button {
         store.send(.setOpenPanelPresented(true))
@@ -16,11 +23,11 @@ struct SidebarFooterView: View {
           Label("Add Repository", systemImage: "folder.badge.plus")
             .font(.callout)
           if commandKeyObserver.isPressed {
-            ShortcutHintView(text: AppShortcuts.openRepository.display, color: .secondary)
+            ShortcutHintView(text: openRepo?.display ?? "", color: .secondary)
           }
         }
       }
-      .help("Add Repository (\(AppShortcuts.openRepository.display))")
+      .help("Add Repository (\(openRepo?.display ?? "none"))")
       Spacer()
       Button {
         store.send(.toggleWorktreeSortOrder)
@@ -51,7 +58,7 @@ struct SidebarFooterView: View {
           .symbolEffect(.rotate, options: .repeating, isActive: store.state.isRefreshingWorktrees)
           .accessibilityLabel("Refresh Worktrees")
       }
-      .help("Refresh Worktrees (\(AppShortcuts.refreshWorktrees.display))")
+      .help("Refresh Worktrees (\(refresh?.display ?? "none"))")
       .disabled(store.state.repositoryRoots.isEmpty && !store.state.isRefreshingWorktrees)
       Button {
         store.send(.selectArchivedWorktrees)
@@ -59,12 +66,12 @@ struct SidebarFooterView: View {
         Image(systemName: "archivebox")
           .accessibilityLabel("Archived Worktrees")
       }
-      .help("Archived Worktrees (\(AppShortcuts.archivedWorktrees.display))")
+      .help("Archived Worktrees (\(archived?.display ?? "none"))")
       Button("Settings", systemImage: "gearshape") {
         SettingsWindowManager.shared.show()
       }
       .labelStyle(.iconOnly)
-      .help("Settings (\(AppShortcuts.openSettings.display))")
+      .help("Settings (\(settings?.display ?? "none"))")
     }
     .buttonStyle(.plain)
     .font(.callout)

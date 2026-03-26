@@ -14,10 +14,12 @@ import SwiftUI
 
 private enum GhosttyCLI {
   static let argv: [UnsafeMutablePointer<CChar>?] = {
+    @Shared(.settingsFile) var settingsFile
+    let overrides = settingsFile.global.shortcutOverrides
     var args: [UnsafeMutablePointer<CChar>?] = []
     let executable = CommandLine.arguments.first ?? "cherrylily"
     args.append(strdup(executable))
-    for keybindArgument in AppShortcuts.ghosttyCLIKeybindArguments {
+    for keybindArgument in AppShortcuts.ghosttyCLIKeybindArguments(from: overrides) {
       args.append(strdup(keybindArgument))
     }
     args.append(nil)
@@ -32,7 +34,7 @@ final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
     // Disable press-and-hold accent menu so that key repeat works in the terminal.
     UserDefaults.standard.register(defaults: [
-      "ApplePressAndHoldEnabled": false,
+      "ApplePressAndHoldEnabled": false
     ])
     appStore?.send(.appLaunched)
   }
@@ -170,11 +172,12 @@ struct CherryLilyApp: App {
       TerminalCommands(ghosttyShortcuts: ghosttyShortcuts)
       WindowCommands(ghosttyShortcuts: ghosttyShortcuts)
       CommandGroup(after: .textEditing) {
+        let cmdPalette = AppShortcuts.commandPalette.effective(from: store.settings.shortcutOverrides)
         Button("Command Palette") {
           store.send(.commandPalette(.togglePresented))
         }
-        .keyboardShortcut("p", modifiers: .command)
-        .help("Command Palette (⌘P)")
+        .appKeyboardShortcut(cmdPalette)
+        .help("Command Palette (\(cmdPalette?.display ?? "none"))")
       }
       UpdateCommands(store: store.scope(state: \.updates, action: \.updates))
       CommandGroup(replacing: .windowArrangement) {
@@ -198,13 +201,11 @@ struct CherryLilyApp: App {
         .help("Zoom (no shortcut)")
       }
       CommandGroup(replacing: .appSettings) {
+        let settings = AppShortcuts.openSettings.effective(from: store.settings.shortcutOverrides)
         Button("Settings...") {
           SettingsWindowManager.shared.show()
         }
-        .keyboardShortcut(
-          AppShortcuts.openSettings.keyEquivalent,
-          modifiers: AppShortcuts.openSettings.modifiers
-        )
+        .appKeyboardShortcut(settings)
       }
       CommandGroup(replacing: .appTermination) {
         Button("Quit CherryLily") {

@@ -1,5 +1,6 @@
 import AppKit
 import ComposableArchitecture
+import Sharing
 import SwiftUI
 
 struct WorktreeRowsView: View {
@@ -287,7 +288,9 @@ struct WorktreeRowsView: View {
 
   private func worktreeShortcutHint(for index: Int?) -> String? {
     guard let index, AppShortcuts.worktreeSelection.indices.contains(index) else { return nil }
-    return AppShortcuts.worktreeSelection[index].display
+    @Shared(.settingsFile) var settingsFile
+    let overrides = settingsFile.global.shortcutOverrides
+    return AppShortcuts.worktreeSelection[index].effective(from: overrides)?.display
   }
 
   private func togglePin(for worktreeID: Worktree.ID, isPinned: Bool) {

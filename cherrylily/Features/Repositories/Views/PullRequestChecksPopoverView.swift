@@ -1,3 +1,4 @@
+import Sharing
 import SwiftUI
 
 struct PullRequestChecksPopoverView: View {
@@ -7,6 +8,7 @@ struct PullRequestChecksPopoverView: View {
   private let sortedChecks: [GithubPullRequestStatusCheck]
   @Environment(\.analyticsClient) private var analyticsClient
   @Environment(\.openURL) private var openURL
+  @Shared(.settingsFile) private var settingsFile
 
   init(
     pullRequest: GithubPullRequest,
@@ -23,6 +25,10 @@ struct PullRequestChecksPopoverView: View {
       }
       return left < right
     }
+  }
+
+  private var effectiveOpenPR: AppShortcut? {
+    AppShortcuts.openPullRequest.effective(from: settingsFile.global.shortcutOverrides)
   }
 
   var body: some View {
@@ -58,8 +64,8 @@ struct PullRequestChecksPopoverView: View {
           }
           .buttonStyle(.plain)
           .focusable(false)
-          .help("Open pull request on GitHub (\(AppShortcuts.openPullRequest.display))")
-          .keyboardShortcut(AppShortcuts.openPullRequest.keyboardShortcut)
+          .help("Open pull request on GitHub (\(effectiveOpenPR?.display ?? "none"))")
+          .appKeyboardShortcut(effectiveOpenPR)
           .font(.headline)
         } else {
           titleLine

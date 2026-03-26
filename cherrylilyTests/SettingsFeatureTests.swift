@@ -1,3 +1,4 @@
+import Carbon.HIToolbox
 import ComposableArchitecture
 import CustomDump
 import DependenciesTestSupport
@@ -246,5 +247,154 @@ struct SettingsFeatureTests {
     await store.receive(\.delegate.settingsChanged)
     #expect(store.state.repositorySettings?.globalDefaultWorktreeBaseDirectoryPath == expectedPath)
     #expect(settingsFile.global.defaultWorktreeBaseDirectoryPath == expectedPath)
+  }
+
+  // MARK: - Keyboard shortcut overrides.
+
+  @Test(.dependencies) func updateShortcutPersistsOverride() async {
+    @Shared(.settingsFile) var settingsFile
+    $settingsFile.withLock { $0.global = .default }
+
+    let store = TestStore(initialState: SettingsFeature.State()) {
+      SettingsFeature()
+    }
+
+    let override = AppShortcutOverride(keyCode: UInt16(kVK_ANSI_K), modifiers: [.command])
+    await store.send(.updateShortcut(id: .newWorktree, override: override)) {
+      $0.shortcutOverrides[.newWorktree] = override
+    }
+    await store.receive(\.delegate.settingsChanged)
+    #expect(settingsFile.global.shortcutOverrides[.newWorktree] == override)
+  }
+
+  @Test(.dependencies) func updateShortcutRemovesOverride() async {
+    let override = AppShortcutOverride(keyCode: UInt16(kVK_ANSI_K), modifiers: [.command])
+    var initialSettings = GlobalSettings.default
+    initialSettings.shortcutOverrides = [.newWorktree: override]
+    @Shared(.settingsFile) var settingsFile
+    $settingsFile.withLock { $0.global = initialSettings }
+
+    let store = TestStore(initialState: SettingsFeature.State(settings: initialSettings)) {
+      SettingsFeature()
+    }
+
+    await store.send(.updateShortcut(id: .newWorktree, override: nil)) {
+      $0.shortcutOverrides.removeValue(forKey: .newWorktree)
+    }
+    await store.receive(\.delegate.settingsChanged)
+    #expect(settingsFile.global.shortcutOverrides[.newWorktree] == nil)
+  }
+
+  @Test(.dependencies) func resetAllShortcutsClearsOverrides() async {
+    let override = AppShortcutOverride(keyCode: UInt16(kVK_ANSI_K), modifiers: [.command])
+    var initialSettings = GlobalSettings.default
+    initialSettings.shortcutOverrides = [
+      .newWorktree: override,
+      .openSettings: override,
+    ]
+    @Shared(.settingsFile) var settingsFile
+    $settingsFile.withLock { $0.global = initialSettings }
+
+    let store = TestStore(initialState: SettingsFeature.State(settings: initialSettings)) {
+      SettingsFeature()
+    }
+
+    await store.send(.resetAllShortcuts) {
+      $0.shortcutOverrides = [:]
+    }
+    await store.receive(\.delegate.settingsChanged)
+    #expect(settingsFile.global.shortcutOverrides.isEmpty)
+  }
+
+  // MARK: - Toggle shortcut enabled.
+
+  @Test(.dependencies) func toggleShortcutDisabledInsertsDisabledSentinel() async {
+    @Shared(.settingsFile) var settingsFile
+    $settingsFile.withLock { $0.global = .default }
+
+    let store = TestStore(initialState: SettingsFeature.State()) {
+      SettingsFeature()
+    }
+
+    await store.send(.toggleShortcutEnabled(id: .newWorktree, enabled: false)) {
+      $0.shortcutOverrides[.newWorktree] = .disabled
+    }
+    await store.receive(\.delegate.settingsChanged)
+    #expect(settingsFile.global.shortcutOverrides[.newWorktree] == .disabled)
+  }
+
+  @Test(.dependencies) func toggleShortcutDisabledWithExistingOverrideFlipsFlag() async {
+    let override = AppShortcutOverride(keyCode: UInt16(kVK_ANSI_K), modifiers: [.command])
+    var initialSettings = GlobalSettings.default
+    initialSettings.shortcutOverrides = [.newWorktree: override]
+    @Shared(.settingsFile) var settingsFile
+    $settingsFile.withLock { $0.global = initialSettings }
+
+    let store = TestStore(initialState: SettingsFeature.State(settings: initialSettings)) {
+      SettingsFeature()
+    }
+
+    let expected = AppShortcutOverride(keyCode: UInt16(kVK_ANSI_K), modifiers: [.command], isEnabled: false)
+    await store.send(.toggleShortcutEnabled(id: .newWorktree, enabled: false)) {
+      $0.shortcutOverrides[.newWorktree] = expected
+    }
+    await store.receive(\.delegate.settingsChanged)
+    #expect(settingsFile.global.shortcutOverrides[.newWorktree] == expected)
+  }
+
+  @Test(.dependencies) func toggleShortcutEnabledRemovesDisabledSentinel() async {
+    var initialSettings = GlobalSettings.default
+    initialSettings.shortcutOverrides = [.newWorktree: .disabled]
+    @Shared(.settingsFile) var settingsFile
+    $settingsFile.withLock { $0.global = initialSettings }
+
+    let store = TestStore(initialState: SettingsFeature.State(settings: initialSettings)) {
+      SettingsFeature()
+    }
+
+    await store.send(.toggleShortcutEnabled(id: .newWorktree, enabled: true)) {
+      $0.shortcutOverrides.removeValue(forKey: .newWorktree)
+    }
+    await store.receive(\.delegate.settingsChanged)
+    #expect(settingsFile.global.shortcutOverrides[.newWorktree] == nil)
+  }
+
+  @Test(.dependencies) func toggleShortcutEnabledReEnablesCustomOverride() async {
+    let override = AppShortcutOverride(keyCode: UInt16(kVK_ANSI_K), modifiers: [.command], isEnabled: false)
+    var initialSettings = GlobalSettings.default
+    initialSettings.shortcutOverrides = [.newWorktree: override]
+    @Shared(.settingsFile) var settingsFile
+    $settingsFile.withLock { $0.global = initialSettings }
+
+    let store = TestStore(initialState: SettingsFeature.State(settings: initialSettings)) {
+      SettingsFeature()
+    }
+
+    let expected = AppShortcutOverride(keyCode: UInt16(kVK_ANSI_K), modifiers: [.command], isEnabled: true)
+    await store.send(.toggleShortcutEnabled(id: .newWorktree, enabled: true)) {
+      $0.shortcutOverrides[.newWorktree] = expected
+    }
+    await store.receive(\.delegate.settingsChanged)
+    #expect(settingsFile.global.shortcutOverrides[.newWorktree] == expected)
+  }
+
+  // MARK: - Settings loaded includes overrides.
+
+  @Test(.dependencies) func settingsLoadedIncludesShortcutOverrides() async {
+    let override = AppShortcutOverride(keyCode: UInt16(kVK_ANSI_K), modifiers: [.command])
+    var loaded = GlobalSettings.default
+    loaded.shortcutOverrides = [.openSettings: override]
+    @Shared(.settingsFile) var settingsFile
+    $settingsFile.withLock { $0.global = loaded }
+
+    let store = TestStore(initialState: SettingsFeature.State()) {
+      SettingsFeature()
+    }
+
+    await store.send(.task)
+    await store.receive(\.settingsLoaded) {
+      $0.shortcutOverrides = [.openSettings: override]
+    }
+    await store.receive(\.delegate.settingsChanged)
   }
 }

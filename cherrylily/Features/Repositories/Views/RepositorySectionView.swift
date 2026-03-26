@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import Sharing
 import SwiftUI
 
 struct RepositorySectionView: View {
@@ -12,6 +13,7 @@ struct RepositorySectionView: View {
   let terminalManager: WorktreeTerminalManager
   @Environment(\.colorScheme) private var colorScheme
   @State private var isHovering = false
+  @Shared(.settingsFile) private var settingsFile
 
   var body: some View {
     let state = store.state
@@ -74,7 +76,12 @@ struct RepositorySectionView: View {
           }
           .buttonStyle(.plain)
           .foregroundStyle(.secondary)
-          .help("New Worktree (\(AppShortcuts.newWorktree.display))")
+          .help(
+            {
+              let display = AppShortcuts.newWorktree.effective(from: settingsFile.global.shortcutOverrides)?.display
+              return "New Worktree (\(display ?? "none"))"
+            }()
+          )
           .disabled(isRemovingRepository)
           Button {
             toggleExpanded()

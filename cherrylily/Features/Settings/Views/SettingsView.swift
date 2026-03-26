@@ -35,6 +35,8 @@ struct SettingsView: View {
             .tag(SettingsSection.notifications)
           Label("Worktree", systemImage: "archivebox")
             .tag(SettingsSection.worktree)
+          Label("Shortcuts", systemImage: "command")
+            .tag(SettingsSection.shortcuts)
           Label("Updates", systemImage: "arrow.down.circle")
             .tag(SettingsSection.updates)
           Label("Advanced", systemImage: "gearshape.2")
@@ -76,6 +78,10 @@ struct SettingsView: View {
             .navigationTitle("Worktree")
             .navigationSubtitle("Archive behavior")
         }
+      case .shortcuts:
+        KeyboardShortcutsSettingsView(store: settingsStore)
+          .navigationTitle("Keyboard Shortcuts")
+          .navigationSubtitle("Customize key bindings")
       case .updates:
         SettingsDetailView {
           UpdatesSettingsView(settingsStore: settingsStore, updatesStore: updatesStore)
