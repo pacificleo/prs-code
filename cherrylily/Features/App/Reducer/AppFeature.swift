@@ -246,6 +246,11 @@ struct AppFeature {
       case .repositories(.delegate(.requestRenameBranchPrompt(let worktreeID))):
         return .send(.beginRenameBranch(worktreeID))
 
+      case .repositories(.delegate(.runBlockingScript(let worktree, _, let kind, let script))):
+        return .run { _ in
+          await terminalClient.send(.runBlockingScript(worktree, kind: kind, script: script))
+        }
+
       case .settings(.setSelection(let selection)):
         let resolvedSelection = selection ?? .general
         switch resolvedSelection {
@@ -711,6 +716,12 @@ struct AppFeature {
         let entry = NavigationEntry(worktreeID: worktreeID, tabID: tabID)
         state.navigationHistory.record(entry)
         return .none
+
+      case .terminalEvent(.blockingScriptCompleted(let worktreeID, let kind, let exitCode)):
+        switch kind {
+        case .archive:
+          return .send(.repositories(.archiveScriptCompleted(worktreeID: worktreeID, exitCode: exitCode)))
+        }
 
       case .terminalEvent:
         return .none

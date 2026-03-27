@@ -13,6 +13,7 @@ struct TerminalClient {
     case ensureInitialTab(Worktree, runSetupScriptIfNew: Bool, focusing: Bool)
     case runScript(Worktree, script: String)
     case stopRunScript(Worktree)
+    case runBlockingScript(Worktree, kind: BlockingScriptKind, script: String)
     case closeFocusedTab(Worktree)
     case closeFocusedSurface(Worktree)
     case performBindingAction(Worktree, action: String)
@@ -36,6 +37,7 @@ struct TerminalClient {
     case tabFocusChanged(worktreeID: Worktree.ID, tabID: TerminalTabID)
     case taskStatusChanged(worktreeID: Worktree.ID, status: WorktreeTaskStatus)
     case runScriptStatusChanged(worktreeID: Worktree.ID, isRunning: Bool)
+    case blockingScriptCompleted(worktreeID: Worktree.ID, kind: BlockingScriptKind, exitCode: Int?)
     case commandPaletteToggleRequested(worktreeID: Worktree.ID)
     case setupScriptConsumed(worktreeID: Worktree.ID)
   }
