@@ -62,20 +62,21 @@ extension AppShortcutOverride {
 
 extension AppShortcutOverride {
   var displayString: String {
-    displaySymbols.joined()
+    Self.displaySymbols(for: keyCode, modifiers: modifiers).joined()
   }
 
   // Ordered array of individual display symbols: one per modifier, followed by the key.
   var displaySymbols: [String] {
-    displayModifierParts + [Self.displayCharacter(for: keyCode)]
+    Self.displaySymbols(for: keyCode, modifiers: modifiers)
   }
 
-  private var displayModifierParts: [String] {
+  static func displaySymbols(for keyCode: UInt16, modifiers: ModifierFlags) -> [String] {
     var parts: [String] = []
     if modifiers.contains(.command) { parts.append("⌘") }
     if modifiers.contains(.shift) { parts.append("⇧") }
     if modifiers.contains(.option) { parts.append("⌥") }
     if modifiers.contains(.control) { parts.append("⌃") }
+    parts.append(displayCharacter(for: keyCode, modifiers: modifiers))
     return parts
   }
 }
@@ -163,9 +164,16 @@ extension AppShortcutOverride {
   // Resolves the character for a key code using the current keyboard layout,
   // falling back to US QWERTY when the layout is unavailable (e.g., CI, sandboxed contexts).
   static func layoutCharacter(for code: UInt16) -> String? {
-    if let char = currentLayoutCharacter(for: code) { return char }
+    if let char = currentLayoutCharacter(for: code, modifierState: 0) { return char }
     shortcutLogger.debug("Using US QWERTY fallback for key code \(code)")
     return usQwertyFallback[code]
+  }
+
+  static func displayCharacter(for keyEquivalent: KeyEquivalent) -> String {
+    guard let code = keyCode(forDisplayedKeyEquivalent: keyEquivalent.character) else {
+      return String(keyEquivalent.character).uppercased()
+    }
+    return displayCharacter(for: code)
   }
 
   // The Ghostty key name for a given key code (e.g. "a", "arrow_up", "return").
@@ -174,15 +182,8 @@ extension AppShortcutOverride {
   }
 
   // Uses UCKeyTranslate to resolve the character from the active input source.
-  private static func currentLayoutCharacter(for code: UInt16) -> String? {
-    guard let inputSource = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(),
-      let layoutPtr = TISGetInputSourceProperty(inputSource, kTISPropertyUnicodeKeyLayoutData)
-    else {
-      return nil
-    }
-    let layoutData = unsafeBitCast(layoutPtr, to: CFData.self)
-    guard CFGetTypeID(layoutData) == CFDataGetTypeID() else {
-      shortcutLogger.warning("TIS property returned non-CFData type for key code \(code)")
+  private static func currentLayoutCharacter(for code: UInt16, modifierState: UInt32) -> String? {
+    guard let layoutData = currentKeyboardLayoutData() else {
       return nil
     }
     guard let bytePtr = CFDataGetBytePtr(layoutData) else {
@@ -197,7 +198,7 @@ extension AppShortcutOverride {
         keyboardLayout,
         code,
         UInt16(kUCKeyActionDisplay),
-        0,
+        modifierState,
         UInt32(LMGetKbdType()),
         UInt32(kUCKeyTranslateNoDeadKeysBit),
         &deadKeyState,
@@ -217,6 +218,75 @@ extension AppShortcutOverride {
         return nil
       }
       return str
+    }
+  }
+
+  private static func currentKeyboardLayoutData() -> CFData? {
+    let sources = currentKeyboardInputSources()
+    for inputSource in sources {
+      guard let layoutPtr = TISGetInputSourceProperty(inputSource, kTISPropertyUnicodeKeyLayoutData) else {
+        continue
+      }
+
+      let layoutValue = unsafeBitCast(layoutPtr, to: CFTypeRef.self)
+      guard CFGetTypeID(layoutValue) == CFDataGetTypeID() else {
+        shortcutLogger.warning("TIS property returned non-CFData keyboard layout data.")
+        continue
+      }
+
+      return unsafeDowncast(layoutValue, to: CFData.self)
+    }
+
+    if !sources.isEmpty {
+      shortcutLogger.debug("No keyboard layout data found in \(sources.count) input source(s).")
+    }
+    return nil
+  }
+
+  // Tries progressively broader input sources. Non-Latin input methods may not
+  // expose layout data on the primary source, so we fall through to the layout
+  // and ASCII-capable sources.
+  private static func currentKeyboardInputSources() -> [TISInputSource] {
+    var sources: [TISInputSource] = []
+    if let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue() {
+      sources.append(source)
+    }
+    if let source = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue() {
+      sources.append(source)
+    }
+    if let source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue() {
+      sources.append(source)
+    }
+    if sources.isEmpty {
+      shortcutLogger.warning("No keyboard input sources available; layout-aware display will use fallbacks.")
+    }
+    return sources
+  }
+
+  // AppKit renders menu key equivalents from the logical key equivalent. Reverse
+  // lookup the active layout so our own labels match the menu bar.
+  static func keyCode(
+    forDisplayedKeyEquivalent character: Character,
+    candidateKeyCodes: [UInt16] = candidatePrintableKeyCodes,
+    modifierStates: [UInt32] = menuDisplayModifierStates,
+    translatedCharacter: (UInt16, UInt32) -> String?
+  ) -> UInt16? {
+    let target = String(character).lowercased()
+    for modifierState in modifierStates {
+      for code in candidateKeyCodes {
+        guard let resolved = translatedCharacter(code, modifierState) else {
+          continue
+        }
+        guard resolved.lowercased() == target else { continue }
+        return code
+      }
+    }
+    return nil
+  }
+
+  static func keyCode(forDisplayedKeyEquivalent character: Character) -> UInt16? {
+    keyCode(forDisplayedKeyEquivalent: character) { code, modifierState in
+      currentLayoutCharacter(for: code, modifierState: modifierState)
     }
   }
 
@@ -243,6 +313,11 @@ extension AppShortcutOverride {
     return map
   }()
 
+  // UCKeyTranslate modifier states: unmodified, shift, option, shift+option.
+  // Ordered so the simplest printable mapping is preferred during reverse lookup.
+  private static let menuDisplayModifierStates: [UInt32] = [0, 0x02, 0x08, 0x0A]
+  private static let candidatePrintableKeyCodes: [UInt16] = Array(usQwertyFallback.keys).sorted()
+
   private static func ghosttyKeyName(for code: UInt16) -> String {
     switch Int(code) {
     case kVK_LeftArrow: "arrow_left"
@@ -258,22 +333,27 @@ extension AppShortcutOverride {
     }
   }
 
-  private static func displayCharacter(for code: UInt16) -> String {
+  static func displayCharacter(for code: UInt16, modifiers: ModifierFlags = []) -> String {
     switch Int(code) {
-    case kVK_LeftArrow: "←"
-    case kVK_RightArrow: "→"
-    case kVK_UpArrow: "↑"
-    case kVK_DownArrow: "↓"
-    case kVK_Return: "↩"
-    case kVK_Escape: "⎋"
-    case kVK_Delete: "⌫"
-    case kVK_Tab: "⇥"
-    case kVK_Space: "Space"
-    default: layoutCharacter(for: code)?.uppercased() ?? String(format: "0x%02x", code)
+    case kVK_LeftArrow: return "←"
+    case kVK_RightArrow: return "→"
+    case kVK_UpArrow: return "↑"
+    case kVK_DownArrow: return "↓"
+    case kVK_Return: return "↩"
+    case kVK_Escape: return "⎋"
+    case kVK_Delete: return "⌫"
+    case kVK_Tab: return "⇥"
+    case kVK_Space: return "Space"
+    default:
+      let modifierState = displayModifierState(for: modifiers)
+      if let character = currentLayoutCharacter(for: code, modifierState: modifierState) {
+        return character.uppercased()
+      }
+      return layoutCharacter(for: code)?.uppercased() ?? String(format: "0x%02x", code)
     }
   }
 
-  private static func keyEquivalent(for code: UInt16) -> KeyEquivalent {
+  static func keyEquivalent(for code: UInt16) -> KeyEquivalent {
     switch Int(code) {
     case kVK_LeftArrow: return .leftArrow
     case kVK_RightArrow: return .rightArrow
@@ -291,5 +371,14 @@ extension AppShortcutOverride {
       }
       return KeyEquivalent(char)
     }
+  }
+
+  // Only shift and option affect the printed character; command and control
+  // do not alter UCKeyTranslate output.
+  private static func displayModifierState(for modifiers: ModifierFlags) -> UInt32 {
+    var state: UInt32 = 0
+    if modifiers.contains(.shift) { state |= 0x02 }
+    if modifiers.contains(.option) { state |= 0x08 }
+    return state
   }
 }

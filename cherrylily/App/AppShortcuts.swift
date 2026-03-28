@@ -115,6 +115,8 @@ nonisolated enum AppShortcutID: Codable, Hashable, Sendable, CodingKeyRepresenta
 
 // MARK: - Shortcut definition.
 
+private nonisolated let shortcutLogger = SupaLogger("Shortcuts")
+
 struct AppShortcut: Identifiable {
   let id: AppShortcutID
   let keyEquivalent: KeyEquivalent
@@ -124,16 +126,14 @@ struct AppShortcut: Identifiable {
 
   init(id: AppShortcutID, key: Character, modifiers: EventModifiers) {
     self.id = id
+    self.keyEquivalent = KeyEquivalent(key)
     self.modifiers = modifiers
-    // Resolve the physical key code from the US QWERTY character to enable
-    // layout-aware display and Ghostty keybind generation.
-    let code = AppShortcutOverride.keyCode(for: key)
+    let code = AppShortcutOverride.keyCode(forDisplayedKeyEquivalent: key) ?? AppShortcutOverride.keyCode(for: key)
     self.keyCode = code
-    if let code, let layoutChar = AppShortcutOverride.layoutCharacter(for: code) {
-      self.keyEquivalent = KeyEquivalent(Character(layoutChar))
-      self.ghosttyKeyName = layoutChar.lowercased()
+    if let code {
+      self.ghosttyKeyName = AppShortcutOverride.resolvedGhosttyKeyName(for: code)
     } else {
-      self.keyEquivalent = KeyEquivalent(key)
+      shortcutLogger.warning("No key code resolved for '\(key)'; Ghostty unbind may not work.")
       self.ghosttyKeyName = String(key).lowercased()
     }
   }
@@ -147,6 +147,10 @@ struct AppShortcut: Identifiable {
   }
 
   var displayName: String { id.displayName }
+
+  var keyboardShortcut: KeyboardShortcut {
+    KeyboardShortcut(keyEquivalent, modifiers: modifiers)
+  }
 
   var ghosttyKeybind: String {
     let parts = ghosttyModifierParts + [ghosttyKeyName]
@@ -163,15 +167,10 @@ struct AppShortcut: Identifiable {
   }
 
   var displaySymbols: [String] {
-    displayModifierParts + [keyDisplay]
-  }
-
-  private var keyDisplay: String {
-    if let keyCode, let layoutChar = AppShortcutOverride.layoutCharacter(for: keyCode) {
-      layoutChar.uppercased()
-    } else {
-      keyEquivalent.display
+    if let keyCode {
+      return AppShortcutOverride.displaySymbols(for: keyCode, modifiers: rawModifierFlags)
     }
+    return keyboardShortcut.displaySymbols
   }
 
   // Resolves the effective shortcut considering user overrides.
@@ -199,14 +198,15 @@ struct AppShortcut: Identifiable {
     return parts
   }
 
-  private var displayModifierParts: [String] {
-    var parts: [String] = []
-    if modifiers.contains(.command) { parts.append("⌘") }
-    if modifiers.contains(.shift) { parts.append("⇧") }
-    if modifiers.contains(.option) { parts.append("⌥") }
-    if modifiers.contains(.control) { parts.append("⌃") }
-    return parts
+  private var rawModifierFlags: AppShortcutOverride.ModifierFlags {
+    var flags: AppShortcutOverride.ModifierFlags = []
+    if modifiers.contains(.command) { flags.insert(.command) }
+    if modifiers.contains(.option) { flags.insert(.option) }
+    if modifiers.contains(.control) { flags.insert(.control) }
+    if modifiers.contains(.shift) { flags.insert(.shift) }
+    return flags
   }
+
 }
 
 // MARK: - Category and grouping.

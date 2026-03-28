@@ -109,6 +109,97 @@ struct AppShortcutOverrideTests {
     #expect(override.eventModifiers == original)
   }
 
+  @Test func reverseLookupPrefersMenuKeyForShiftedCharacter() {
+    let resolved = AppShortcutOverride.keyCode(
+      forDisplayedKeyEquivalent: "\"",
+      candidateKeyCodes: [19, 20],
+      translatedCharacter: { code, modifierState in
+        switch (code, modifierState) {
+        case (19, 0): "e"
+        case (19, 0x02): "2"
+        case (20, 0): "%"
+        case (20, 0x02): "\""
+        default: nil
+        }
+      }
+    )
+
+    #expect(resolved == 20)
+  }
+
+  @Test func reverseLookupReturnsNilWhenNoMatch() {
+    let resolved = AppShortcutOverride.keyCode(
+      forDisplayedKeyEquivalent: "€",
+      candidateKeyCodes: [19, 20],
+      translatedCharacter: { code, modifierState in
+        switch (code, modifierState) {
+        case (19, 0): "e"
+        case (19, 0x02): "E"
+        case (20, 0): "3"
+        case (20, 0x02): "#"
+        default: nil
+        }
+      }
+    )
+
+    #expect(resolved == nil)
+  }
+
+  @Test func reverseLookupPrefersUnshiftedOverShifted() {
+    // "2" is unshifted on key 21 and shifted on key 19. Unshifted should win.
+    let resolved = AppShortcutOverride.keyCode(
+      forDisplayedKeyEquivalent: "2",
+      candidateKeyCodes: [19, 21],
+      modifierStates: [0, 0x02],
+      translatedCharacter: { code, modifierState in
+        switch (code, modifierState) {
+        case (19, 0): "é"
+        case (19, 0x02): "2"
+        case (21, 0): "2"
+        case (21, 0x02): "\""
+        default: nil
+        }
+      }
+    )
+
+    #expect(resolved == 21)
+  }
+
+  @Test func reverseLookupFindsOptionLayerCharacter() {
+    let resolved = AppShortcutOverride.keyCode(
+      forDisplayedKeyEquivalent: "€",
+      candidateKeyCodes: [19, 20],
+      modifierStates: [0, 0x02, 0x08, 0x0A],
+      translatedCharacter: { code, modifierState in
+        switch (code, modifierState) {
+        case (19, 0): "e"
+        case (19, 0x02): "E"
+        case (19, 0x08): "€"
+        case (20, 0): "3"
+        case (20, 0x02): "#"
+        default: nil
+        }
+      }
+    )
+
+    #expect(resolved == 19)
+  }
+
+  @Test func reverseLookupIsCaseInsensitive() {
+    let resolved = AppShortcutOverride.keyCode(
+      forDisplayedKeyEquivalent: "A",
+      candidateKeyCodes: [0],
+      translatedCharacter: { code, modifierState in
+        switch (code, modifierState) {
+        case (0, 0): "a"
+        default: nil
+        }
+      }
+    )
+
+    #expect(resolved == 0)
+  }
+
   // MARK: - Disabled sentinel.
 
   @Test func disabledSentinel() {
@@ -175,7 +266,7 @@ struct AppShortcutOverrideTests {
   @Test func displayStringAllModifiers() {
     let code = UInt16(kVK_ANSI_A)
     let override = AppShortcutOverride(keyCode: code, modifiers: [.command, .shift, .option, .control])
-    let char = AppShortcutOverride.layoutCharacter(for: code)!.uppercased()
+    let char = AppShortcutOverride.displayCharacter(for: code, modifiers: [.shift, .option])
     #expect(override.displayString == "⌘⇧⌥⌃\(char)")
   }
 
@@ -212,4 +303,5 @@ struct AppShortcutOverrideTests {
     #expect(enabled != disabled)
     #expect(enabled.hashValue != disabled.hashValue)
   }
+
 }

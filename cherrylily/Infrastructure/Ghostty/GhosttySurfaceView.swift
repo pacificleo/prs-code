@@ -1301,14 +1301,21 @@ final class GhosttySurfaceView: NSView, Identifiable {
   }
 
   private func keyboardLayoutId() -> String? {
-    guard let source = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue() else {
-      return nil
+    let sources = [
+      TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
+      TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(),
+      TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue(),
+    ]
+
+    for source in sources.compactMap({ $0 }) {
+      guard let raw = TISGetInputSourceProperty(source, kTISPropertyInputSourceID) else {
+        continue
+      }
+      let value = Unmanaged<CFString>.fromOpaque(raw).takeUnretainedValue()
+      return value as String
     }
-    guard let raw = TISGetInputSourceProperty(source, kTISPropertyInputSourceID) else {
-      return nil
-    }
-    let value = Unmanaged<CFString>.fromOpaque(raw).takeUnretainedValue()
-    return value as String
+
+    return nil
   }
 
   private func sendMousePosition(_ event: NSEvent) {

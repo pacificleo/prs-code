@@ -1,14 +1,18 @@
 import SwiftUI
 
 extension KeyboardShortcut {
-  var display: String {
+  var displaySymbols: [String] {
     var parts: [String] = []
     if modifiers.contains(.command) { parts.append("⌘") }
     if modifiers.contains(.shift) { parts.append("⇧") }
     if modifiers.contains(.option) { parts.append("⌥") }
     if modifiers.contains(.control) { parts.append("⌃") }
     parts.append(key.display)
-    return parts.joined()
+    return parts
+  }
+
+  var display: String {
+    displaySymbols.joined()
   }
 }
 
@@ -28,7 +32,7 @@ extension KeyEquivalent {
     case .end: "↘"
     case .pageUp: "⇞"
     case .pageDown: "⇟"
-    default: String(character).uppercased()
+    default: AppShortcutOverride.displayCharacter(for: self)
     }
   }
 }
