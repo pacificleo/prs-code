@@ -487,7 +487,8 @@ struct WorktreeDetailView: View {
   ) -> WorktreeLoadingInfo? {
     guard let selectedRow else { return nil }
     let repositoryName = repositories.repositoryName(for: selectedRow.repositoryID)
-    if selectedRow.isDeleting {
+    switch selectedRow.status {
+    case .deleting(inTerminal: false):
       return WorktreeLoadingInfo(
         name: selectedRow.name,
         repositoryName: repositoryName,
@@ -497,11 +498,14 @@ struct WorktreeDetailView: View {
         statusCommand: nil,
         statusLines: []
       )
-    }
-    if selectedRow.isArchiving {
-      // The archive script runs in a terminal tab, so let the
+    case .archiving, .deleting(inTerminal: true):
+      // The script runs in a terminal tab, so let the
       // terminal view show through instead of a loading overlay.
       return nil
+    case .idle:
+      return nil
+    case .pending:
+      break
     }
     if selectedRow.isPending {
       let pending = repositories.pendingWorktree(for: selectedWorktreeID)

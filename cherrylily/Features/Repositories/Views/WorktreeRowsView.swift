@@ -62,7 +62,7 @@ struct WorktreeRowsView: View {
       rowView(
         row,
         isRepositoryRemoving: isRepositoryRemoving,
-        moveDisabled: isSortedAlphabetically || isRepositoryRemoving || row.isDeleting || row.isArchiving,
+        moveDisabled: isSortedAlphabetically || isRepositoryRemoving || row.isLoading,
         shortcutHint: showShortcutHints ? worktreeShortcutHint(for: shortcutIndexByID[row.id]) : nil
       )
     }
@@ -81,7 +81,7 @@ struct WorktreeRowsView: View {
       rowView(
         row,
         isRepositoryRemoving: isRepositoryRemoving,
-        moveDisabled: isSortedAlphabetically || isRepositoryRemoving || row.isDeleting || row.isArchiving,
+        moveDisabled: isSortedAlphabetically || isRepositoryRemoving || row.isLoading,
         shortcutHint: showShortcutHints ? worktreeShortcutHint(for: shortcutIndexByID[row.id]) : nil
       )
     }
@@ -98,13 +98,11 @@ struct WorktreeRowsView: View {
     shortcutHint: String?
   ) -> some View {
     let showsNotificationIndicator = terminalManager.hasUnseenNotifications(for: row.id)
-    let displayName =
-      if row.isDeleting {
-        "\(row.name) (deleting...)"
-      } else if row.isArchiving {
-        "\(row.name) (archiving...)"
-      } else {
-        row.name
+    let displayName: String =
+      switch row.status {
+      case .deleting: "\(row.name) (deleting...)"
+      case .archiving: "\(row.name) (archiving...)"
+      case .idle, .pending: row.name
       }
     let canShowRowActions = row.isRemovable && !isRepositoryRemoving
     let pinAction: (() -> Void)? =
@@ -112,7 +110,7 @@ struct WorktreeRowsView: View {
       ? { togglePin(for: row.id, isPinned: row.isPinned) }
       : nil
     let archiveAction: (() -> Void)? =
-      canShowRowActions && !row.isMainWorktree && !row.isArchiving
+      canShowRowActions && !row.isMainWorktree && !row.isLoading
       ? { archiveWorktree(row.id) }
       : nil
     let notifications = terminalManager.stateIfExists(for: row.id)?.notifications ?? []
@@ -200,7 +198,7 @@ struct WorktreeRowsView: View {
       isHovered: config.isHovered,
       isPinned: row.isPinned,
       isMainWorktree: row.isMainWorktree,
-      isLoading: row.isPending || row.isArchiving || row.isDeleting,
+      isLoading: row.isLoading,
       taskStatus: taskStatus,
       isRunScriptRunning: isRunScriptRunning,
       showsNotificationIndicator: config.showsNotificationIndicator,
@@ -227,7 +225,7 @@ struct WorktreeRowsView: View {
     let isBulkSelection = contextRows.count > 1
     let archiveTargets =
       contextRows
-      .filter { !$0.isMainWorktree && !$0.isArchiving }
+      .filter { !$0.isMainWorktree && !$0.isLoading }
       .map {
         RepositoriesFeature.ArchiveWorktreeTarget(
           worktreeID: $0.id,
