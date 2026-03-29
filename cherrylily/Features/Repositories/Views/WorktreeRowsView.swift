@@ -236,6 +236,7 @@ struct WorktreeRowsView: View {
       archiveAction: config.archiveAction
     )
     .tag(SidebarSelection.worktree(row.id))
+    .id(row.id)
     .typeSelectEquivalent("")
     .listRowInsets(EdgeInsets())
     .listRowSeparator(.hidden)

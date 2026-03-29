@@ -9,6 +9,7 @@ struct SidebarListView: View {
   @Binding var expandedRepoIDs: Set<Repository.ID>
   @Binding var sidebarSelections: Set<SidebarSelection>
   let terminalManager: WorktreeTerminalManager
+  @FocusState private var isSidebarFocused: Bool
   @State private var isDragActive = false
 
   var body: some View {
@@ -83,8 +84,10 @@ struct SidebarListView: View {
         store.send(.selectWorktree(nextPrimarySelection, focusTerminal: true))
       }
     )
+    let pendingSidebarReveal = state.pendingSidebarReveal
     let repositoriesByID = Dictionary(uniqueKeysWithValues: store.repositories.map { ($0.id, $0) })
-    List(selection: selection) {
+    ScrollViewReader { scrollProxy in
+      List(selection: selection) {
       if orderedRoots.isEmpty {
         let repositories = store.repositories
         ForEach(Array(repositories.enumerated()), id: \.element.id) { index, repository in
@@ -156,7 +159,8 @@ struct SidebarListView: View {
         }
       }
     }
-    .listStyle(.sidebar)
+      .listStyle(.sidebar)
+      .focused($isSidebarFocused)
     .tint(.clear)
     .scrollIndicators(.never)
     .frame(minWidth: 220)
@@ -207,6 +211,10 @@ struct SidebarListView: View {
       else { return .ignored }
       terminalState.focusAndInsertText(keyPress.characters)
       return .handled
+    }
+    .task(id: pendingSidebarReveal?.id) {
+      await revealPendingSidebarWorktree(pendingSidebarReveal, with: scrollProxy)
+    }
     }
   }
 }
