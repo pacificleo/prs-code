@@ -31,7 +31,7 @@ struct WorktreeDetailView: View {
       && loadingInfo == nil
       && !showsMultiSelectionSummary
     let runScriptEnabled = hasActiveWorktree
-    let runScriptIsRunning = selectedWorktree.flatMap { state.runScriptStatusByWorktreeID[$0.id] } == true
+    let runScriptIsRunning = selectedWorktree.map { state.repositories.runScriptWorktreeIDs.contains($0.id) } == true
     let content = detailContent(
       repositories: repositories,
       loadingInfo: loadingInfo,

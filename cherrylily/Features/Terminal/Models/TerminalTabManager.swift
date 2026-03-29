@@ -14,8 +14,13 @@ final class TerminalTabManager {
   @ObservationIgnored
   var onSelectedTabChanged: ((TerminalTabID) -> Void)?
 
-  func createTab(title: String, icon: String?, isTitleLocked: Bool = false) -> TerminalTabID {
-    let tab = TerminalTabItem(title: title, icon: icon, isTitleLocked: isTitleLocked)
+  func createTab(
+    title: String,
+    icon: String?,
+    isTitleLocked: Bool = false,
+    tintColor: TerminalTabTintColor? = nil
+  ) -> TerminalTabID {
+    let tab = TerminalTabItem(title: title, icon: icon, isTitleLocked: isTitleLocked, tintColor: tintColor)
     if let selectedTabId,
       let selectedIndex = tabs.firstIndex(where: { $0.id == selectedTabId })
     {
@@ -36,6 +41,14 @@ final class TerminalTabManager {
     guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
     guard !tabs[index].isTitleLocked else { return }
     tabs[index].title = title
+  }
+
+  func unlockAndUpdateTitle(_ id: TerminalTabID, title: String) {
+    guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+    tabs[index].isTitleLocked = false
+    tabs[index].title = title
+    tabs[index].icon = nil
+    tabs[index].tintColor = nil
   }
 
   func updateDirty(_ id: TerminalTabID, isDirty: Bool) {

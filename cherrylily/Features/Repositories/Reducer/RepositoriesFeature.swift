@@ -82,6 +82,7 @@ struct RepositoriesFeature {
     var pendingWorktrees: [PendingWorktree] = []
     var pendingSetupScriptWorktreeIDs: Set<Worktree.ID> = []
     var pendingTerminalFocusWorktreeIDs: Set<Worktree.ID> = []
+    var runScriptWorktreeIDs: Set<Worktree.ID> = []
     var archivingWorktreeIDs: Set<Worktree.ID> = []
     var deleteScriptWorktreeIDs: Set<Worktree.ID> = []
     var deletingWorktreeIDs: Set<Worktree.ID> = []
@@ -196,6 +197,7 @@ struct RepositoriesFeature {
     )
     case consumeSetupScript(Worktree.ID)
     case consumeTerminalFocus(Worktree.ID)
+    case runScriptCompleted(worktreeID: Worktree.ID, exitCode: Int?)
     case requestArchiveWorktree(Worktree.ID, Repository.ID)
     case requestArchiveWorktrees([ArchiveWorktreeTarget])
     case archiveWorktreeConfirmed(Worktree.ID, Repository.ID)
@@ -1278,6 +1280,14 @@ struct RepositoriesFeature {
           }
         )
 
+      case .runScriptCompleted(let worktreeID, _):
+        guard state.runScriptWorktreeIDs.contains(worktreeID) else {
+          repositoriesLogger.debug("Ignoring runScriptCompleted for \(worktreeID): not in runScriptWorktreeIDs")
+          return .none
+        }
+        state.runScriptWorktreeIDs.remove(worktreeID)
+        return .none
+
       case .archiveWorktreeConfirmed(let worktreeID, let repositoryID):
         guard let repository = state.repositories[id: repositoryID],
           let worktree = repository.worktrees[id: worktreeID]
@@ -1325,7 +1335,7 @@ struct RepositoriesFeature {
         case let code?:
           state.alert = messageAlert(
             title: "Archive script failed",
-            message: "\(blockingScriptExitMessage(code))\nCheck the ARCHIVE SCRIPT tab for details."
+            message: "\(blockingScriptExitMessage(code))\nCheck the Archive Script tab for details."
           )
           return .none
         }
@@ -1577,7 +1587,7 @@ struct RepositoriesFeature {
         case let code?:
           state.alert = messageAlert(
             title: "Delete script failed",
-            message: "\(blockingScriptExitMessage(code))\nCheck the DELETE SCRIPT tab for details."
+            message: "\(blockingScriptExitMessage(code))\nCheck the Delete Script tab for details."
           )
           return .none
         }
@@ -2776,6 +2786,7 @@ struct RepositoriesFeature {
     let filteredFocusIDs = state.pendingTerminalFocusWorktreeIDs.filter {
       availableWorktreeIDs.contains($0)
     }
+    let filteredRunScriptIDs = state.runScriptWorktreeIDs
     let filteredArchivingIDs = state.archivingWorktreeIDs
     let filteredWorktreeInfo = state.worktreeInfoByID.filter {
       availableWorktreeIDs.contains($0.key)
@@ -2789,6 +2800,7 @@ struct RepositoriesFeature {
         state.deleteScriptWorktreeIDs = filteredDeleteScriptIDs
         state.pendingSetupScriptWorktreeIDs = filteredSetupScriptIDs
         state.pendingTerminalFocusWorktreeIDs = filteredFocusIDs
+        state.runScriptWorktreeIDs = filteredRunScriptIDs
         state.archivingWorktreeIDs = filteredArchivingIDs
         state.worktreeInfoByID = filteredWorktreeInfo
       }

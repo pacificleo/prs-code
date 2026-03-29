@@ -196,7 +196,7 @@ struct WorktreeRowsView: View {
   private func worktreeRowView(_ row: WorktreeRowModel, config: WorktreeRowViewConfig) -> some View {
     let isSelected = selectedWorktreeIDs.contains(row.id)
     let taskStatus = terminalManager.taskStatus(for: row.id)
-    let isRunScriptRunning = terminalManager.isRunScriptRunning(for: row.id)
+    let isRunScriptRunning = store.state.runScriptWorktreeIDs.contains(row.id)
     // Precompute PR display + summary line here (runs once per parent render) rather than
     // inside WorktreeRow.body (which re-runs on hover / colorScheme changes).
     let showsPullRequestInfo = !draggingWorktreeIDs.contains(row.id)
