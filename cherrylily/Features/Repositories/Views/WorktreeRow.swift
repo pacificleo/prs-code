@@ -18,11 +18,43 @@ struct WorktreeRow: View {
   let shortcutHint: String?
   let pinAction: (() -> Void)?
   let isSelected: Bool
+  let checkBadgeState: CheckBadgeState?
   let archiveAction: (() -> Void)?
   @Environment(\.colorScheme) private var colorScheme
 
   // Hoisted out of `body` to avoid an AppKit font lookup / shortcut-string build on every render.
   private static let bodyFontAscender = NSFont.preferredFont(forTextStyle: .body).ascender
+
+  enum CheckBadgeState {
+    case passing
+    case failing
+    case inProgress
+
+    var symbolName: String {
+      switch self {
+      case .passing: "checkmark"
+      case .failing: "xmark"
+      case .inProgress: "ellipsis"
+      }
+    }
+
+    var color: Color {
+      switch self {
+      case .passing: .green
+      case .failing: .red
+      case .inProgress: .yellow
+      }
+    }
+
+    var accessibilityLabel: String {
+      switch self {
+      case .passing: "Checks passed"
+      case .failing: "Checks failed"
+      case .inProgress: "Checks in progress"
+      }
+    }
+  }
+
   private static let archiveShortcut = KeyboardShortcut(.delete, modifiers: .command).display
 
   var body: some View {
@@ -53,6 +85,25 @@ struct WorktreeRow: View {
               .foregroundStyle(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
               .opacity(showsSpinner ? 0 : 1)
               .accessibilityHidden(true)
+              .overlay(alignment: .bottomTrailing) {
+                if let checkBadgeState {
+                  let badgeColor = checkBadgeState.color
+                  
+                  Image(systemName: checkBadgeState.symbolName)
+                    .resizable()
+                    .symbolVariant(.circle.fill)
+                    .symbolRenderingMode(.palette)
+                    .fontWeight(.black)
+                    .frame(width: 8, height: 8)
+                    .foregroundStyle(
+                      isSelected ? badgeColor : Color(nsColor: .windowBackgroundColor),
+                      isSelected ? Color(nsColor: .windowBackgroundColor) : badgeColor
+                    )
+                    .background(in: Circle())
+                    .accessibilityLabel(checkBadgeState.accessibilityLabel)
+                    .offset(x: 2, y: 2)
+                }
+              }
           }
           if showsSpinner {
             ProgressView()

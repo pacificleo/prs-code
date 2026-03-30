@@ -206,6 +206,21 @@ struct WorktreeRowsView: View {
     )
     let mergeReadiness = WorktreeRow.pullRequestMergeReadiness(for: display.pullRequest)
     let detailText = config.worktreeName.isEmpty ? config.displayName : config.worktreeName
+
+    let checkBadgeState: WorktreeRow.CheckBadgeState?
+    if let checks = display.pullRequest?.statusCheckRollup?.checks, !checks.isEmpty {
+      let breakdown = PullRequestCheckBreakdown(checks: checks)
+      if breakdown.failed > 0 {
+        checkBadgeState = .failing
+      } else if breakdown.inProgress > 0 || breakdown.expected > 0 {
+        checkBadgeState = .inProgress
+      } else {
+        checkBadgeState = .passing
+      }
+    } else {
+      checkBadgeState = nil
+    }
+
     let summaryText = WorktreeRow.summaryAttributedString(
       params: WorktreeRow.SummaryParams(
         worktreeName: detailText,
@@ -233,6 +248,7 @@ struct WorktreeRowsView: View {
       shortcutHint: config.shortcutHint,
       pinAction: config.pinAction,
       isSelected: isSelected,
+      checkBadgeState: checkBadgeState,
       archiveAction: config.archiveAction
     )
     .tag(SidebarSelection.worktree(row.id))
