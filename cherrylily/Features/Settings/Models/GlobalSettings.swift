@@ -30,6 +30,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
   var promptForWorktreeCreation: Bool
   var showShortcutHints: Bool
   var defaultWorktreeBaseDirectoryPath: String?
+  var terminalThemeSyncEnabled: Bool
   var shortcutOverrides: [AppShortcutID: AppShortcutOverride]
 
   var disabledWorktreeActions: Set<String>
@@ -58,6 +59,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     automaticallyArchiveMergedWorktrees: false,
     promptForWorktreeCreation: true,
     showShortcutHints: false,
+    terminalThemeSyncEnabled: false,
     defaultWorktreeBaseDirectoryPath: nil,
     disabledWorktreeActions: [],
     customWorktreeActions: [],
@@ -87,6 +89,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     automaticallyArchiveMergedWorktrees: Bool,
     promptForWorktreeCreation: Bool,
     showShortcutHints: Bool = false,
+    terminalThemeSyncEnabled: Bool = false,
     defaultWorktreeBaseDirectoryPath: String? = nil,
     disabledWorktreeActions: Set<String> = [],
     customWorktreeActions: [CustomWorktreeAction] = [],
@@ -114,6 +117,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     self.automaticallyArchiveMergedWorktrees = automaticallyArchiveMergedWorktrees
     self.promptForWorktreeCreation = promptForWorktreeCreation
     self.showShortcutHints = showShortcutHints
+    self.terminalThemeSyncEnabled = terminalThemeSyncEnabled
     self.defaultWorktreeBaseDirectoryPath = defaultWorktreeBaseDirectoryPath
     self.disabledWorktreeActions = disabledWorktreeActions
     self.customWorktreeActions = customWorktreeActions
@@ -182,6 +186,9 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     showShortcutHints =
       try container.decodeIfPresent(Bool.self, forKey: .showShortcutHints)
       ?? Self.default.showShortcutHints
+    terminalThemeSyncEnabled =
+      try container.decodeIfPresent(Bool.self, forKey: .terminalThemeSyncEnabled)
+      ?? Self.default.terminalThemeSyncEnabled
     defaultWorktreeBaseDirectoryPath =
       try container.decodeIfPresent(String.self, forKey: .defaultWorktreeBaseDirectoryPath)
       ?? Self.default.defaultWorktreeBaseDirectoryPath

@@ -23,14 +23,6 @@ struct SidebarCommands: Commands {
       .appKeyboardShortcut(revealInSidebar)
       .help("Reveal in Sidebar (\(revealInSidebar?.display ?? "none"))")
       .disabled(revealInSidebarAction == nil)
-      Section {
-        Picker("Title and Subtitle", systemImage: "textformat", selection: Binding($displayMode)) {
-          ForEach(WorktreeRowDisplayMode.allCases) { mode in
-            Text(mode.label).tag(mode)
-          }
-        }
-        Toggle("Hide Subtitle on Match", isOn: Binding($hideSubtitleOnMatch))
-      }
     }
   }
 }

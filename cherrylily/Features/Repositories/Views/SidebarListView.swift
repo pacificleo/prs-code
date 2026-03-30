@@ -217,4 +217,21 @@ struct SidebarListView: View {
     }
     }
   }
+
+  @MainActor
+  private func revealPendingSidebarWorktree(
+    _ pendingSidebarReveal: RepositoriesFeature.PendingSidebarReveal?,
+    with scrollProxy: ScrollViewProxy
+  ) async {
+    guard let pendingSidebarReveal else { return }
+    // Give SwiftUI time to materialize newly expanded section rows before scrolling.
+    await Task.yield()
+    await Task.yield()
+    isSidebarFocused = true
+    withAnimation(.easeOut(duration: 0.2)) {
+      scrollProxy.scrollTo(pendingSidebarReveal.worktreeID, anchor: .center)
+    }
+    store.send(.consumePendingSidebarReveal(pendingSidebarReveal.id))
+  }
+
 }

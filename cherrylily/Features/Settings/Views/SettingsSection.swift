@@ -7,7 +7,6 @@ enum SettingsSection: Hashable {
   case sessions
   case shortcuts
   case updates
-  case advanced
   case appLauncher
   case github
   case repository(Repository.ID)

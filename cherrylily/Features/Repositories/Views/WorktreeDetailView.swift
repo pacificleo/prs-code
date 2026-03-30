@@ -230,6 +230,7 @@ struct WorktreeDetailView: View {
       )
       .id(selectedWorktree.id)
       .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .ignoresSafeArea(.container, edges: .bottom)
       .onAppear {
         if shouldFocusTerminal {
           store.send(.repositories(.consumeTerminalFocus(selectedWorktree.id)))

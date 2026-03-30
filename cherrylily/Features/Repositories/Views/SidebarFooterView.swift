@@ -6,6 +6,7 @@ struct SidebarFooterView: View {
   let store: StoreOf<RepositoriesFeature>
   @Environment(\.surfaceBottomChromeBackgroundOpacity) private var surfaceBottomChromeBackgroundOpacity
   @Environment(\.openURL) private var openURL
+  @Environment(\.openWindow) private var openWindow
   @Shared(.settingsFile) private var settingsFile
 
   var body: some View {
@@ -65,7 +66,7 @@ struct SidebarFooterView: View {
       }
       .help("Archived Worktrees (\(archived?.display ?? "none"))")
       Button("Settings", systemImage: "gearshape") {
-        SettingsWindowManager.shared.show()
+        openWindow(id: WindowID.settings)
       }
       .labelStyle(.iconOnly)
       .help("Settings (\(settings?.display ?? "none"))")

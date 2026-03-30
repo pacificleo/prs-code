@@ -2,6 +2,7 @@ import ComposableArchitecture
 import Foundation
 import AppKit
 import UniformTypeIdentifiers
+import IdentifiedCollections
 
 @Reducer
 struct SettingsFeature {
@@ -28,12 +29,16 @@ struct SettingsFeature {
     var automaticallyArchiveMergedWorktrees: Bool
     var promptForWorktreeCreation: Bool
     var showShortcutHints: Bool
+    var terminalThemeSyncEnabled: Bool
     var defaultWorktreeBaseDirectoryPath: String
     var disabledWorktreeActions: Set<String>
     var customWorktreeActions: [CustomWorktreeAction]
     var pinnedToolbarActions: [String]
     var shortcutOverrides: [AppShortcutID: AppShortcutOverride]
-    var selection: SettingsSection? = .general
+    // nil = settings window closed, non-nil = open to this section.
+    // The view layer opens the settings window when this becomes non-nil.
+    var selection: SettingsSection?
+    var sortedRepositoryIDs: [Repository.ID] = []
     var repositorySettings: RepositorySettingsFeature.State?
     @Presents var alert: AlertState<Alert>?
 
@@ -60,6 +65,7 @@ struct SettingsFeature {
       automaticallyArchiveMergedWorktrees = settings.automaticallyArchiveMergedWorktrees
       promptForWorktreeCreation = settings.promptForWorktreeCreation
       showShortcutHints = settings.showShortcutHints
+      terminalThemeSyncEnabled = settings.terminalThemeSyncEnabled
       shortcutOverrides = settings.shortcutOverrides
       defaultWorktreeBaseDirectoryPath =
         CherryLilyPaths.normalizedWorktreeBaseDirectoryPath(settings.defaultWorktreeBaseDirectoryPath) ?? ""
@@ -91,6 +97,7 @@ struct SettingsFeature {
         automaticallyArchiveMergedWorktrees: automaticallyArchiveMergedWorktrees,
         promptForWorktreeCreation: promptForWorktreeCreation,
         showShortcutHints: showShortcutHints,
+        terminalThemeSyncEnabled: terminalThemeSyncEnabled,
         defaultWorktreeBaseDirectoryPath: CherryLilyPaths.normalizedWorktreeBaseDirectoryPath(
           defaultWorktreeBaseDirectoryPath
         ),
@@ -105,6 +112,7 @@ struct SettingsFeature {
   enum Action: BindableAction {
     case task
     case settingsLoaded(GlobalSettings)
+    case repositoriesChanged(IdentifiedArrayOf<Repository>)
     case setSelection(SettingsSection?)
     case setSystemNotificationsEnabled(Bool)
     case addCustomApplicationButtonTapped
@@ -180,6 +188,7 @@ struct SettingsFeature {
         state.automaticallyArchiveMergedWorktrees = normalizedSettings.automaticallyArchiveMergedWorktrees
         state.promptForWorktreeCreation = normalizedSettings.promptForWorktreeCreation
         state.showShortcutHints = normalizedSettings.showShortcutHints
+        state.terminalThemeSyncEnabled = normalizedSettings.terminalThemeSyncEnabled
         state.shortcutOverrides = normalizedSettings.shortcutOverrides
         state.defaultWorktreeBaseDirectoryPath = normalizedSettings.defaultWorktreeBaseDirectoryPath ?? ""
         state.disabledWorktreeActions = normalizedSettings.disabledWorktreeActions
@@ -259,8 +268,15 @@ struct SettingsFeature {
         state.shortcutOverrides = [:]
         return persist(state)
 
+      case .repositoriesChanged(let repositories):
+        state.sortedRepositoryIDs =
+          repositories
+          .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+          .map(\.id)
+        return .none
+
       case .setSelection(let selection):
-        state.selection = selection ?? .general
+        state.selection = selection
         return .none
 
       case .addCustomApplicationButtonTapped:

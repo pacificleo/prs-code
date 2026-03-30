@@ -184,10 +184,10 @@ final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private func mainWindow(from sender: NSApplication) -> NSWindow? {
-    if let window = sender.windows.first(where: { $0.identifier?.rawValue == "main" }) {
+    if let window = sender.windows.first(where: { $0.identifier?.rawValue == WindowID.main }) {
       return window
     }
-    if let window = sender.windows.first(where: { $0.identifier?.rawValue != "settings" }) {
+    if let window = sender.windows.first(where: { $0.identifier?.rawValue != WindowID.settings }) {
       return window
     }
     return sender.windows.first
@@ -324,11 +324,6 @@ struct CherryLilyApp: App {
     appDelegate.appStore = appStore
     appDelegate.terminalManager = terminalManager
     appDelegate.persistence = persistence
-    SettingsWindowManager.shared.configure(
-      store: appStore,
-      ghosttyShortcuts: shortcuts,
-      commandKeyObserver: keyObserver
-    )
   }
 
   private static func bootstrapSessionPersistence(
@@ -376,7 +371,7 @@ struct CherryLilyApp: App {
   }
 
   var body: some Scene {
-    Window("CherryLily", id: "main") {
+    Window("CherryLily", id: WindowID.main) {
       GhosttyColorSchemeSyncView(ghostty: ghostty) {
         ContentView(store: store, terminalManager: terminalManager)
           .environment(ghosttyShortcuts)
@@ -386,6 +381,7 @@ struct CherryLilyApp: App {
       .onChange(of: store.settings.showShortcutHints) { _, newValue in
         commandKeyObserver.isEnabled = newValue
       }
+      .openSettingsOnSelection(store: store)
     }
     .environment(ghosttyShortcuts)
     .environment(commandKeyObserver)
@@ -408,32 +404,23 @@ struct CherryLilyApp: App {
         .help("Command Palette (\(cmdPalette?.display ?? "none"))")
       }
       UpdateCommands(store: store.scope(state: \.updates, action: \.updates))
-      CommandGroup(replacing: .windowArrangement) {
-        Button("CherryLily") {
-          if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" }) {
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+      Group {
+        CommandGroup(replacing: .windowList) {}
+        CommandGroup(replacing: .singleWindowList) {
+          Button("CherryLily") {
+            if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == WindowID.main }) {
+              window.makeKeyAndOrderFront(nil)
+              NSApp.activate(ignoringOtherApps: true)
+            }
           }
+          .keyboardShortcut("0")
+          .help("Show main window (⌘0)")
         }
-        .keyboardShortcut("0")
-        .help("Show main window (⌘0)")
-        Divider()
-        Button("Minimize") {
-          NSApp.keyWindow?.miniaturize(nil)
-        }
-        .keyboardShortcut("m")
-        .help("Minimize (⌘M)")
-        Button("Zoom") {
-          NSApp.keyWindow?.zoom(nil)
-        }
-        .help("Zoom (no shortcut)")
       }
       CommandGroup(replacing: .appSettings) {
-        let settings = AppShortcuts.openSettings.effective(from: store.settings.shortcutOverrides)
-        Button("Settings...") {
-          SettingsWindowManager.shared.show()
+        SettingsMenuButton(shortcutOverrides: store.settings.shortcutOverrides) {
+          store.send(.settings(.setSelection(.general)))
         }
-        .appKeyboardShortcut(settings)
       }
       CommandGroup(replacing: .appTermination) {
         Button("Quit CherryLily") {
@@ -443,5 +430,15 @@ struct CherryLilyApp: App {
         .help("Quit CherryLily (⌘Q)")
       }
     }
+    Window("Settings", id: WindowID.settings) {
+      SettingsView(store: store)
+        .environment(ghosttyShortcuts)
+        .environment(commandKeyObserver)
+        .toolbarBackground(.hidden, for: .windowToolbar)
+        .toolbarColorScheme(store.settings.appearanceMode.colorScheme, for: .windowToolbar)
+    }
+    .windowToolbarStyle(.unified)
+    .defaultSize(width: 800, height: 600)
+    .restorationBehavior(.disabled)
   }
 }
