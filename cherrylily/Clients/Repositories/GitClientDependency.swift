@@ -37,6 +37,8 @@ struct GitClientDependency: Sendable {
   var lineChanges: @Sendable (URL) async -> (added: Int, removed: Int)?
   var headSHA: @Sendable (URL) async -> String?
   var renameBranch: @Sendable (_ worktreeURL: URL, _ branchName: String) async throws -> Void
+  var remoteNames: @Sendable (_ repoRoot: URL) async throws -> [String]
+  var fetchRemote: @Sendable (_ remote: String, _ repoRoot: URL) async throws -> Void
   var remoteInfo: @Sendable (_ repositoryRoot: URL) async -> GithubRemoteInfo?
 }
 
@@ -89,6 +91,8 @@ extension GitClientDependency: DependencyKey {
       renameBranch: { worktreeURL, branchName in
         try await client.renameBranch(in: worktreeURL, to: branchName)
       },
+      remoteNames: { try await client.remoteNames(for: $0) },
+      fetchRemote: { remote, repoRoot in try await client.fetchRemote(remote, for: repoRoot) },
       remoteInfo: { repositoryRoot in
         await client.remoteInfo(for: repositoryRoot)
       }

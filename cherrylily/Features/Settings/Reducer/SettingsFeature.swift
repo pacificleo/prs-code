@@ -29,6 +29,7 @@ struct SettingsFeature {
     var automaticallyArchiveMergedWorktrees: Bool
     var promptForWorktreeCreation: Bool
     var showShortcutHints: Bool
+    var fetchOriginBeforeWorktreeCreation: Bool
     var terminalThemeSyncEnabled: Bool
     var defaultWorktreeBaseDirectoryPath: String
     var disabledWorktreeActions: Set<String>
@@ -65,6 +66,7 @@ struct SettingsFeature {
       automaticallyArchiveMergedWorktrees = settings.automaticallyArchiveMergedWorktrees
       promptForWorktreeCreation = settings.promptForWorktreeCreation
       showShortcutHints = settings.showShortcutHints
+      fetchOriginBeforeWorktreeCreation = settings.fetchOriginBeforeWorktreeCreation
       terminalThemeSyncEnabled = settings.terminalThemeSyncEnabled
       shortcutOverrides = settings.shortcutOverrides
       defaultWorktreeBaseDirectoryPath =
@@ -97,6 +99,7 @@ struct SettingsFeature {
         automaticallyArchiveMergedWorktrees: automaticallyArchiveMergedWorktrees,
         promptForWorktreeCreation: promptForWorktreeCreation,
         showShortcutHints: showShortcutHints,
+        fetchOriginBeforeWorktreeCreation: fetchOriginBeforeWorktreeCreation,
         terminalThemeSyncEnabled: terminalThemeSyncEnabled,
         defaultWorktreeBaseDirectoryPath: CherryLilyPaths.normalizedWorktreeBaseDirectoryPath(
           defaultWorktreeBaseDirectoryPath
@@ -188,6 +191,7 @@ struct SettingsFeature {
         state.automaticallyArchiveMergedWorktrees = normalizedSettings.automaticallyArchiveMergedWorktrees
         state.promptForWorktreeCreation = normalizedSettings.promptForWorktreeCreation
         state.showShortcutHints = normalizedSettings.showShortcutHints
+        state.fetchOriginBeforeWorktreeCreation = normalizedSettings.fetchOriginBeforeWorktreeCreation
         state.terminalThemeSyncEnabled = normalizedSettings.terminalThemeSyncEnabled
         state.shortcutOverrides = normalizedSettings.shortcutOverrides
         state.defaultWorktreeBaseDirectoryPath = normalizedSettings.defaultWorktreeBaseDirectoryPath ?? ""

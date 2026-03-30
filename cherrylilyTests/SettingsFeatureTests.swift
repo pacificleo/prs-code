@@ -56,6 +56,7 @@ struct SettingsFeatureTests {
       $0.automaticallyArchiveMergedWorktrees = true
       $0.promptForWorktreeCreation = true
       $0.pinnedToolbarActions = []
+      $0.fetchOriginBeforeWorktreeCreation = true
       $0.terminalThemeSyncEnabled = false
     }
     await store.receive(\.delegate.settingsChanged)
