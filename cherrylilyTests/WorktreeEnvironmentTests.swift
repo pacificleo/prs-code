@@ -52,7 +52,7 @@ struct WorktreeEnvironmentTests {
     #expect(exports.contains("export CHERRYLILY_ROOT_PATH='/tmp/my repo/.bare'"))
   }
 
-  @Test func blockingScriptInputUsesPortableBareExit() {
+  @Test func blockingScriptLaunchWritesScriptAndMetadataFiles() throws {
     let worktree = Worktree(
       id: "/tmp/repo/wt-1",
       name: "feature-branch",
@@ -61,25 +61,79 @@ struct WorktreeEnvironmentTests {
       repositoryRootURL: URL(fileURLWithPath: "/tmp/repo"),
     )
 
-    let input = makeBlockingScriptInput(
-      script: """
-      docker compose down
-      codex exec "test"
-      """,
-      environmentExportPrefix: worktree.scriptEnvironmentExportPrefix
+    let launch = try #require(
+      try makeBlockingScriptLaunch(
+        script: """
+        docker compose down
+        codex exec "test"
+        """,
+        environment: worktree.scriptEnvironment,
+        shellPath: "/opt/homebrew/bin/fish"
+      )
     )
+    defer {
+      try? FileManager.default.removeItem(at: launch.directoryURL)
+    }
 
-    #expect(input?.contains("docker compose down\ncodex exec \"test\"\nexit\n") == true)
-    #expect(input?.contains("(\n") == false)
-    #expect(input?.contains("exit $?") == false)
+    let scriptContents = try String(contentsOf: launch.scriptURL, encoding: .utf8)
+    let runnerContents = try String(contentsOf: launch.runnerURL, encoding: .utf8)
+    let rootPathContents = try String(contentsOf: launch.rootPathURL, encoding: .utf8)
+    let worktreePathContents = try String(contentsOf: launch.worktreePathURL, encoding: .utf8)
+    let shellPathContents = try String(contentsOf: launch.shellPathURL, encoding: .utf8)
+
+    #expect(launch.commandInput == launch.runnerURL.path(percentEncoded: false) + "\nexit\n")
+    #expect(scriptContents == "docker compose down\ncodex exec \"test\"\n")
+    #expect(rootPathContents == "/tmp/repo\n")
+    #expect(worktreePathContents == "/tmp/repo/wt-1\n")
+    #expect(shellPathContents == "/opt/homebrew/bin/fish\n")
+    #expect(runnerContents.contains("IFS= read -r SUPACODE_ROOT_PATH < ") == true)
+    #expect(runnerContents.contains("IFS= read -r SUPACODE_WORKTREE_PATH < ") == true)
+    #expect(runnerContents.contains("IFS= read -r SUPACODE_SHELL_PATH < ") == true)
+    #expect(runnerContents.contains("exec \"$SUPACODE_SHELL_PATH\" -l ") == true)
+    #expect(runnerContents.contains("docker compose down") == false)
+    #expect(runnerContents.contains("codex exec \"test\"") == false)
   }
 
-  @Test func blockingScriptInputReturnsNilForWhitespaceOnlyScripts() {
+  @Test func blockingScriptLaunchReturnsNilForWhitespaceOnlyScripts() throws {
     #expect(
-      makeBlockingScriptInput(
-        script: "   \n  ",
-        environmentExportPrefix: "export SUPACODE_ROOT_PATH='/tmp/repo'\n"
+      try makeBlockingScriptLaunch(
+        script: """
+          
+        """,
+        environment: ["SUPACODE_ROOT_PATH": "/tmp/repo"],
+        shellPath: "/bin/zsh"
       ) == nil
     )
+  }
+
+  @Test func blockingScriptLaunchPropagatesNonZeroExitCodeInZsh() throws {
+    let launch = try #require(
+      try makeBlockingScriptLaunch(
+        script: "exit 1",
+        environment: [
+          "SUPACODE_ROOT_PATH": "/tmp/repo",
+          "SUPACODE_WORKTREE_PATH": "/tmp/repo/wt-1",
+        ],
+        shellPath: "/bin/zsh"
+      )
+    )
+    let tempHome = URL(
+      fileURLWithPath: "/tmp/supacode-zsh-home-\(UUID().uuidString.lowercased())",
+      isDirectory: true
+    )
+    try FileManager.default.createDirectory(at: tempHome, withIntermediateDirectories: true)
+    defer {
+      try? FileManager.default.removeItem(at: launch.directoryURL)
+      try? FileManager.default.removeItem(at: tempHome)
+    }
+
+    let process = Process()
+    process.executableURL = launch.runnerURL
+    process.environment = ["HOME": tempHome.path(percentEncoded: false)]
+
+    try process.run()
+    process.waitUntilExit()
+
+    #expect(process.terminationStatus == 1)
   }
 }

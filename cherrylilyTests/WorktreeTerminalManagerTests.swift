@@ -491,6 +491,7 @@ struct WorktreeTerminalManagerTests {
   @Test func persistenceEnabledDefaultsToFalse() {
     let manager = WorktreeTerminalManager(runtime: GhosttyRuntime())
     #expect(manager.persistenceEnabled() == false)
+  }
 
 
   @Test func runScriptBlockingScriptTracksRunningState() {
