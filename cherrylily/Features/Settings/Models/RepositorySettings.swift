@@ -8,9 +8,9 @@ nonisolated struct RepositorySettings: Codable, Equatable, Sendable {
   var openActionID: String
   var worktreeBaseRef: String?
   var worktreeBaseDirectoryPath: String?
-  var copyIgnoredOnWorktreeCreate: Bool
-  var copyUntrackedOnWorktreeCreate: Bool
-  var pullRequestMergeStrategy: PullRequestMergeStrategy
+  var copyIgnoredOnWorktreeCreate: Bool?
+  var copyUntrackedOnWorktreeCreate: Bool?
+  var pullRequestMergeStrategy: PullRequestMergeStrategy?
 
   private enum CodingKeys: String, CodingKey {
     case setupScript
@@ -33,9 +33,9 @@ nonisolated struct RepositorySettings: Codable, Equatable, Sendable {
     openActionID: "auto",
     worktreeBaseRef: nil,
     worktreeBaseDirectoryPath: nil,
-    copyIgnoredOnWorktreeCreate: false,
-    copyUntrackedOnWorktreeCreate: false,
-    pullRequestMergeStrategy: .merge
+    copyIgnoredOnWorktreeCreate: nil,
+    copyUntrackedOnWorktreeCreate: nil,
+    pullRequestMergeStrategy: nil
   )
 
   init(
@@ -46,9 +46,9 @@ nonisolated struct RepositorySettings: Codable, Equatable, Sendable {
     openActionID: String,
     worktreeBaseRef: String?,
     worktreeBaseDirectoryPath: String? = nil,
-    copyIgnoredOnWorktreeCreate: Bool,
-    copyUntrackedOnWorktreeCreate: Bool,
-    pullRequestMergeStrategy: PullRequestMergeStrategy
+    copyIgnoredOnWorktreeCreate: Bool? = nil,
+    copyUntrackedOnWorktreeCreate: Bool? = nil,
+    pullRequestMergeStrategy: PullRequestMergeStrategy? = nil
   ) {
     self.setupScript = setupScript
     self.archiveScript = archiveScript
@@ -84,19 +84,13 @@ nonisolated struct RepositorySettings: Codable, Equatable, Sendable {
     worktreeBaseDirectoryPath =
       try container.decodeIfPresent(String.self, forKey: .worktreeBaseDirectoryPath)
     copyIgnoredOnWorktreeCreate =
-      try container.decodeIfPresent(
-        Bool.self,
-        forKey: .copyIgnoredOnWorktreeCreate
-      ) ?? Self.default.copyIgnoredOnWorktreeCreate
+      try container.decodeIfPresent(Bool.self, forKey: .copyIgnoredOnWorktreeCreate)
+      ?? Self.default.copyIgnoredOnWorktreeCreate
     copyUntrackedOnWorktreeCreate =
-      try container.decodeIfPresent(
-        Bool.self,
-        forKey: .copyUntrackedOnWorktreeCreate
-      ) ?? Self.default.copyUntrackedOnWorktreeCreate
+      try container.decodeIfPresent(Bool.self, forKey: .copyUntrackedOnWorktreeCreate)
+      ?? Self.default.copyUntrackedOnWorktreeCreate
     pullRequestMergeStrategy =
-      try container.decodeIfPresent(
-        PullRequestMergeStrategy.self,
-        forKey: .pullRequestMergeStrategy
-      ) ?? Self.default.pullRequestMergeStrategy
+      try container.decodeIfPresent(PullRequestMergeStrategy.self, forKey: .pullRequestMergeStrategy)
+      ?? Self.default.pullRequestMergeStrategy
   }
 }

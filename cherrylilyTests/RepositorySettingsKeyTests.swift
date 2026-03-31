@@ -13,6 +13,9 @@ struct RepositorySettingsKeyTests {
 
     #expect(!json.contains("worktreeBaseRef"))
     #expect(!json.contains("worktreeBaseDirectoryPath"))
+    #expect(!json.contains("copyIgnoredOnWorktreeCreate"))
+    #expect(!json.contains("copyUntrackedOnWorktreeCreate"))
+    #expect(!json.contains("pullRequestMergeStrategy"))
   }
 
   @Test(.dependencies) func loadCreatesDefaultAndPersists() throws {
@@ -64,6 +67,45 @@ struct RepositorySettingsKeyTests {
     }
 
     #expect(reloaded.repositories[rootURL.path(percentEncoded: false)] == updated)
+  }
+
+  @Test func decodeOldFormatPreservesExplicitOverrides() throws {
+    let data = Data(
+      """
+      {
+        "setupScript": "",
+        "archiveScript": "",
+        "deleteScript": "",
+        "runScript": "",
+        "openActionID": "automatic",
+        "copyIgnoredOnWorktreeCreate": false,
+        "copyUntrackedOnWorktreeCreate": true,
+        "pullRequestMergeStrategy": "squash"
+      }
+      """.utf8
+    )
+    let settings = try JSONDecoder().decode(RepositorySettings.self, from: data)
+
+    #expect(settings.copyIgnoredOnWorktreeCreate == false)
+    #expect(settings.copyUntrackedOnWorktreeCreate == true)
+    #expect(settings.pullRequestMergeStrategy == .squash)
+  }
+
+  @Test func decodeMissingOptionalFieldsDefaultsToNil() throws {
+    let data = Data(
+      """
+      {
+        "setupScript": "",
+        "runScript": "",
+        "openActionID": "automatic"
+      }
+      """.utf8
+    )
+    let settings = try JSONDecoder().decode(RepositorySettings.self, from: data)
+
+    #expect(settings.copyIgnoredOnWorktreeCreate == nil)
+    #expect(settings.copyUntrackedOnWorktreeCreate == nil)
+    #expect(settings.pullRequestMergeStrategy == nil)
   }
 
   @Test func decodeMissingDeleteScriptDefaultsToEmpty() throws {

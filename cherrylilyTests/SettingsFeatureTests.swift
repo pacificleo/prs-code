@@ -266,6 +266,50 @@ struct SettingsFeatureTests {
     #expect(settingsFile.global.defaultWorktreeBaseDirectoryPath == expectedPath)
   }
 
+  @Test(.dependencies) func changingGlobalCopyIgnoredUpdatesRepositorySettingsState() async {
+    let rootURL = URL(fileURLWithPath: "/tmp/repo")
+    @Shared(.settingsFile) var settingsFile
+    $settingsFile.withLock { $0.global = .default }
+    var state = SettingsFeature.State()
+    state.repositorySettings = RepositorySettingsFeature.State(
+      rootURL: rootURL,
+      settings: .default
+    )
+    let store = TestStore(initialState: state) {
+      SettingsFeature()
+    }
+
+    await store.send(.binding(.set(\.copyIgnoredOnWorktreeCreate, true))) {
+      $0.copyIgnoredOnWorktreeCreate = true
+      $0.repositorySettings?.globalCopyIgnoredOnWorktreeCreate = true
+    }
+    await store.receive(\.delegate.settingsChanged)
+    #expect(store.state.repositorySettings?.globalCopyIgnoredOnWorktreeCreate == true)
+    #expect(settingsFile.global.copyIgnoredOnWorktreeCreate == true)
+  }
+
+  @Test(.dependencies) func changingGlobalMergeStrategyUpdatesRepositorySettingsState() async {
+    let rootURL = URL(fileURLWithPath: "/tmp/repo")
+    @Shared(.settingsFile) var settingsFile
+    $settingsFile.withLock { $0.global = .default }
+    var state = SettingsFeature.State()
+    state.repositorySettings = RepositorySettingsFeature.State(
+      rootURL: rootURL,
+      settings: .default
+    )
+    let store = TestStore(initialState: state) {
+      SettingsFeature()
+    }
+
+    await store.send(.binding(.set(\.pullRequestMergeStrategy, .squash))) {
+      $0.pullRequestMergeStrategy = .squash
+      $0.repositorySettings?.globalPullRequestMergeStrategy = .squash
+    }
+    await store.receive(\.delegate.settingsChanged)
+    #expect(store.state.repositorySettings?.globalPullRequestMergeStrategy == .squash)
+    #expect(settingsFile.global.pullRequestMergeStrategy == .squash)
+  }
+
   // MARK: - Sorted repositories.
 
   @Test(.dependencies) func repositoriesChangedSortsByNameCaseInsensitive() async {

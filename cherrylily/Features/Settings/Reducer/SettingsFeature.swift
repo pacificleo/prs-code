@@ -30,6 +30,9 @@ struct SettingsFeature {
     var promptForWorktreeCreation: Bool
     var showShortcutHints: Bool
     var fetchOriginBeforeWorktreeCreation: Bool
+    var copyIgnoredOnWorktreeCreate: Bool
+    var copyUntrackedOnWorktreeCreate: Bool
+    var pullRequestMergeStrategy: PullRequestMergeStrategy
     var terminalThemeSyncEnabled: Bool
     var defaultWorktreeBaseDirectoryPath: String
     var disabledWorktreeActions: Set<String>
@@ -67,6 +70,9 @@ struct SettingsFeature {
       promptForWorktreeCreation = settings.promptForWorktreeCreation
       showShortcutHints = settings.showShortcutHints
       fetchOriginBeforeWorktreeCreation = settings.fetchOriginBeforeWorktreeCreation
+      copyIgnoredOnWorktreeCreate = settings.copyIgnoredOnWorktreeCreate
+      copyUntrackedOnWorktreeCreate = settings.copyUntrackedOnWorktreeCreate
+      pullRequestMergeStrategy = settings.pullRequestMergeStrategy
       terminalThemeSyncEnabled = settings.terminalThemeSyncEnabled
       shortcutOverrides = settings.shortcutOverrides
       defaultWorktreeBaseDirectoryPath =
@@ -100,6 +106,9 @@ struct SettingsFeature {
         promptForWorktreeCreation: promptForWorktreeCreation,
         showShortcutHints: showShortcutHints,
         fetchOriginBeforeWorktreeCreation: fetchOriginBeforeWorktreeCreation,
+        copyIgnoredOnWorktreeCreate: copyIgnoredOnWorktreeCreate,
+        copyUntrackedOnWorktreeCreate: copyUntrackedOnWorktreeCreate,
+        pullRequestMergeStrategy: pullRequestMergeStrategy,
         terminalThemeSyncEnabled: terminalThemeSyncEnabled,
         defaultWorktreeBaseDirectoryPath: CherryLilyPaths.normalizedWorktreeBaseDirectoryPath(
           defaultWorktreeBaseDirectoryPath
@@ -192,27 +201,25 @@ struct SettingsFeature {
         state.promptForWorktreeCreation = normalizedSettings.promptForWorktreeCreation
         state.showShortcutHints = normalizedSettings.showShortcutHints
         state.fetchOriginBeforeWorktreeCreation = normalizedSettings.fetchOriginBeforeWorktreeCreation
+        state.copyIgnoredOnWorktreeCreate = normalizedSettings.copyIgnoredOnWorktreeCreate
+        state.copyUntrackedOnWorktreeCreate = normalizedSettings.copyUntrackedOnWorktreeCreate
+        state.pullRequestMergeStrategy = normalizedSettings.pullRequestMergeStrategy
         state.terminalThemeSyncEnabled = normalizedSettings.terminalThemeSyncEnabled
         state.shortcutOverrides = normalizedSettings.shortcutOverrides
         state.defaultWorktreeBaseDirectoryPath = normalizedSettings.defaultWorktreeBaseDirectoryPath ?? ""
         state.disabledWorktreeActions = normalizedSettings.disabledWorktreeActions
         state.customWorktreeActions = normalizedSettings.customWorktreeActions
         state.pinnedToolbarActions = normalizedSettings.pinnedToolbarActions
-        state.repositorySettings?.globalDefaultWorktreeBaseDirectoryPath =
-          normalizedSettings.defaultWorktreeBaseDirectoryPath
+        state.syncGlobalDefaults(from: normalizedSettings)
         return .send(.delegate(.settingsChanged(normalizedSettings)))
 
       case .binding:
-        let defaultWorktreeBaseDirectoryPath = state.globalSettings.defaultWorktreeBaseDirectoryPath
-        state.repositorySettings?.globalDefaultWorktreeBaseDirectoryPath =
-          defaultWorktreeBaseDirectoryPath
+        state.syncGlobalDefaults(from: state.globalSettings)
         return persist(state)
 
       case .setSystemNotificationsEnabled(let isEnabled):
         state.systemNotificationsEnabled = isEnabled
-        let defaultWorktreeBaseDirectoryPath = state.globalSettings.defaultWorktreeBaseDirectoryPath
-        state.repositorySettings?.globalDefaultWorktreeBaseDirectoryPath =
-          defaultWorktreeBaseDirectoryPath
+        state.syncGlobalDefaults(from: state.globalSettings)
         return persist(state)
 
       case .showNotificationPermissionAlert(let errorMessage):
@@ -400,5 +407,18 @@ struct SettingsFeature {
       analyticsClient.capture("settings_changed", nil)
     }
     return .send(.delegate(.settingsChanged(settings)))
+  }
+}
+
+extension SettingsFeature.State {
+  mutating func syncGlobalDefaults(from settings: GlobalSettings) {
+    repositorySettings?.globalDefaultWorktreeBaseDirectoryPath =
+      settings.defaultWorktreeBaseDirectoryPath
+    repositorySettings?.globalCopyIgnoredOnWorktreeCreate =
+      settings.copyIgnoredOnWorktreeCreate
+    repositorySettings?.globalCopyUntrackedOnWorktreeCreate =
+      settings.copyUntrackedOnWorktreeCreate
+    repositorySettings?.globalPullRequestMergeStrategy =
+      settings.pullRequestMergeStrategy
   }
 }

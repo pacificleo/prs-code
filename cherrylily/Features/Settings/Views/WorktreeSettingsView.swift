@@ -31,6 +31,16 @@ struct WorktreeSettingsView: View {
       } footer: {
         Text("e.g., `\(examplePath)`")
       }
+      Section {
+        Toggle(isOn: $store.copyIgnoredOnWorktreeCreate) {
+          Text("Copy ignored files to new worktrees")
+          Text("Copies gitignored files from the main worktree.")
+        }
+        Toggle(isOn: $store.copyUntrackedOnWorktreeCreate) {
+          Text("Copy untracked files to new worktrees")
+          Text("Copies untracked files from the main worktree.")
+        }
+      }
       Section("Clean-up") {
         Toggle(isOn: $store.automaticallyArchiveMergedWorktrees) {
           Text("Automatically archive merged worktrees")

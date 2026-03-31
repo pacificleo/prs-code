@@ -8,6 +8,9 @@ struct RepositorySettingsFeature {
     var rootURL: URL
     var settings: RepositorySettings
     var globalDefaultWorktreeBaseDirectoryPath: String?
+    var globalCopyIgnoredOnWorktreeCreate: Bool = false
+    var globalCopyUntrackedOnWorktreeCreate: Bool = false
+    var globalPullRequestMergeStrategy: PullRequestMergeStrategy = .merge
     var isBareRepository = false
     var branchOptions: [String] = []
     var defaultWorktreeBaseRef = "origin/main"
@@ -28,7 +31,10 @@ struct RepositorySettingsFeature {
     case settingsLoaded(
       RepositorySettings,
       isBareRepository: Bool,
-      globalDefaultWorktreeBaseDirectoryPath: String?
+      globalDefaultWorktreeBaseDirectoryPath: String?,
+      globalCopyIgnoredOnWorktreeCreate: Bool,
+      globalCopyUntrackedOnWorktreeCreate: Bool,
+      globalPullRequestMergeStrategy: PullRequestMergeStrategy
     )
     case branchDataLoaded([String], defaultBaseRef: String)
     case delegate(Delegate)
@@ -51,8 +57,11 @@ struct RepositorySettingsFeature {
         @Shared(.repositorySettings(rootURL)) var repositorySettings
         @Shared(.settingsFile) var settingsFile
         let settings = repositorySettings
-        let globalDefaultWorktreeBaseDirectoryPath =
-          settingsFile.global.defaultWorktreeBaseDirectoryPath
+        let global = settingsFile.global
+        let globalDefaultWorktreeBaseDirectoryPath = global.defaultWorktreeBaseDirectoryPath
+        let globalCopyIgnored = global.copyIgnoredOnWorktreeCreate
+        let globalCopyUntracked = global.copyUntrackedOnWorktreeCreate
+        let globalMergeStrategy = global.pullRequestMergeStrategy
         let gitClient = gitClient
         return .run { send in
           let isBareRepository = (try? await gitClient.isBareRepository(rootURL)) ?? false
@@ -60,7 +69,10 @@ struct RepositorySettingsFeature {
             .settingsLoaded(
               settings,
               isBareRepository: isBareRepository,
-              globalDefaultWorktreeBaseDirectoryPath: globalDefaultWorktreeBaseDirectoryPath
+              globalDefaultWorktreeBaseDirectoryPath: globalDefaultWorktreeBaseDirectoryPath,
+              globalCopyIgnoredOnWorktreeCreate: globalCopyIgnored,
+              globalCopyUntrackedOnWorktreeCreate: globalCopyUntracked,
+              globalPullRequestMergeStrategy: globalMergeStrategy
             )
           )
           let branches: [String]
@@ -77,19 +89,29 @@ struct RepositorySettingsFeature {
           await send(.branchDataLoaded(branches, defaultBaseRef: defaultBaseRef))
         }
 
-      case .settingsLoaded(let settings, let isBareRepository, let globalDefaultWorktreeBaseDirectoryPath):
+      case .settingsLoaded(
+        let settings,
+        let isBareRepository,
+        let globalDefaultWorktreeBaseDirectoryPath,
+        let globalCopyIgnoredOnWorktreeCreate,
+        let globalCopyUntrackedOnWorktreeCreate,
+        let globalPullRequestMergeStrategy
+      ):
         var updatedSettings = settings
         updatedSettings.worktreeBaseDirectoryPath = CherryLilyPaths.normalizedWorktreeBaseDirectoryPath(
           updatedSettings.worktreeBaseDirectoryPath,
           repositoryRootURL: state.rootURL
         )
         if isBareRepository {
-          updatedSettings.copyIgnoredOnWorktreeCreate = false
-          updatedSettings.copyUntrackedOnWorktreeCreate = false
+          updatedSettings.copyIgnoredOnWorktreeCreate = nil
+          updatedSettings.copyUntrackedOnWorktreeCreate = nil
         }
         state.settings = updatedSettings
         state.globalDefaultWorktreeBaseDirectoryPath =
           CherryLilyPaths.normalizedWorktreeBaseDirectoryPath(globalDefaultWorktreeBaseDirectoryPath)
+        state.globalCopyIgnoredOnWorktreeCreate = globalCopyIgnoredOnWorktreeCreate
+        state.globalCopyUntrackedOnWorktreeCreate = globalCopyUntrackedOnWorktreeCreate
+        state.globalPullRequestMergeStrategy = globalPullRequestMergeStrategy
         state.isBareRepository = isBareRepository
         guard updatedSettings != settings else { return .none }
         let rootURL = state.rootURL
@@ -112,8 +134,8 @@ struct RepositorySettingsFeature {
 
       case .binding:
         if state.isBareRepository {
-          state.settings.copyIgnoredOnWorktreeCreate = false
-          state.settings.copyUntrackedOnWorktreeCreate = false
+          state.settings.copyIgnoredOnWorktreeCreate = nil
+          state.settings.copyUntrackedOnWorktreeCreate = nil
         }
         let rootURL = state.rootURL
         var normalizedSettings = state.settings

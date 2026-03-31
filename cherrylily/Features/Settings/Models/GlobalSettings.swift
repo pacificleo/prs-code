@@ -31,6 +31,9 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
   var showShortcutHints: Bool
   var fetchOriginBeforeWorktreeCreation: Bool
   var defaultWorktreeBaseDirectoryPath: String?
+  var copyIgnoredOnWorktreeCreate: Bool
+  var copyUntrackedOnWorktreeCreate: Bool
+  var pullRequestMergeStrategy: PullRequestMergeStrategy
   var terminalThemeSyncEnabled: Bool
   var shortcutOverrides: [AppShortcutID: AppShortcutOverride]
 
@@ -61,6 +64,9 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     promptForWorktreeCreation: true,
     showShortcutHints: false,
     fetchOriginBeforeWorktreeCreation: true,
+    copyIgnoredOnWorktreeCreate: false,
+    copyUntrackedOnWorktreeCreate: false,
+    pullRequestMergeStrategy: .merge,
     terminalThemeSyncEnabled: false,
     defaultWorktreeBaseDirectoryPath: nil,
     disabledWorktreeActions: [],
@@ -92,6 +98,9 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     promptForWorktreeCreation: Bool,
     showShortcutHints: Bool = false,
     fetchOriginBeforeWorktreeCreation: Bool = true,
+    copyIgnoredOnWorktreeCreate: Bool = false,
+    copyUntrackedOnWorktreeCreate: Bool = false,
+    pullRequestMergeStrategy: PullRequestMergeStrategy = .merge,
     terminalThemeSyncEnabled: Bool = false,
     defaultWorktreeBaseDirectoryPath: String? = nil,
     disabledWorktreeActions: Set<String> = [],
@@ -121,6 +130,9 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     self.promptForWorktreeCreation = promptForWorktreeCreation
     self.showShortcutHints = showShortcutHints
     self.fetchOriginBeforeWorktreeCreation = fetchOriginBeforeWorktreeCreation
+    self.copyIgnoredOnWorktreeCreate = copyIgnoredOnWorktreeCreate
+    self.copyUntrackedOnWorktreeCreate = copyUntrackedOnWorktreeCreate
+    self.pullRequestMergeStrategy = pullRequestMergeStrategy
     self.terminalThemeSyncEnabled = terminalThemeSyncEnabled
     self.defaultWorktreeBaseDirectoryPath = defaultWorktreeBaseDirectoryPath
     self.disabledWorktreeActions = disabledWorktreeActions
@@ -193,6 +205,15 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     fetchOriginBeforeWorktreeCreation =
       try container.decodeIfPresent(Bool.self, forKey: .fetchOriginBeforeWorktreeCreation)
       ?? Self.default.fetchOriginBeforeWorktreeCreation
+    copyIgnoredOnWorktreeCreate =
+      try container.decodeIfPresent(Bool.self, forKey: .copyIgnoredOnWorktreeCreate)
+      ?? Self.default.copyIgnoredOnWorktreeCreate
+    copyUntrackedOnWorktreeCreate =
+      try container.decodeIfPresent(Bool.self, forKey: .copyUntrackedOnWorktreeCreate)
+      ?? Self.default.copyUntrackedOnWorktreeCreate
+    pullRequestMergeStrategy =
+      try container.decodeIfPresent(PullRequestMergeStrategy.self, forKey: .pullRequestMergeStrategy)
+      ?? Self.default.pullRequestMergeStrategy
     terminalThemeSyncEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .terminalThemeSyncEnabled)
       ?? Self.default.terminalThemeSyncEnabled
