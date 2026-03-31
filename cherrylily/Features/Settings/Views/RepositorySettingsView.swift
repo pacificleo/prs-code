@@ -149,10 +149,13 @@ private struct ScriptSection: View {
 
   var body: some View {
     Section {
-      TextField(title, text: text, axis: .vertical)
-        .labelsHidden()
-        .lineLimit(5, reservesSpace: true)
-        .monospaced()
+      PlainTextEditor(
+        text: text,
+        isMonospaced: true,
+        style: .field
+      )
+      .frame(height: 112)
+      .accessibilityLabel(title)
     } header: {
       Text(title)
       Text(subtitle)
