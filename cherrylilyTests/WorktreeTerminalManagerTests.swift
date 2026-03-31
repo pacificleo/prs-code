@@ -206,7 +206,7 @@ struct WorktreeTerminalManagerTests {
     #expect(manager.hasUnseenNotifications(for: worktree.id) == false)
   }
 
-  @Test func blockingScriptCompletionPrefersCommandFinishedExitCode() async {
+  @Test func blockingScriptCompletionReportsExitCodeFromCommandFinished() async {
     let manager = WorktreeTerminalManager(runtime: GhosttyRuntime())
     let worktree = makeWorktree()
     let stream = manager.eventStream()
@@ -222,7 +222,6 @@ struct WorktreeTerminalManagerTests {
     }
 
     surface.bridge.onCommandFinished?(1)
-    surface.bridge.onChildExited?(0)
 
     let event = await nextEvent(stream) { event in
       if case .blockingScriptCompleted = event {
@@ -231,39 +230,10 @@ struct WorktreeTerminalManagerTests {
       return false
     }
 
-    #expect(event == .blockingScriptCompleted(worktreeID: worktree.id, kind: .archive, exitCode: 1))
+    #expect(event == .blockingScriptCompleted(worktreeID: worktree.id, kind: .archive, exitCode: 1, tabId: tabId))
   }
 
-  @Test func blockingScriptCompletionUsesLatestCommandFinishedExitCode() async {
-    let manager = WorktreeTerminalManager(runtime: GhosttyRuntime())
-    let worktree = makeWorktree()
-    let stream = manager.eventStream()
-
-    manager.handleCommand(.runBlockingScript(worktree, kind: .archive, script: "echo ok"))
-
-    guard let state = manager.stateIfExists(for: worktree.id),
-      let tabId = state.tabManager.selectedTabId,
-      let surface = state.splitTree(for: tabId).root?.leftmostLeaf()
-    else {
-      Issue.record("Expected blocking script tab and surface")
-      return
-    }
-
-    surface.bridge.onCommandFinished?(0)
-    surface.bridge.onCommandFinished?(1)
-    surface.bridge.onChildExited?(0)
-
-    let event = await nextEvent(stream) { event in
-      if case .blockingScriptCompleted = event {
-        return true
-      }
-      return false
-    }
-
-    #expect(event == .blockingScriptCompleted(worktreeID: worktree.id, kind: .archive, exitCode: 1))
-  }
-
-  @Test func blockingScriptCompletionFallsBackToChildExitCodeWhenCommandFinishedNil() async {
+  @Test func blockingScriptCompletionPassesNilExitCodeWhenCommandFinishedReportsNil() async {
     let manager = WorktreeTerminalManager(runtime: GhosttyRuntime())
     let worktree = makeWorktree()
     let stream = manager.eventStream()
@@ -279,7 +249,6 @@ struct WorktreeTerminalManagerTests {
     }
 
     surface.bridge.onCommandFinished?(nil)
-    surface.bridge.onChildExited?(23)
 
     let event = await nextEvent(stream) { event in
       if case .blockingScriptCompleted = event {
@@ -288,7 +257,39 @@ struct WorktreeTerminalManagerTests {
       return false
     }
 
-    #expect(event == .blockingScriptCompleted(worktreeID: worktree.id, kind: .archive, exitCode: 23))
+    #expect(event == .blockingScriptCompleted(worktreeID: worktree.id, kind: .archive, exitCode: nil, tabId: tabId))
+  }
+
+  @Test func blockingScriptCommandFinishedFollowedByChildExitDoesNotDoubleFire() async {
+    let manager = WorktreeTerminalManager(runtime: GhosttyRuntime())
+    let worktree = makeWorktree()
+    let stream = manager.eventStream()
+
+    manager.handleCommand(.runBlockingScript(worktree, kind: .archive, script: "echo ok"))
+
+    guard let state = manager.stateIfExists(for: worktree.id),
+      let tabId = state.tabManager.selectedTabId,
+      let surface = state.splitTree(for: tabId).root?.leftmostLeaf()
+    else {
+      Issue.record("Expected blocking script tab and surface")
+      return
+    }
+
+    // Normal flow: command finishes, then shell exits later.
+    surface.bridge.onCommandFinished?(0)
+    surface.bridge.onChildExited?(0)
+
+    // First completion event should arrive.
+    let event = await nextEvent(stream) { event in
+      if case .blockingScriptCompleted = event {
+        return true
+      }
+      return false
+    }
+    #expect(event == .blockingScriptCompleted(worktreeID: worktree.id, kind: .archive, exitCode: 0, tabId: tabId))
+
+    // The child exit should NOT produce a second completion.
+    #expect(!manager.isBlockingScriptRunning(kind: .archive, for: worktree.id))
   }
 
   @Test func blockingScriptChildExitWithoutCommandFinishedIsCancellation() async {
@@ -315,7 +316,7 @@ struct WorktreeTerminalManagerTests {
       return false
     }
 
-    #expect(event == .blockingScriptCompleted(worktreeID: worktree.id, kind: .archive, exitCode: nil))
+    #expect(event == .blockingScriptCompleted(worktreeID: worktree.id, kind: .archive, exitCode: nil, tabId: nil))
   }
 
   @Test func blockingScriptSignalBasedTerminationReportsImmediately() async {
@@ -344,7 +345,7 @@ struct WorktreeTerminalManagerTests {
       return false
     }
 
-    #expect(event == .blockingScriptCompleted(worktreeID: worktree.id, kind: .archive, exitCode: 130))
+    #expect(event == .blockingScriptCompleted(worktreeID: worktree.id, kind: .archive, exitCode: 130, tabId: tabId))
   }
 
   @Test func blockingScriptRerunClosesOldTabWithoutFiringCompletion() async {
@@ -378,7 +379,6 @@ struct WorktreeTerminalManagerTests {
       return
     }
     surface.bridge.onCommandFinished?(0)
-    surface.bridge.onChildExited?(0)
 
     let event = await nextEvent(stream) { event in
       if case .blockingScriptCompleted = event {
@@ -387,7 +387,7 @@ struct WorktreeTerminalManagerTests {
       return false
     }
 
-    #expect(event == .blockingScriptCompleted(worktreeID: worktree.id, kind: .archive, exitCode: 0))
+    #expect(event == .blockingScriptCompleted(worktreeID: worktree.id, kind: .archive, exitCode: 0, tabId: secondTabId))
   }
 
   @Test func blockingScriptTabClosedManuallyReportsCancellation() async {
@@ -414,7 +414,7 @@ struct WorktreeTerminalManagerTests {
       return false
     }
 
-    #expect(event == .blockingScriptCompleted(worktreeID: worktree.id, kind: .archive, exitCode: nil))
+    #expect(event == .blockingScriptCompleted(worktreeID: worktree.id, kind: .archive, exitCode: nil, tabId: nil))
   }
 
   @Test func closeAllSurfacesCancelsPendingBlockingScripts() async {
@@ -438,10 +438,10 @@ struct WorktreeTerminalManagerTests {
       return false
     }
 
-    #expect(event == .blockingScriptCompleted(worktreeID: worktree.id, kind: .archive, exitCode: nil))
+    #expect(event == .blockingScriptCompleted(worktreeID: worktree.id, kind: .archive, exitCode: nil, tabId: nil))
   }
 
-  @Test func blockingScriptSuccessAutoClosesTab() async {
+  @Test func blockingScriptSuccessKeepsTabOpen() async {
     let manager = WorktreeTerminalManager(runtime: GhosttyRuntime())
     let worktree = makeWorktree()
     let stream = manager.eventStream()
@@ -459,7 +459,6 @@ struct WorktreeTerminalManagerTests {
     #expect(state.tabManager.tabs.map(\.id).contains(tabId))
 
     surface.bridge.onCommandFinished?(0)
-    surface.bridge.onChildExited?(0)
 
     let event = await nextEvent(stream) { event in
       if case .blockingScriptCompleted = event {
@@ -468,9 +467,9 @@ struct WorktreeTerminalManagerTests {
       return false
     }
 
-    #expect(event == .blockingScriptCompleted(worktreeID: worktree.id, kind: .archive, exitCode: 0))
-    // Successful script should auto-close the tab.
-    #expect(!state.tabManager.tabs.map(\.id).contains(tabId))
+    #expect(event == .blockingScriptCompleted(worktreeID: worktree.id, kind: .archive, exitCode: 0, tabId: tabId))
+    // Tab stays open so the user can inspect output.
+    #expect(state.tabManager.tabs.map(\.id).contains(tabId))
   }
 
 
@@ -569,15 +568,66 @@ struct WorktreeTerminalManagerTests {
     #expect(tab?.title == "Archive Script")
     #expect(tab?.tintColor == .orange)
 
-    // Title reset happens synchronously in handleBlockingScriptChildExited,
-    // before the completion callback fires in an async Task.
+    // Tab appearance reset happens synchronously in completeBlockingScript.
     surface.bridge.onCommandFinished?(1)
-    surface.bridge.onChildExited?(1)
 
     let updatedTab = state.tabManager.tabs.first { $0.id == tabId }
     #expect(updatedTab?.isTitleLocked == false)
     #expect(updatedTab?.icon == nil)
     #expect(updatedTab?.tintColor == nil)
+  }
+
+  @Test func selectTabWithValidIdChangesSelection() {
+    let manager = WorktreeTerminalManager(runtime: GhosttyRuntime())
+    let worktree = makeWorktree()
+
+    // Create two blocking script tabs so we have two tabs to switch between.
+    manager.handleCommand(.runBlockingScript(worktree, kind: .archive, script: "echo archive"))
+    manager.handleCommand(.runBlockingScript(worktree, kind: .delete, script: "echo delete"))
+
+    guard let state = manager.stateIfExists(for: worktree.id) else {
+      Issue.record("Expected worktree state")
+      return
+    }
+
+    let tabIds = state.tabManager.tabs.map(\.id)
+    guard tabIds.count >= 2 else {
+      Issue.record("Expected at least two tabs")
+      return
+    }
+    let firstTabId = tabIds[0]
+    let secondTabId = tabIds[1]
+
+    // Select the second tab first.
+    manager.handleCommand(.selectTab(worktree, tabId: secondTabId))
+    #expect(state.tabManager.selectedTabId == secondTabId)
+
+    // Select the first tab.
+    manager.handleCommand(.selectTab(worktree, tabId: firstTabId))
+    #expect(state.tabManager.selectedTabId == firstTabId)
+  }
+
+  @Test func selectTabWithStaleIdIsNoOp() {
+    let manager = WorktreeTerminalManager(runtime: GhosttyRuntime())
+    let worktree = makeWorktree()
+
+    manager.handleCommand(.runBlockingScript(worktree, kind: .archive, script: "echo ok"))
+
+    guard let state = manager.stateIfExists(for: worktree.id),
+      let tabId = state.tabManager.selectedTabId
+    else {
+      Issue.record("Expected blocking script tab")
+      return
+    }
+
+    // Close the tab, then try to select it by its stale ID.
+    state.closeTab(tabId)
+    let selectedBefore = state.tabManager.selectedTabId
+
+    manager.handleCommand(.selectTab(worktree, tabId: tabId))
+
+    // Selection should not change.
+    #expect(state.tabManager.selectedTabId == selectedBefore)
   }
 
   private func makeWorktree() -> Worktree {

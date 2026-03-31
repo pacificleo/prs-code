@@ -209,17 +209,17 @@ struct RepositoriesFeature {
     )
     case consumeSetupScript(Worktree.ID)
     case consumeTerminalFocus(Worktree.ID)
-    case runScriptCompleted(worktreeID: Worktree.ID, exitCode: Int?)
+    case runScriptCompleted(worktreeID: Worktree.ID, exitCode: Int?, tabId: TerminalTabID?)
     case requestArchiveWorktree(Worktree.ID, Repository.ID)
     case requestArchiveWorktrees([ArchiveWorktreeTarget])
     case archiveWorktreeConfirmed(Worktree.ID, Repository.ID)
-    case archiveScriptCompleted(worktreeID: Worktree.ID, exitCode: Int?)
+    case archiveScriptCompleted(worktreeID: Worktree.ID, exitCode: Int?, tabId: TerminalTabID?)
     case archiveWorktreeApply(Worktree.ID, Repository.ID)
     case unarchiveWorktree(Worktree.ID)
     case requestDeleteWorktree(Worktree.ID, Repository.ID)
     case requestDeleteWorktrees([DeleteWorktreeTarget])
     case deleteWorktreeConfirmed(Worktree.ID, Repository.ID)
-    case deleteScriptCompleted(worktreeID: Worktree.ID, exitCode: Int?)
+    case deleteScriptCompleted(worktreeID: Worktree.ID, exitCode: Int?, tabId: TerminalTabID?)
     case deleteWorktreeApply(Worktree.ID, Repository.ID)
     case worktreeDeleted(
       Worktree.ID,
@@ -297,6 +297,7 @@ struct RepositoriesFeature {
     case confirmDeleteWorktree(Worktree.ID, Repository.ID)
     case confirmDeleteWorktrees([DeleteWorktreeTarget])
     case confirmRemoveRepository(Repository.ID)
+    case viewTerminalTab(Worktree.ID, tabId: TerminalTabID)
   }
 
   enum PullRequestAction: Equatable {
@@ -318,6 +319,7 @@ struct RepositoriesFeature {
     case worktreeCreated(Worktree)
     case requestRenameBranchPrompt(Worktree.ID)
     case runBlockingScript(Worktree, repositoryID: Repository.ID, kind: BlockingScriptKind, script: String)
+    case selectTerminalTab(Worktree.ID, tabId: TerminalTabID)
   }
 
   @Dependency(AnalyticsClient.self) private var analyticsClient
@@ -1369,12 +1371,16 @@ struct RepositoriesFeature {
           }
         )
 
-      case .runScriptCompleted(let worktreeID, _):
+      case .runScriptCompleted(let worktreeID, let exitCode, let tabId):
         guard state.runScriptWorktreeIDs.contains(worktreeID) else {
           repositoriesLogger.debug("Ignoring runScriptCompleted for \(worktreeID): not in runScriptWorktreeIDs")
           return .none
         }
         state.runScriptWorktreeIDs.remove(worktreeID)
+        guard let exitCode, exitCode != 0 else { return .none }
+        state.alert = blockingScriptFailureAlert(
+          kind: .run, exitCode: exitCode, worktreeID: worktreeID, tabId: tabId, state: state
+        )
         return .none
 
       case .archiveWorktreeConfirmed(let worktreeID, let repositoryID):
@@ -1398,7 +1404,7 @@ struct RepositoriesFeature {
         return .send(
           .delegate(.runBlockingScript(worktree, repositoryID: repositoryID, kind: .archive, script: script)))
 
-      case .archiveScriptCompleted(let worktreeID, let exitCode):
+      case .archiveScriptCompleted(let worktreeID, let exitCode, let tabId):
         guard state.archivingWorktreeIDs.contains(worktreeID) else {
           repositoriesLogger.debug("Ignoring archiveScriptCompleted for \(worktreeID): not in archivingWorktreeIDs")
           return .none
@@ -1422,9 +1428,8 @@ struct RepositoriesFeature {
           repositoriesLogger.debug("Archive script cancelled or tab closed for worktree \(worktreeID)")
           return .none
         case let code?:
-          state.alert = messageAlert(
-            title: "Archive script failed",
-            message: "\(blockingScriptExitMessage(code))\nCheck the Archive Script tab for details."
+          state.alert = blockingScriptFailureAlert(
+            kind: .archive, exitCode: code, worktreeID: worktreeID, tabId: tabId, state: state
           )
           return .none
         }
@@ -1650,7 +1655,7 @@ struct RepositoriesFeature {
         return .send(
           .delegate(.runBlockingScript(worktree, repositoryID: repositoryID, kind: .delete, script: script)))
 
-      case .deleteScriptCompleted(let worktreeID, let exitCode):
+      case .deleteScriptCompleted(let worktreeID, let exitCode, let tabId):
         guard state.deleteScriptWorktreeIDs.contains(worktreeID) else {
           repositoriesLogger.debug("Ignoring deleteScriptCompleted for \(worktreeID): not in deleteScriptWorktreeIDs")
           return .none
@@ -1674,9 +1679,8 @@ struct RepositoriesFeature {
           repositoriesLogger.debug("Delete script cancelled or tab closed for worktree \(worktreeID)")
           return .none
         case let code?:
-          state.alert = messageAlert(
-            title: "Delete script failed",
-            message: "\(blockingScriptExitMessage(code))\nCheck the Delete Script tab for details."
+          state.alert = blockingScriptFailureAlert(
+            kind: .delete, exitCode: code, worktreeID: worktreeID, tabId: tabId, state: state
           )
           return .none
         }
@@ -2701,6 +2705,12 @@ struct RepositoriesFeature {
       case .requestRenameBranchPrompt(let worktreeID):
         return .send(.delegate(.requestRenameBranchPrompt(worktreeID)))
 
+      case .alert(.presented(.viewTerminalTab(let worktreeID, let tabId))):
+        return .merge(
+          .send(.selectWorktree(worktreeID, focusTerminal: true)),
+          .send(.delegate(.selectTerminalTab(worktreeID, tabId: tabId)))
+        )
+
       case .alert(.dismiss):
         state.alert = nil
         return .none
@@ -2938,6 +2948,37 @@ struct RepositoriesFeature {
       didPruneWorktreeOrder: didPruneWorktreeOrder,
       didPruneArchivedWorktreeIDs: didPruneArchivedWorktreeIDs
     )
+  }
+
+  private func blockingScriptFailureAlert(
+    kind: BlockingScriptKind,
+    exitCode: Int,
+    worktreeID: Worktree.ID,
+    tabId: TerminalTabID?,
+    state: State
+  ) -> AlertState<Alert> {
+    let worktreeName = state.worktree(for: worktreeID)?.name
+    let repoName = state.repositoryID(containing: worktreeID)
+      .flatMap { state.repositories[id: $0]?.name }
+    let parts = [repoName, worktreeName].compactMap(\.self)
+    if parts.isEmpty {
+      repositoriesLogger.debug("blockingScriptFailureAlert: worktree \(worktreeID) not found in state")
+    }
+    let subtitle = parts.isEmpty ? "Unknown worktree" : parts.joined(separator: " — ")
+    return AlertState {
+      TextState("\(kind.tabTitle) failed")
+    } actions: {
+      if let tabId {
+        ButtonState(action: .viewTerminalTab(worktreeID, tabId: tabId)) {
+          TextState("View Terminal")
+        }
+      }
+      ButtonState(role: .cancel) {
+        TextState("Dismiss")
+      }
+    } message: {
+      TextState("\(subtitle)\n\n\(blockingScriptExitMessage(exitCode))")
+    }
   }
 
   private func messageAlert(title: String, message: String) -> AlertState<Alert> {
