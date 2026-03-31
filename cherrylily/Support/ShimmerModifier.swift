@@ -38,8 +38,8 @@ struct ShimmerModifier: ViewModifier {
           startPoint: startPoint,
           endPoint: endPoint
         )
+        .animation(isActive ? animation : nil, value: animating)
       )
-      .animation(isActive ? animation : nil, value: animating)
       .onChange(of: isActive) { oldValue, newValue in
         guard oldValue != newValue else { return }
         if newValue {
