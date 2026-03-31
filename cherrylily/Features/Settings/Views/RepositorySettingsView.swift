@@ -64,7 +64,13 @@ struct RepositorySettingsView: View {
         }
         TextField(
           text: worktreeBaseDirectoryPath,
-          prompt: Text(CherryLilyPaths.reposDirectory.path(percentEncoded: false))
+          prompt: Text(
+            CherryLilyPaths.worktreeBaseDirectory(
+              for: store.rootURL,
+              globalDefaultPath: store.globalDefaultWorktreeBaseDirectoryPath,
+              repositoryOverridePath: nil
+            ).path(percentEncoded: false)
+          )
         ) {
           Text("Default directory").monospaced(false)
           Text("Parent path for new worktrees.").monospaced(false)
