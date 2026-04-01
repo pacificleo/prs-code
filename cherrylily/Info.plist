@@ -8,6 +8,8 @@
 	<string>CherryLily</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>A program running within CherryLily would like to use AppleScript.</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>A program running within CherryLily would like to access your system's audio.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>A program running within CherryLily would like to use Bluetooth.</string>
 	<key>NSCalendarsUsageDescription</key>
