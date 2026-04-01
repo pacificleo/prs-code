@@ -23,12 +23,12 @@ XCODEBUILD_FLAGS ?=
 help:  # Display this help.
 	@-+echo "Run make with one of the following targets:"
 	@-+echo
-	@-+grep -Eh "^[a-z-]+:.*#" $(CURRENT_MAKEFILE_PATH) | sed -E 's/^(.*:)(.*#+)(.*)/  \1 @@@ \3 /' | column -t -s "@@@"
+	@-+grep -Eh "^[a-z-]+:.*#" "$(CURRENT_MAKEFILE_PATH)" | sed -E 's/^(.*:)(.*#+)(.*)/  \1 @@@ \3 /' | column -t -s "@@@"
 
 build-ghostty-xcframework: $(GHOSTTY_BUILD_OUTPUTS) # Build ghostty framework
 
 $(GHOSTTY_BUILD_OUTPUTS):
-	@cd $(CURRENT_MAKEFILE_DIR)/ThirdParty/ghostty && mise exec -- zig build -Doptimize=ReleaseFast -Demit-xcframework=true -Dsentry=false -Dxcframework-target=native
+	@cd "$(CURRENT_MAKEFILE_DIR)/ThirdParty/ghostty" && mise exec -- zig build -Doptimize=ReleaseFast -Demit-xcframework=true -Dsentry=false -Dxcframework-target=native
 	rsync -a ThirdParty/ghostty/macos/GhosttyKit.xcframework Frameworks
 	@src="$(CURRENT_MAKEFILE_DIR)/ThirdParty/ghostty/zig-out/share/ghostty"; \
 	dst="$(GHOSTTY_RESOURCE_PATH)"; \
@@ -42,14 +42,14 @@ $(GHOSTTY_BUILD_OUTPUTS):
 build-tmux: # Build the bundled tmux universal binary
 	@if [ ! -f "$(CURRENT_MAKEFILE_DIR)/Frameworks/tmux-cherrylily" ]; then \
 	  echo "Building tmux..."; \
-	  bash $(CURRENT_MAKEFILE_DIR)/scripts/build-tmux.sh; \
+	  bash "$(CURRENT_MAKEFILE_DIR)/scripts/build-tmux.sh"; \
 	else \
 	  current="$$($(CURRENT_MAKEFILE_DIR)/Frameworks/tmux-cherrylily -V 2>/dev/null || echo unknown)"; \
 	  echo "tmux-cherrylily already built ($$current). Run 'rm Frameworks/tmux-cherrylily' to force rebuild."; \
 	fi
 
 build-app: build-ghostty-xcframework build-tmux # Build the macOS app (Debug)
-	bash -o pipefail -c 'xcodebuild -project cherrylily.xcodeproj -scheme cherrylily -configuration Debug build -skipMacroValidation -clonedSourcePackagesDirPath $(SPM_CACHE_DIR) 2>&1 | mise exec -- xcsift -qw --format toon'
+	bash -o pipefail -c 'xcodebuild -project cherrylily.xcodeproj -scheme cherrylily -configuration Debug build -skipMacroValidation -clonedSourcePackagesDirPath "$(SPM_CACHE_DIR)" 2>&1 | mise exec -- xcsift -qw --format toon'
 
 run-app: build-app # Build then launch (Debug) with log streaming
 	@settings="$$(xcodebuild -project cherrylily.xcodeproj -scheme cherrylily -configuration Debug -showBuildSettings -json 2>/dev/null)"; \
@@ -74,7 +74,7 @@ install-dev-build: build-app # install dev build to /Applications
 	echo "installed $$dst"
 
 build-release: build-ghostty-xcframework build-tmux # Build the macOS app (Release, unsigned)
-	bash -o pipefail -c 'xcodebuild -project cherrylily.xcodeproj -scheme cherrylily -configuration Release build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -skipMacroValidation -clonedSourcePackagesDirPath $(SPM_CACHE_DIR) $(XCODEBUILD_FLAGS) 2>&1 | mise exec -- xcsift -qw --format toon'
+	bash -o pipefail -c 'xcodebuild -project cherrylily.xcodeproj -scheme cherrylily -configuration Release build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -skipMacroValidation -clonedSourcePackagesDirPath "$(SPM_CACHE_DIR)" $(XCODEBUILD_FLAGS) 2>&1 | mise exec -- xcsift -qw --format toon'
 
 install-release-build: build-release # install release build to /Applications
 	@settings="$$(xcodebuild -project cherrylily.xcodeproj -scheme cherrylily -configuration Release -showBuildSettings -json 2>/dev/null)"; \
@@ -92,13 +92,13 @@ install-release-build: build-release # install release build to /Applications
 	echo "installed $$dst"
 
 archive: build-ghostty-xcframework build-tmux # Archive Release build for distribution
-	bash -o pipefail -c 'xcodebuild -project cherrylily.xcodeproj -scheme cherrylily -configuration Release -archivePath build/cherrylily.xcarchive archive CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="$$APPLE_TEAM_ID" CODE_SIGN_IDENTITY="$$DEVELOPER_ID_IDENTITY_SHA" OTHER_CODE_SIGN_FLAGS="--timestamp" -skipMacroValidation -clonedSourcePackagesDirPath $(SPM_CACHE_DIR) $(XCODEBUILD_FLAGS) 2>&1 | mise exec -- xcsift -qw --format toon'
+	bash -o pipefail -c 'xcodebuild -project cherrylily.xcodeproj -scheme cherrylily -configuration Release -archivePath build/cherrylily.xcarchive archive CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="$$APPLE_TEAM_ID" CODE_SIGN_IDENTITY="$$DEVELOPER_ID_IDENTITY_SHA" OTHER_CODE_SIGN_FLAGS="--timestamp" -skipMacroValidation -clonedSourcePackagesDirPath "$(SPM_CACHE_DIR)" $(XCODEBUILD_FLAGS) 2>&1 | mise exec -- xcsift -qw --format toon'
 
 export-archive: # Export xarchive
 	bash -o pipefail -c 'xcodebuild -exportArchive -archivePath build/cherrylily.xcarchive -exportPath build/export -exportOptionsPlist build/ExportOptions.plist 2>&1 | mise exec -- xcsift -qw --format toon'
 
 test: build-ghostty-xcframework build-tmux
-	xcodebuild test -project cherrylily.xcodeproj -scheme cherrylily -destination "platform=macOS" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -skipMacroValidation -clonedSourcePackagesDirPath $(SPM_CACHE_DIR) 2>&1
+	xcodebuild test -project cherrylily.xcodeproj -scheme cherrylily -destination "platform=macOS" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -skipMacroValidation -clonedSourcePackagesDirPath "$(SPM_CACHE_DIR)" 2>&1
 
 format: # Format code with swift-format (local only)
 	swift-format -p --in-place --recursive --configuration ./.swift-format.json cherrylily cherrylilyTests
@@ -158,7 +158,7 @@ bump-and-release: bump-version # Bump version and push tags to trigger release
 	@tag="$$(git describe --tags --abbrev=0)"; \
 	repo="$$(gh repo view --json nameWithOwner -q .nameWithOwner)"; \
 	prev="$$(gh release view --json tagName -q .tagName 2>/dev/null || echo '')"; \
-	tmp=$$(mktemp); \
+	tmp="$$(mktemp)"; \
 	if [ -n "$$prev" ]; then \
 		gh api "repos/$$repo/releases/generate-notes" -f tag_name="$$tag" -f previous_tag_name="$$prev" --jq '.body' > "$$tmp"; \
 	else \
