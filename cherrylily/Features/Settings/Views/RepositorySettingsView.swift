@@ -150,7 +150,7 @@ private struct ScriptSection: View {
   var body: some View {
     Section {
       TextEditor(text: text)
-        .font(.body.monospaced())
+        .monospaced()
         .textEditorStyle(.plain)
         .autocorrectionDisabled()
         .scrollContentBackground(.hidden)
