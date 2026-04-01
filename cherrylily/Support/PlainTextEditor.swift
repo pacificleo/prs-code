@@ -2,25 +2,17 @@ import AppKit
 import SwiftUI
 
 struct PlainTextEditor: NSViewRepresentable {
-  enum Style {
-    case plain
-    case field
-  }
-
   @Binding var text: String
   var isMonospaced: Bool = false
-  var style: Style = .plain
 
   func makeCoordinator() -> Coordinator {
     Coordinator(text: $text)
   }
 
   func makeNSView(context: Context) -> NSScrollView {
-    let appearance = editorAppearance
     let textView = NSTextView(frame: .zero)
     textView.delegate = context.coordinator
-    textView.drawsBackground = appearance.drawsBackground
-    textView.backgroundColor = appearance.backgroundColor
+    textView.drawsBackground = false
     textView.isRichText = false
     textView.importsGraphics = false
     textView.isAutomaticDashSubstitutionEnabled = false
@@ -38,9 +30,8 @@ struct PlainTextEditor: NSViewRepresentable {
     textView.string = text
 
     let scrollView = NSScrollView(frame: .zero)
-    scrollView.drawsBackground = appearance.drawsBackground
-    scrollView.backgroundColor = appearance.backgroundColor
-    scrollView.borderType = appearance.borderType
+    scrollView.drawsBackground = false
+    scrollView.borderType = .noBorder
     scrollView.hasVerticalScroller = true
     scrollView.hasHorizontalScroller = false
     scrollView.autohidesScrollers = true
@@ -64,29 +55,6 @@ struct PlainTextEditor: NSViewRepresentable {
       return NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
     }
     return NSFont.preferredFont(forTextStyle: .body)
-  }
-
-  private var editorAppearance: EditorAppearance {
-    switch style {
-    case .plain:
-      EditorAppearance(
-        drawsBackground: false,
-        backgroundColor: .clear,
-        borderType: .noBorder
-      )
-    case .field:
-      EditorAppearance(
-        drawsBackground: true,
-        backgroundColor: .textBackgroundColor,
-        borderType: .bezelBorder
-      )
-    }
-  }
-
-  private struct EditorAppearance {
-    let drawsBackground: Bool
-    let backgroundColor: NSColor
-    let borderType: NSBorderType
   }
 
   final class Coordinator: NSObject, NSTextViewDelegate {

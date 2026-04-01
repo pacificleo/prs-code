@@ -149,13 +149,13 @@ private struct ScriptSection: View {
 
   var body: some View {
     Section {
-      PlainTextEditor(
-        text: text,
-        isMonospaced: true,
-        style: .plain
-      )
-      .frame(height: 112)
-      .accessibilityLabel(title)
+      TextEditor(text: text)
+        .font(.body.monospaced())
+        .textEditorStyle(.plain)
+        .autocorrectionDisabled()
+        .scrollContentBackground(.hidden)
+        .frame(height: 112)
+        .accessibilityLabel(title)
     } header: {
       Text(title)
       Text(subtitle)
