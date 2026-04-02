@@ -58,6 +58,20 @@ struct WorktreeSettingsView: View {
             EmptyView()
           }
         }
+        
+        Picker(
+          "Auto-delete archived worktrees",
+          selection: Binding(
+            get: { store.autoDeleteArchivedWorktreesAfterDays },
+            set: { store.send(.requestAutoDeleteDaysChange($0)) }
+          )
+        ) {
+          Text("Never").tag(AutoDeletePeriod?.none)
+          ForEach(AutoDeletePeriod.allCases, id: \.rawValue) { period in
+            Text(period.label).tag(AutoDeletePeriod?.some(period))
+          }
+        }
+        
         Toggle(isOn: $store.deleteBranchOnDeleteWorktree) {
           Text("Delete local branch with worktree")
           Text("Removes the local branch along with the worktree. Remote branches must be deleted on GitHub.")

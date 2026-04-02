@@ -38,6 +38,7 @@ struct SettingsFeature {
     var disabledWorktreeActions: Set<String>
     var customWorktreeActions: [CustomWorktreeAction]
     var pinnedToolbarActions: [String]
+    var autoDeleteArchivedWorktreesAfterDays: AutoDeletePeriod?
     var shortcutOverrides: [AppShortcutID: AppShortcutOverride]
     // nil = settings window closed, non-nil = open to this section.
     // The view layer opens the settings window when this becomes non-nil.
@@ -74,6 +75,7 @@ struct SettingsFeature {
       copyUntrackedOnWorktreeCreate = settings.copyUntrackedOnWorktreeCreate
       pullRequestMergeStrategy = settings.pullRequestMergeStrategy
       terminalThemeSyncEnabled = settings.terminalThemeSyncEnabled
+      autoDeleteArchivedWorktreesAfterDays = settings.autoDeleteArchivedWorktreesAfterDays
       shortcutOverrides = settings.shortcutOverrides
       defaultWorktreeBaseDirectoryPath =
         CherryLilyPaths.normalizedWorktreeBaseDirectoryPath(settings.defaultWorktreeBaseDirectoryPath) ?? ""
@@ -116,6 +118,7 @@ struct SettingsFeature {
         disabledWorktreeActions: disabledWorktreeActions,
         customWorktreeActions: customWorktreeActions,
         pinnedToolbarActions: pinnedToolbarActions,
+        autoDeleteArchivedWorktreesAfterDays: autoDeleteArchivedWorktreesAfterDays,
         shortcutOverrides: shortcutOverrides
       )
     }
@@ -135,6 +138,8 @@ struct SettingsFeature {
     case updateShortcut(id: AppShortcutID, override: AppShortcutOverride?)
     case toggleShortcutEnabled(id: AppShortcutID, enabled: Bool)
     case resetAllShortcuts
+    case requestAutoDeleteDaysChange(AutoDeletePeriod?)
+    case resolvedAutoDeleteAffectedCount(AutoDeletePeriod, affectedCount: Int)
     case repositorySettings(RepositorySettingsFeature.Action)
     case alert(PresentationAction<Alert>)
     case delegate(Delegate)
@@ -144,6 +149,7 @@ struct SettingsFeature {
   enum Alert: Equatable {
     case dismiss
     case openSystemNotificationSettings
+    case confirmAutoDeleteDaysChange(AutoDeletePeriod)
   }
 
   @CasePathable
@@ -152,7 +158,9 @@ struct SettingsFeature {
   }
 
   @Dependency(AnalyticsClient.self) private var analyticsClient
+  @Dependency(RepositoryPersistenceClient.self) private var repositoryPersistence
   @Dependency(SystemNotificationClient.self) private var systemNotificationClient
+  @Dependency(\.date.now) private var now
 
   var body: some Reducer<State, Action> {
     BindingReducer()
@@ -205,6 +213,7 @@ struct SettingsFeature {
         state.copyUntrackedOnWorktreeCreate = normalizedSettings.copyUntrackedOnWorktreeCreate
         state.pullRequestMergeStrategy = normalizedSettings.pullRequestMergeStrategy
         state.terminalThemeSyncEnabled = normalizedSettings.terminalThemeSyncEnabled
+        state.autoDeleteArchivedWorktreesAfterDays = normalizedSettings.autoDeleteArchivedWorktreesAfterDays
         state.shortcutOverrides = normalizedSettings.shortcutOverrides
         state.defaultWorktreeBaseDirectoryPath = normalizedSettings.defaultWorktreeBaseDirectoryPath ?? ""
         state.disabledWorktreeActions = normalizedSettings.disabledWorktreeActions
@@ -277,6 +286,55 @@ struct SettingsFeature {
 
       case .resetAllShortcuts:
         state.shortcutOverrides = [:]
+        return persist(state)
+
+      case .requestAutoDeleteDaysChange(let newPeriod):
+        // Apply immediately when safe (disabling or widening the window).
+        // Otherwise, check if the new period would auto-delete existing worktrees.
+        guard let newPeriod else {
+          state.autoDeleteArchivedWorktreesAfterDays = nil
+          return persist(state)
+        }
+        if let current = state.autoDeleteArchivedWorktreesAfterDays, newPeriod >= current {
+          state.autoDeleteArchivedWorktreesAfterDays = newPeriod
+          return persist(state)
+        }
+        // Check how many archived worktrees would be auto-deleted under the new period.
+        return .run { [now] send in
+          let archivedDates = await repositoryPersistence.loadArchivedWorktreeDates()
+          let cutoff = now.addingTimeInterval(-Double(newPeriod.rawValue) * secondsPerDay)
+          let affectedCount = archivedDates.values.filter { $0 <= cutoff }.count
+          await send(.resolvedAutoDeleteAffectedCount(newPeriod, affectedCount: affectedCount))
+        }
+
+      case .resolvedAutoDeleteAffectedCount(let newPeriod, let affectedCount):
+        guard affectedCount > 0 else {
+          state.autoDeleteArchivedWorktreesAfterDays = newPeriod
+          return persist(state)
+        }
+        let worktreeWord = affectedCount == 1 ? "worktree" : "worktrees"
+        let pronoun = affectedCount == 1 ? "it was" : "they were"
+        let dayWord = newPeriod == .oneDay ? "day" : "days"
+        state.alert = AlertState {
+          TextState("Delete \(affectedCount) archived \(worktreeWord)?")
+        } actions: {
+          ButtonState(role: .destructive, action: .confirmAutoDeleteDaysChange(newPeriod)) {
+            TextState("Delete")
+          }
+          ButtonState(role: .cancel, action: .dismiss) {
+            TextState("Cancel")
+          }
+        } message: {
+          TextState(
+            "\(affectedCount) archived \(worktreeWord) will be deleted immediately because "
+              + "\(pronoun) archived more than \(newPeriod.rawValue) \(dayWord) ago."
+          )
+        }
+        return .none
+
+      case .alert(.presented(.confirmAutoDeleteDaysChange(let days))):
+        state.alert = nil
+        state.autoDeleteArchivedWorktreesAfterDays = days
         return persist(state)
 
       case .repositoriesChanged(let repositories):

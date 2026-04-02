@@ -1,5 +1,33 @@
 import Foundation
 
+nonisolated enum AutoDeletePeriod: Int, Codable, CaseIterable, Comparable, Sendable {
+  #if DEBUG
+    case immediately = 0
+  #endif
+  case oneDay = 1
+  case threeDays = 3
+  case sevenDays = 7
+  case fourteenDays = 14
+  case thirtyDays = 30
+
+  var label: String {
+    switch self {
+    #if DEBUG
+      case .immediately: "Immediately (debug)"
+    #endif
+    case .oneDay: "After 1 day"
+    case .threeDays: "After 3 days"
+    case .sevenDays: "After 7 days"
+    case .fourteenDays: "After 14 days"
+    case .thirtyDays: "After 30 days"
+    }
+  }
+
+  static func < (lhs: Self, rhs: Self) -> Bool {
+    lhs.rawValue < rhs.rawValue
+  }
+}
+
 nonisolated struct CustomWorktreeAction: Codable, Equatable, Identifiable, Sendable {
   var id: String
   var name: String
@@ -35,6 +63,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
   var copyUntrackedOnWorktreeCreate: Bool
   var pullRequestMergeStrategy: PullRequestMergeStrategy
   var terminalThemeSyncEnabled: Bool
+  var autoDeleteArchivedWorktreesAfterDays: AutoDeletePeriod?
   var shortcutOverrides: [AppShortcutID: AppShortcutOverride]
 
   var disabledWorktreeActions: Set<String>
@@ -72,6 +101,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     disabledWorktreeActions: [],
     customWorktreeActions: [],
     pinnedToolbarActions: ["finder", "editor"],
+    autoDeleteArchivedWorktreesAfterDays: nil,
     shortcutOverrides: [:]
   )
 
@@ -106,6 +136,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     disabledWorktreeActions: Set<String> = [],
     customWorktreeActions: [CustomWorktreeAction] = [],
     pinnedToolbarActions: [String] = [],
+    autoDeleteArchivedWorktreesAfterDays: AutoDeletePeriod? = nil,
     shortcutOverrides: [AppShortcutID: AppShortcutOverride] = [:]
   ) {
     self.appearanceMode = appearanceMode
@@ -138,6 +169,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     self.disabledWorktreeActions = disabledWorktreeActions
     self.customWorktreeActions = customWorktreeActions
     self.pinnedToolbarActions = pinnedToolbarActions
+    self.autoDeleteArchivedWorktreesAfterDays = autoDeleteArchivedWorktreesAfterDays
     self.shortcutOverrides = shortcutOverrides
   }
 
@@ -250,6 +282,12 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     pinnedToolbarActions =
       try container.decodeIfPresent([String].self, forKey: .pinnedToolbarActions)
       ?? OpenWorktreeAction.seededPinnedToolbarActions(defaultEditorID: defaultEditorID)
+    
+    // Reject unrecognized values from corrupted or hand-edited settings files.
+    autoDeleteArchivedWorktreesAfterDays =
+      (try container.decodeIfPresent(Int.self, forKey: .autoDeleteArchivedWorktreesAfterDays))
+      .flatMap(AutoDeletePeriod.init(rawValue:))
+      ?? Self.default.autoDeleteArchivedWorktreesAfterDays
     shortcutOverrides =
       try container.decodeIfPresent([AppShortcutID: AppShortcutOverride].self, forKey: .shortcutOverrides)
       ?? Self.default.shortcutOverrides

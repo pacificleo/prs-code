@@ -301,6 +301,13 @@ struct AppFeature {
             )
           ),
           .send(
+            .repositories(
+              .setAutoDeleteArchivedWorktreesAfterDays(
+                settings.autoDeleteArchivedWorktreesAfterDays
+              )
+            )
+          ),
+          .send(
             .updates(
               .applySettings(
                 updateChannel: settings.updateChannel,
