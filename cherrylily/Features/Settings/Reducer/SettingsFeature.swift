@@ -26,7 +26,7 @@ struct SettingsFeature {
     var crashReportsEnabled: Bool
     var githubIntegrationEnabled: Bool
     var deleteBranchOnDeleteWorktree: Bool
-    var automaticallyArchiveMergedWorktrees: Bool
+    var mergedWorktreeAction: MergedWorktreeAction?
     var promptForWorktreeCreation: Bool
     var showShortcutHints: Bool
     var fetchOriginBeforeWorktreeCreation: Bool
@@ -66,7 +66,7 @@ struct SettingsFeature {
       crashReportsEnabled = settings.crashReportsEnabled
       githubIntegrationEnabled = settings.githubIntegrationEnabled
       deleteBranchOnDeleteWorktree = settings.deleteBranchOnDeleteWorktree
-      automaticallyArchiveMergedWorktrees = settings.automaticallyArchiveMergedWorktrees
+      mergedWorktreeAction = settings.mergedWorktreeAction
       promptForWorktreeCreation = settings.promptForWorktreeCreation
       showShortcutHints = settings.showShortcutHints
       fetchOriginBeforeWorktreeCreation = settings.fetchOriginBeforeWorktreeCreation
@@ -102,7 +102,7 @@ struct SettingsFeature {
         crashReportsEnabled: crashReportsEnabled,
         githubIntegrationEnabled: githubIntegrationEnabled,
         deleteBranchOnDeleteWorktree: deleteBranchOnDeleteWorktree,
-        automaticallyArchiveMergedWorktrees: automaticallyArchiveMergedWorktrees,
+        mergedWorktreeAction: mergedWorktreeAction,
         promptForWorktreeCreation: promptForWorktreeCreation,
         showShortcutHints: showShortcutHints,
         fetchOriginBeforeWorktreeCreation: fetchOriginBeforeWorktreeCreation,
@@ -197,7 +197,7 @@ struct SettingsFeature {
         state.crashReportsEnabled = normalizedSettings.crashReportsEnabled
         state.githubIntegrationEnabled = normalizedSettings.githubIntegrationEnabled
         state.deleteBranchOnDeleteWorktree = normalizedSettings.deleteBranchOnDeleteWorktree
-        state.automaticallyArchiveMergedWorktrees = normalizedSettings.automaticallyArchiveMergedWorktrees
+        state.mergedWorktreeAction = normalizedSettings.mergedWorktreeAction
         state.promptForWorktreeCreation = normalizedSettings.promptForWorktreeCreation
         state.showShortcutHints = normalizedSettings.showShortcutHints
         state.fetchOriginBeforeWorktreeCreation = normalizedSettings.fetchOriginBeforeWorktreeCreation
