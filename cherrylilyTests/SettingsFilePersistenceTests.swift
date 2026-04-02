@@ -126,14 +126,14 @@ struct SettingsFilePersistenceTests {
   @Test(.dependencies) func roundTripsMergedWorktreeActionDelete() throws {
     let storage = SettingsTestStorage()
 
-    var settings: SettingsFile = withDependencies {
+    withDependencies {
       $0.settingsFileStorage = storage.storage
     } operation: {
       @Shared(.settingsFile) var settings: SettingsFile
-      return settings
+      $settings.withLock {
+        $0.global.mergedWorktreeAction = .delete
+      }
     }
-
-    settings.global.mergedWorktreeAction = .delete
 
     let reloaded: SettingsFile = withDependencies {
       $0.settingsFileStorage = storage.storage
