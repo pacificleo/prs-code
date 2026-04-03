@@ -63,6 +63,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
   var copyUntrackedOnWorktreeCreate: Bool
   var pullRequestMergeStrategy: PullRequestMergeStrategy
   var terminalThemeSyncEnabled: Bool
+  var hideTmuxTabBar: Bool
   var autoDeleteArchivedWorktreesAfterDays: AutoDeletePeriod?
   var shortcutOverrides: [AppShortcutID: AppShortcutOverride]
 
@@ -97,6 +98,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     copyUntrackedOnWorktreeCreate: false,
     pullRequestMergeStrategy: .merge,
     terminalThemeSyncEnabled: false,
+    hideTmuxTabBar: false,
     defaultWorktreeBaseDirectoryPath: nil,
     disabledWorktreeActions: [],
     customWorktreeActions: [],
@@ -132,6 +134,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     copyUntrackedOnWorktreeCreate: Bool = false,
     pullRequestMergeStrategy: PullRequestMergeStrategy = .merge,
     terminalThemeSyncEnabled: Bool = false,
+    hideTmuxTabBar: Bool = false,
     defaultWorktreeBaseDirectoryPath: String? = nil,
     disabledWorktreeActions: Set<String> = [],
     customWorktreeActions: [CustomWorktreeAction] = [],
@@ -165,6 +168,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     self.copyUntrackedOnWorktreeCreate = copyUntrackedOnWorktreeCreate
     self.pullRequestMergeStrategy = pullRequestMergeStrategy
     self.terminalThemeSyncEnabled = terminalThemeSyncEnabled
+    self.hideTmuxTabBar = hideTmuxTabBar
     self.defaultWorktreeBaseDirectoryPath = defaultWorktreeBaseDirectoryPath
     self.disabledWorktreeActions = disabledWorktreeActions
     self.customWorktreeActions = customWorktreeActions
@@ -270,6 +274,9 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     terminalThemeSyncEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .terminalThemeSyncEnabled)
       ?? Self.default.terminalThemeSyncEnabled
+    hideTmuxTabBar =
+      try container.decodeIfPresent(Bool.self, forKey: .hideTmuxTabBar)
+      ?? Self.default.hideTmuxTabBar
     defaultWorktreeBaseDirectoryPath =
       try container.decodeIfPresent(String.self, forKey: .defaultWorktreeBaseDirectoryPath)
       ?? Self.default.defaultWorktreeBaseDirectoryPath

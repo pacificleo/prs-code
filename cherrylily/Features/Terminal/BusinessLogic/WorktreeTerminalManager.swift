@@ -131,6 +131,10 @@ final class WorktreeTerminalManager {
       prune(keeping: ids)
     case .setNotificationsEnabled(let enabled):
       setNotificationsEnabled(enabled)
+    case .refreshTmuxTabBarVisibility:
+      for state in states.values {
+        state.refreshTmuxTabBarVisibility()
+      }
     case .setSelectedWorktreeID(let id):
       guard id != selectedWorktreeID else { return }
       if let previousID = selectedWorktreeID, let previousState = states[previousID] {

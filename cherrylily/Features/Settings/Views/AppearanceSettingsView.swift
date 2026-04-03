@@ -68,6 +68,12 @@ struct AppearanceSettingsView: View {
           Text("Applies to Worktrees without repository overrides.")
         }
       }
+      Section("Advanced") {
+        Toggle(isOn: $store.hideTmuxTabBar) {
+          Text("Hide Tab Bar for `tmux`")
+          Text("Applies when `tmux` is the only running tab.")
+        }
+      }
     }
     .formStyle(.grouped)
     .padding(.top, -20)
