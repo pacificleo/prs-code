@@ -32,7 +32,7 @@ struct TerminalClient {
     case setNotificationsEnabled(Bool)
     case setSelectedWorktreeID(Worktree.ID?)
     case focusTab(worktreeID: Worktree.ID, tabID: TerminalTabID)
-    case refreshTmuxTabBarVisibility
+    case refreshTabBarVisibility
   }
 
   enum Event: Equatable {

@@ -69,9 +69,9 @@ struct AppearanceSettingsView: View {
         }
       }
       Section("Advanced") {
-        Toggle(isOn: $store.hideTmuxTabBar) {
-          Text("Hide Tab Bar for `tmux`")
-          Text("Applies when `tmux` is the only running tab.")
+        Toggle(isOn: $store.hideSingleTabBar) {
+          Text("Hide Tab Bar for Single Tab")
+          Text("Automatically hides the tab bar when only one tab is open.")
         }
       }
     }

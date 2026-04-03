@@ -34,7 +34,7 @@ struct SettingsFeature {
     var copyUntrackedOnWorktreeCreate: Bool
     var pullRequestMergeStrategy: PullRequestMergeStrategy
     var terminalThemeSyncEnabled: Bool
-    var hideTmuxTabBar: Bool
+    var hideSingleTabBar: Bool
     var defaultWorktreeBaseDirectoryPath: String
     var disabledWorktreeActions: Set<String>
     var customWorktreeActions: [CustomWorktreeAction]
@@ -76,7 +76,7 @@ struct SettingsFeature {
       copyUntrackedOnWorktreeCreate = settings.copyUntrackedOnWorktreeCreate
       pullRequestMergeStrategy = settings.pullRequestMergeStrategy
       terminalThemeSyncEnabled = settings.terminalThemeSyncEnabled
-      hideTmuxTabBar = settings.hideTmuxTabBar
+      hideSingleTabBar = settings.hideSingleTabBar
       autoDeleteArchivedWorktreesAfterDays = settings.autoDeleteArchivedWorktreesAfterDays
       shortcutOverrides = settings.shortcutOverrides
       defaultWorktreeBaseDirectoryPath =
@@ -114,7 +114,7 @@ struct SettingsFeature {
         copyUntrackedOnWorktreeCreate: copyUntrackedOnWorktreeCreate,
         pullRequestMergeStrategy: pullRequestMergeStrategy,
         terminalThemeSyncEnabled: terminalThemeSyncEnabled,
-        hideTmuxTabBar: hideTmuxTabBar,
+        hideSingleTabBar: hideSingleTabBar,
         defaultWorktreeBaseDirectoryPath: CherryLilyPaths.normalizedWorktreeBaseDirectoryPath(
           defaultWorktreeBaseDirectoryPath
         ),
@@ -216,7 +216,7 @@ struct SettingsFeature {
         state.copyUntrackedOnWorktreeCreate = normalizedSettings.copyUntrackedOnWorktreeCreate
         state.pullRequestMergeStrategy = normalizedSettings.pullRequestMergeStrategy
         state.terminalThemeSyncEnabled = normalizedSettings.terminalThemeSyncEnabled
-        state.hideTmuxTabBar = normalizedSettings.hideTmuxTabBar
+        state.hideSingleTabBar = normalizedSettings.hideSingleTabBar
         state.autoDeleteArchivedWorktreesAfterDays = normalizedSettings.autoDeleteArchivedWorktreesAfterDays
         state.shortcutOverrides = normalizedSettings.shortcutOverrides
         state.defaultWorktreeBaseDirectoryPath = normalizedSettings.defaultWorktreeBaseDirectoryPath ?? ""
