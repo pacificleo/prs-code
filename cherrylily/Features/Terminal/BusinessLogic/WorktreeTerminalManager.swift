@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 import Sharing
 
@@ -9,6 +10,7 @@ final class WorktreeTerminalManager {
   private let runtime: GhosttyRuntime
   let persistenceEnabled: @Sendable () -> Bool
   let persistence: SessionPersistence?
+  private(set) var socketServer: AgentHookSocketServer?
   private var states: [Worktree.ID: WorktreeTerminalState] = [:]
   /// Layout read on app launch via `loadLayoutOnLaunch()`. Consulted whenever
   /// `state(for:)` creates a new WTS so the restored worktree comes back with
@@ -24,10 +26,48 @@ final class WorktreeTerminalManager {
     runtime: GhosttyRuntime,
     persistenceEnabled: @escaping @Sendable () -> Bool = { false },
     persistence: SessionPersistence? = nil,
+    socketServer: AgentHookSocketServer? = nil
   ) {
     self.runtime = runtime
     self.persistenceEnabled = persistenceEnabled
     self.persistence = persistence
+
+    let resolvedServer = socketServer ?? AgentHookSocketServer()
+    if resolvedServer.socketPath != nil {
+      self.socketServer = resolvedServer
+    } else {
+      self.socketServer = nil
+      terminalLogger.warning("Agent hook socket server unavailable")
+    }
+    
+    if let s = self.socketServer {
+      configureSocketServer(s)
+    }
+  }
+
+  private func configureSocketServer(_ server: AgentHookSocketServer) {
+    server.onBusy = { [weak self] worktreeID, tabID, surfaceID, active in
+      let decoded = worktreeID.removingPercentEncoding ?? worktreeID
+      guard let state = self?.states[decoded] else {
+        terminalLogger.debug("Dropped busy update for unknown worktree \(decoded)")
+        return
+      }
+      state.setAgentBusy(
+        surfaceID: surfaceID,
+        tabID: TerminalTabID(rawValue: tabID),
+        active: active
+      )
+    }
+    server.onNotification = { [weak self] worktreeID, _, surfaceID, notification in
+      let decoded = worktreeID.removingPercentEncoding ?? worktreeID
+      guard let state = self?.states[decoded] else {
+        terminalLogger.debug("Dropped hook notification for unknown worktree \(decoded)")
+        return
+      }
+      let title = notification.title ?? notification.agent
+      let body = notification.body ?? ""
+      state.appendHookNotification(title: title, body: body, surfaceID: surfaceID)
+    }
   }
 
   /// Called once at app launch (from `CherryLilyApp.init`). Reads the persisted layout
@@ -192,6 +232,7 @@ final class WorktreeTerminalManager {
       persistenceEnabled: { [weak self] in self?.persistenceEnabled() ?? false },
       persistence: persistence
     )
+    state.socketPath = socketServer?.socketPath
     state.setNotificationsEnabled(notificationsEnabled)
     state.isSelected = { [weak self] in
       self?.selectedWorktreeID == worktree.id

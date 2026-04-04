@@ -11,30 +11,23 @@ struct TerminalTabLabelView: View {
   var body: some View {
     let showsShortcutHint = commandKeyObserver.isPressed && shortcutHint != nil
     HStack(spacing: TerminalTabBarMetrics.contentSpacing) {
-      if tab.isDirty || tab.icon != nil {
-        ZStack {
-          if tab.isDirty {
-            ProgressView()
-              .controlSize(.small)
-              .tint(isActive ? TerminalTabBarColors.activeText : TerminalTabBarColors.inactiveText)
-          } else if let icon = tab.icon {
-            Image(systemName: icon)
-              .imageScale(.small)
-              .foregroundStyle(
-                tab.tintColor?.color ?? (isActive ? TerminalTabBarColors.activeText : TerminalTabBarColors.inactiveText)
-              )
-          }
-        }
-        .frame(
-          width: TerminalTabBarMetrics.closeButtonSize,
-          height: TerminalTabBarMetrics.closeButtonSize
-        )
-        .accessibilityHidden(true)
+      if let icon = tab.icon {
+        Image(systemName: icon)
+          .imageScale(.small)
+          .foregroundStyle(
+            tab.tintColor?.color ?? (isActive ? TerminalTabBarColors.activeText : TerminalTabBarColors.inactiveText)
+          )
+          .frame(
+            width: TerminalTabBarMetrics.closeButtonSize,
+            height: TerminalTabBarMetrics.closeButtonSize
+          )
+          .accessibilityHidden(true)
       }
       Text(tab.title)
         .font(.caption)
         .lineLimit(1)
         .foregroundStyle(isActive ? TerminalTabBarColors.activeText : TerminalTabBarColors.inactiveText)
+        .shimmer(isActive: tab.isDirty)
       Spacer(minLength: TerminalTabBarMetrics.contentTrailingSpacing)
       ZStack {
         if showsShortcutHint, let shortcutHint {

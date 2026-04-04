@@ -4,6 +4,7 @@ enum SettingsSection: Hashable {
   case general
   case notifications
   case worktree
+  case codingAgents
   case sessions
   case shortcuts
   case updates

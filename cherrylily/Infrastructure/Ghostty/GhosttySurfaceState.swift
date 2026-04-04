@@ -9,6 +9,8 @@ final class GhosttySurfaceState {
   // those views.
   var title: String?
   var pwd: String?
+  var promptTitle: ghostty_action_prompt_title_e?
+  var agentBusy = false
   var progressState: ghostty_action_progress_report_state_e?
   var progressValue: Int?
   var searchNeedle: String?
@@ -21,7 +23,6 @@ final class GhosttySurfaceState {
   // by GhosttySurfaceView (an NSView, not a SwiftUI body). Marked @ObservationIgnored
   // so these writes don't churn the observation registrar shared with the fields
   // above — a mouse-move must not invalidate the progress/search overlays.
-  @ObservationIgnored var promptTitle: ghostty_action_prompt_title_e?
   @ObservationIgnored var commandExitCode: Int?
   @ObservationIgnored var commandDuration: UInt64?
   @ObservationIgnored var childExitCode: UInt32?

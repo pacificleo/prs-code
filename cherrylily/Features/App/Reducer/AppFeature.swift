@@ -275,7 +275,7 @@ struct AppFeature {
           repoSettingsState.globalPullRequestMergeStrategy =
             state.settings.pullRequestMergeStrategy
           state.settings.repositorySettings = repoSettingsState
-        case .general, .notifications, .worktree, .sessions, .shortcuts, .updates, .appLauncher, .github:
+        case .general, .notifications, .worktree, .codingAgents, .sessions, .shortcuts, .updates, .appLauncher, .github:
           state.settings.repositorySettings = nil
         }
         return .none

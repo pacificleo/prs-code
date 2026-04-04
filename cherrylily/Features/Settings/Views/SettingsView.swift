@@ -59,6 +59,8 @@ struct SettingsView: View {
           .tag(SettingsSection.notifications)
         Label("Worktrees", systemImage: "list.dash")
           .tag(SettingsSection.worktree)
+        Label("Coding Agents", systemImage: "hammer")
+          .tag(SettingsSection.codingAgents)
         Label("Sessions", systemImage: "clock.arrow.circlepath")
           .tag(SettingsSection.sessions)
         Label("App Launcher", systemImage: "sparkles.square.filled.on.square")
@@ -91,6 +93,8 @@ struct SettingsView: View {
         NotificationsSettingsView(store: settingsStore)
       case .worktree:
         WorktreeSettingsView(store: settingsStore)
+      case .codingAgents:
+        CodingAgentsSettingsView(store: settingsStore)
       case .sessions:
         SessionsSettingsView(store: settingsStore)
           .navigationTitle("Sessions")

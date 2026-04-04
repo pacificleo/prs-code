@@ -162,7 +162,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
   override var acceptsFirstResponder: Bool { true }
 
   init(
-    id: UUID = UUID(),
+    id: UUID,
     runtime: GhosttyRuntime,
     workingDirectory: URL?,
     command: String? = nil,
