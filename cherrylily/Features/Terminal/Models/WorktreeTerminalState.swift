@@ -31,7 +31,7 @@ final class WorktreeTerminalState {
   private var surfaces: [UUID: GhosttySurfaceView] = [:]
   private var surfaceIdToTabId: [UUID: TerminalTabID] = [:]
   private var focusedSurfaceIdByTab: [TerminalTabID: UUID] = [:]
-  var tabIsRunningById: [TerminalTabID: Bool] = [:]
+  private var tabIsRunningById: [TerminalTabID: Bool] = [:]
   var socketPath: String?
   private(set) var shouldHideTabBar = false
   private var blockingScripts: [TerminalTabID: BlockingScriptKind] = [:]
@@ -143,7 +143,8 @@ final class WorktreeTerminalState {
     setupScript: String? = nil,
     initialInput: String? = nil,
     command: String? = nil,
-    inheritingFromSurfaceId: UUID? = nil
+    inheritingFromSurfaceId: UUID? = nil,
+    tabID: UUID? = nil
   ) -> TerminalTabID? {
     let context: ghostty_surface_context_e =
       tabManager.tabs.isEmpty
@@ -179,7 +180,8 @@ final class WorktreeTerminalState {
         cwd: nil,
         focusing: focusing,
         inheritingFromSurfaceId: resolvedInheritanceSurfaceId,
-        context: context
+        context: context,
+        tabID: tabID,
       )
     )
     if shouldConsumeSetupScript, tabId != nil {
@@ -324,7 +326,8 @@ final class WorktreeTerminalState {
         cwd: nil,
         focusing: true,
         inheritingFromSurfaceId: currentFocusedSurfaceId(),
-        context: GHOSTTY_SURFACE_CONTEXT_TAB
+        context: GHOSTTY_SURFACE_CONTEXT_TAB,
+        tabID: nil,
       )
     )
     guard let tabId else {
@@ -358,6 +361,7 @@ final class WorktreeTerminalState {
     let focusing: Bool
     let inheritingFromSurfaceId: UUID?
     let context: ghostty_surface_context_e
+    let tabID: UUID?
   }
 
   private func createTab(_ creation: TabCreation) -> TerminalTabID? {
@@ -365,7 +369,8 @@ final class WorktreeTerminalState {
       title: creation.title,
       icon: creation.icon,
       isTitleLocked: creation.isTitleLocked,
-      tintColor: creation.tintColor
+      tintColor: creation.tintColor,
+      id: creation.tabID,
     )
     let tree = splitTree(
       for: tabId,
@@ -385,9 +390,18 @@ final class WorktreeTerminalState {
     return tabId
   }
 
+  func hasTab(_ tabId: TerminalTabID) -> Bool {
+    tabManager.tabs.contains(where: { $0.id == tabId })
+  }
+
+  func hasSurface(_ surfaceId: UUID, in tabId: TerminalTabID) -> Bool {
+    guard let tree = trees[tabId] else { return false }
+    return tree.find(id: surfaceId) != nil
+  }
+
   func selectTab(_ tabId: TerminalTabID) {
     guard tabManager.tabs.contains(where: { $0.id == tabId }) else {
-      blockingScriptLogger.warning("selectTab: tab \(tabId.rawValue) not found in worktree \(worktree.id)")
+      terminalStateLogger.warning("selectTab: tab \(tabId.rawValue) not found in worktree \(worktree.id).")
       return
     }
     tabManager.selectTab(tabId)
@@ -415,9 +429,13 @@ final class WorktreeTerminalState {
     guard let tabId = tabManager.selectedTabId,
       let focusedId = focusedSurfaceIdByTab[tabId],
       let surface = surfaces[focusedId]
-    else { return }
+    else {
+      terminalStateLogger.warning("focusAndInsertText: no focused surface")
+      return
+    }
+    terminalStateLogger.info("focusAndInsertText: sending \(text.count) chars to surface \(focusedId)")
     surface.requestFocus()
-    surface.insertText(text, replacementRange: NSRange(location: 0, length: 0))
+    surface.sendText(text)
   }
 
   func syncFocus(windowIsKey: Bool, windowIsVisible: Bool) {
@@ -472,6 +490,7 @@ final class WorktreeTerminalState {
     guard let tabId = tabId(containing: id),
       let surface = surfaces[id]
     else {
+      terminalStateLogger.warning("focusSurface: surface \(id) not found in worktree \(worktree.id).")
       return false
     }
     tabManager.selectTab(tabId)
@@ -492,6 +511,17 @@ final class WorktreeTerminalState {
       let focusedId = focusedSurfaceIdByTab[tabId],
       let surface = surfaces[focusedId]
     else {
+      return false
+    }
+    surface.performBindingAction("close_surface")
+    return true
+  }
+
+  @discardableResult
+  func closeSurface(id surfaceID: UUID) -> Bool {
+    guard let surface = surfaces[surfaceID] else {
+      terminalStateLogger.warning(
+        "closeSurface: surface \(surfaceID) not found. Known: \(surfaces.keys.map(\.uuidString))")
       return false
     }
     surface.performBindingAction("close_surface")
@@ -595,7 +625,11 @@ final class WorktreeTerminalState {
     return tree
   }
 
-  func performSplitAction(_ action: GhosttySplitAction, for surfaceId: UUID) -> Bool {
+  func performSplitAction(
+    _ action: GhosttySplitAction,
+    for surfaceId: UUID,
+    newSurfaceID: UUID? = nil
+  ) -> Bool {
     guard let tabId = tabId(containing: surfaceId), var tree = trees[tabId] else {
       return false
     }
@@ -608,7 +642,8 @@ final class WorktreeTerminalState {
         tabId: tabId,
         initialInput: nil,
         inheritingFromSurfaceId: surfaceId,
-        context: GHOSTTY_SURFACE_CONTEXT_SPLIT
+        context: GHOSTTY_SURFACE_CONTEXT_SPLIT,
+        surfaceID: newSurfaceID,
       )
       do {
         let newTree = try tree.inserting(
@@ -620,6 +655,8 @@ final class WorktreeTerminalState {
         focusSurface(newSurface, in: tabId)
         return true
       } catch {
+        terminalStateLogger.warning(
+          "performSplitAction: failed to insert split for surface \(surfaceId) in tab \(tabId.rawValue): \(error)")
         newSurface.closeSurface()
         surfaces.removeValue(forKey: newSurface.id)
         surfaceIdToTabId.removeValue(forKey: newSurface.id)
@@ -791,10 +828,7 @@ final class WorktreeTerminalState {
   }
 
   private func formatCommandInput(_ script: String) -> String? {
-    makeCommandInput(
-      script: script,
-      environmentExportPrefix: worktree.scriptEnvironmentExportPrefix
-    )
+    makeCommandInput(script: script)
   }
 
   private func cleanupBlockingScriptLaunchDirectory(for tabId: TerminalTabID) {
@@ -820,13 +854,12 @@ final class WorktreeTerminalState {
     }
   }
 
-  // The typed command stays shell-portable by invoking a generated wrapper file,
-  // which reads env/script metadata from sibling files rather than serializing
-  // the user script into a shell-escaped `-c` string.
+  // The typed command stays shell-portable by invoking a generated wrapper file
+  // that reads the shell path from a sibling file and launches the user script,
+  // rather than serializing it into a shell-escaped `-c` string.
   private func blockingScriptLaunch(_ script: String) throws -> BlockingScriptLaunch? {
     try makeBlockingScriptLaunch(
       script: script,
-      environment: worktree.scriptEnvironment,
       shellPath: defaultShellPath()
     )
   }
@@ -879,15 +912,26 @@ final class WorktreeTerminalState {
 
   private func surfaceEnvironment(tabId: TerminalTabID, surfaceID: UUID) -> [String: String] {
     var env = worktree.scriptEnvironment
-    env["SUPACODE_WORKTREE_ID"] =
-      worktree.id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)
-      ?? worktree.id
+    let percentEncodingSet = CharacterSet.urlPathAllowed.subtracting(.init(charactersIn: "/"))
+    let repoPath = worktree.repositoryRootURL.path(percentEncoded: false)
+    env["SUPACODE_REPO_ID"] = percentEncode(repoPath, allowedCharacters: percentEncodingSet, label: "SUPACODE_REPO_ID")
+    env["SUPACODE_WORKTREE_ID"] = percentEncode(
+      worktree.id, allowedCharacters: percentEncodingSet, label: "SUPACODE_WORKTREE_ID")
     env["SUPACODE_TAB_ID"] = tabId.rawValue.uuidString
     env["SUPACODE_SURFACE_ID"] = surfaceID.uuidString
     if let socketPath {
       env["SUPACODE_SOCKET_PATH"] = socketPath
     }
     return env
+  }
+
+  private func percentEncode(_ value: String, allowedCharacters: CharacterSet, label: String) -> String {
+    guard let encoded = value.addingPercentEncoding(withAllowedCharacters: allowedCharacters) else {
+      terminalStateLogger.warning(
+        "Failed to percent-encode \(label): \(value). Downstream deeplinks using this value may be malformed.")
+      return value
+    }
+    return encoded
   }
 
   private func createSurface(
@@ -897,7 +941,8 @@ final class WorktreeTerminalState {
     surfaceID: SurfaceID? = nil,
     cwd: URL? = nil,
     inheritingFromSurfaceId: UUID?,
-    context: ghostty_surface_context_e
+    context: ghostty_surface_context_e,
+    surfaceID: UUID? = nil
   ) -> GhosttySurfaceView {
     let inherited = inheritedSurfaceConfig(fromSurfaceId: inheritingFromSurfaceId, context: context)
     let resolvedSurfaceID = surfaceID ?? SurfaceID()
@@ -1482,37 +1527,28 @@ extension WorktreeTerminalState: WorktreeStateSnapshotting {
 }
 
 nonisolated func makeCommandInput(
-  script: String,
-  environmentExportPrefix: String
+  script: String
 ) -> String? {
   let trimmed = script.trimmingCharacters(in: .whitespacesAndNewlines)
   guard !trimmed.isEmpty else { return nil }
-  return environmentExportPrefix + trimmed + "\n"
+  return trimmed + "\n"
 }
 
 nonisolated struct BlockingScriptLaunch {
   let directoryURL: URL
   let runnerURL: URL
   let scriptURL: URL
-  let rootPathURL: URL
-  let worktreePathURL: URL
   let shellPathURL: URL
   let commandInput: String
 }
 
 nonisolated func makeBlockingScriptLaunch(
   script: String,
-  environment: [String: String],
   shellPath: String,
   baseDirectoryURL: URL = FileManager.default.temporaryDirectory
 ) throws -> BlockingScriptLaunch? {
   let trimmed = script.trimmingCharacters(in: .whitespacesAndNewlines)
-  guard !trimmed.isEmpty,
-    let rootPath = environment["SUPACODE_ROOT_PATH"],
-    let worktreePath = environment["SUPACODE_WORKTREE_PATH"]
-  else {
-    return nil
-  }
+  guard !trimmed.isEmpty else { return nil }
 
   let fileManager = FileManager.default
   let directoryURL = baseDirectoryURL.appending(
@@ -1521,21 +1557,15 @@ nonisolated func makeBlockingScriptLaunch(
   )
   let runnerURL = directoryURL.appending(path: "run", directoryHint: .notDirectory)
   let scriptURL = directoryURL.appending(path: "script", directoryHint: .notDirectory)
-  let rootPathURL = directoryURL.appending(path: "root-path", directoryHint: .notDirectory)
-  let worktreePathURL = directoryURL.appending(path: "worktree-path", directoryHint: .notDirectory)
   let shellPathURL = directoryURL.appending(path: "shell-path", directoryHint: .notDirectory)
 
   do {
     try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
     try Data((trimmed + "\n").utf8).write(to: scriptURL, options: [.atomic])
-    try Data((rootPath + "\n").utf8).write(to: rootPathURL, options: [.atomic])
-    try Data((worktreePath + "\n").utf8).write(to: worktreePathURL, options: [.atomic])
     try Data((shellPath + "\n").utf8).write(to: shellPathURL, options: [.atomic])
     try Data(
       blockingScriptRunnerContents(
         scriptURL: scriptURL,
-        rootPathURL: rootPathURL,
-        worktreePathURL: worktreePathURL,
         shellPathURL: shellPathURL
       ).utf8
     ).write(to: runnerURL, options: [.atomic])
@@ -1552,8 +1582,6 @@ nonisolated func makeBlockingScriptLaunch(
     directoryURL: directoryURL,
     runnerURL: runnerURL,
     scriptURL: scriptURL,
-    rootPathURL: rootPathURL,
-    worktreePathURL: worktreePathURL,
     shellPathURL: shellPathURL,
     commandInput: shellSingleQuoted(runnerURL.path(percentEncoded: false)) + "\n"
   )
@@ -1561,22 +1589,15 @@ nonisolated func makeBlockingScriptLaunch(
 
 nonisolated func blockingScriptRunnerContents(
   scriptURL: URL,
-  rootPathURL: URL,
-  worktreePathURL: URL,
   shellPathURL: URL
 ) -> String {
-  let quotedRootPath = shellSingleQuoted(rootPathURL.path(percentEncoded: false))
-  let quotedWorktreePath = shellSingleQuoted(worktreePathURL.path(percentEncoded: false))
   let quotedShellPath = shellSingleQuoted(shellPathURL.path(percentEncoded: false))
   let quotedScriptPath = shellSingleQuoted(scriptURL.path(percentEncoded: false))
 
   return """
     #!/bin/sh
     set -eu
-    IFS= read -r SUPACODE_ROOT_PATH < \(quotedRootPath)
-    IFS= read -r SUPACODE_WORKTREE_PATH < \(quotedWorktreePath)
     IFS= read -r SUPACODE_SHELL_PATH < \(quotedShellPath)
-    export SUPACODE_ROOT_PATH SUPACODE_WORKTREE_PATH
     "$SUPACODE_SHELL_PATH" -l \(quotedScriptPath)
     """
 }

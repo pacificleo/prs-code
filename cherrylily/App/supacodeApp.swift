@@ -31,11 +31,22 @@ private enum GhosttyCLI {
 final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
   static let diskFullObservedKey = "cl.session.diskFullObserved"
 
-  var appStore: StoreOf<AppFeature>?
+  var appStore: StoreOf<AppFeature>? {
+    didSet {
+      guard let appStore else { return }
+      // Replay any deeplinks that arrived before the store was initialized.
+      let buffered = bufferedDeeplinkURLs
+      bufferedDeeplinkURLs.removeAll()
+      for url in buffered {
+        appStore.send(.deeplinkReceived(url))
+      }
+    }
+  }
   var terminalManager: WorktreeTerminalManager?
   var persistence: SessionPersistence?
   var autosaveTimer: HourlyAutosaveTimer?
   var healthMonitor: TmuxHealthMonitor?
+  private var bufferedDeeplinkURLs: [URL] = []
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     // Single-instance guard. Runs BEFORE we touch the tmux socket or build the
@@ -142,6 +153,17 @@ final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
   func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
     if flag { return true }
     return showMainWindow(from: sender) ? false : true
+  }
+
+  func application(_ application: NSApplication, open urls: [URL]) {
+    guard let appStore else {
+      SupaLogger("Deeplink").warning("Deeplink received before store initialized, buffering: \(urls)")
+      bufferedDeeplinkURLs.append(contentsOf: urls)
+      return
+    }
+    for url in urls {
+      appStore.send(.deeplinkReceived(url))
+    }
   }
 
   func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -301,6 +323,9 @@ struct CherryLilyApp: App {
         tabExists: { worktreeID, tabID in
           terminalManager.tabExists(worktreeID: worktreeID, tabID: tabID)
         },
+        surfaceExists: { worktreeID, tabID, surfaceID in
+          terminalManager.surfaceExists(worktreeID: worktreeID, tabID: tabID, surfaceID: surfaceID)
+        },
         tabTitle: { worktreeID, tabID in
           terminalManager.tabTitle(worktreeID: worktreeID, tabID: tabID)
         },
@@ -382,7 +407,9 @@ struct CherryLilyApp: App {
         commandKeyObserver.isEnabled = newValue
       }
       .openSettingsOnSelection(store: store)
+      .openDeeplinkCheatsheetOnRequest(store: store)
     }
+    .handlesExternalEvents(matching: [])
     .environment(ghosttyShortcuts)
     .environment(commandKeyObserver)
     .commands {
@@ -390,9 +417,26 @@ struct CherryLilyApp: App {
       SidebarCommands()
       TerminalCommands(ghosttyShortcuts: ghosttyShortcuts)
       WindowCommands(ghosttyShortcuts: ghosttyShortcuts)
-      CommandGroup(replacing: .appInfo) {
-        Button("About CherryLily") {
-          Self.showAboutPanel()
+      Group {
+        CommandGroup(replacing: .appInfo) {
+          Button("About CherryLily") {
+            Self.showAboutPanel()
+          }
+        }
+        CommandGroup(replacing: .appSettings) {
+          SettingsMenuButton(shortcutOverrides: store.settings.shortcutOverrides) {
+            store.send(.settings(.setSelection(.general)))
+          }
+        }
+        CommandGroup(replacing: .help) {
+          DeeplinkCheatsheetMenuButton()
+        }
+        CommandGroup(replacing: .appTermination) {
+          Button("Quit CherryLily") {
+            store.send(.requestQuit)
+          }
+          .keyboardShortcut("q")
+          .help("Quit CherryLily (⌘Q)")
         }
       }
       CommandGroup(after: .textEditing) {
@@ -417,18 +461,6 @@ struct CherryLilyApp: App {
           .help("Show main window (⌘0)")
         }
       }
-      CommandGroup(replacing: .appSettings) {
-        SettingsMenuButton(shortcutOverrides: store.settings.shortcutOverrides) {
-          store.send(.settings(.setSelection(.general)))
-        }
-      }
-      CommandGroup(replacing: .appTermination) {
-        Button("Quit CherryLily") {
-          store.send(.requestQuit)
-        }
-        .keyboardShortcut("q")
-        .help("Quit CherryLily (⌘Q)")
-      }
     }
     Window("Settings", id: WindowID.settings) {
       SettingsView(store: store)
@@ -437,8 +469,16 @@ struct CherryLilyApp: App {
         .toolbarBackground(.hidden, for: .windowToolbar)
         .toolbarColorScheme(store.settings.appearanceMode.colorScheme, for: .windowToolbar)
     }
+    .handlesExternalEvents(matching: [])
     .windowToolbarStyle(.unified)
     .defaultSize(width: 800, height: 600)
+    .restorationBehavior(.disabled)
+    Window("Deeplink Reference", id: WindowID.deeplinkCheatsheet) {
+      DeeplinkCheatsheetView()
+    }
+    .handlesExternalEvents(matching: [])
+    .windowToolbarStyle(.unified)
+    .defaultSize(width: 720, height: 640)
     .restorationBehavior(.disabled)
   }
 }

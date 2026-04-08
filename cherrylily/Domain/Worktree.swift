@@ -26,7 +26,7 @@ struct Worktree: Identifiable, Hashable, Sendable {
 }
 
 extension Worktree {
-  /// Environment variables exposed to all Supacode scripts.
+  /// Base environment variables for Supacode scripts (supplemented per-surface).
   var scriptEnvironment: [String: String] {
     [
       "CHERRYLILY_WORKTREE_PATH": workingDirectory.path(percentEncoded: false),
@@ -34,6 +34,7 @@ extension Worktree {
     ]
   }
 
+<<<<<<< HEAD:cherrylily/Domain/Worktree.swift
   /// Shell export statements for prepending to scripts.
   ///
   /// All exports joined into a single line with `;` so only one history entry
@@ -46,4 +47,6 @@ extension Worktree {
       .joined(separator: "; ")
     return " \(exports)\n"
   }
+=======
+>>>>>>> a7f6d81f (Add deeplinks (#223)):supacode/Domain/Worktree.swift
 }

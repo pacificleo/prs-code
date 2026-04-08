@@ -64,6 +64,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
   var pullRequestMergeStrategy: PullRequestMergeStrategy
   var terminalThemeSyncEnabled: Bool
   var hideSingleTabBar: Bool
+  var allowArbitraryDeeplinkInput: Bool
   var autoDeleteArchivedWorktreesAfterDays: AutoDeletePeriod?
   var shortcutOverrides: [AppShortcutID: AppShortcutOverride]
 
@@ -99,6 +100,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     pullRequestMergeStrategy: .merge,
     terminalThemeSyncEnabled: false,
     hideSingleTabBar: false,
+    allowArbitraryDeeplinkInput: false,
     defaultWorktreeBaseDirectoryPath: nil,
     disabledWorktreeActions: [],
     customWorktreeActions: [],
@@ -135,6 +137,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     pullRequestMergeStrategy: PullRequestMergeStrategy = .merge,
     terminalThemeSyncEnabled: Bool = false,
     hideSingleTabBar: Bool = false,
+    allowArbitraryDeeplinkInput: Bool = false,
     defaultWorktreeBaseDirectoryPath: String? = nil,
     disabledWorktreeActions: Set<String> = [],
     customWorktreeActions: [CustomWorktreeAction] = [],
@@ -169,6 +172,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     self.pullRequestMergeStrategy = pullRequestMergeStrategy
     self.terminalThemeSyncEnabled = terminalThemeSyncEnabled
     self.hideSingleTabBar = hideSingleTabBar
+    self.allowArbitraryDeeplinkInput = allowArbitraryDeeplinkInput
     self.defaultWorktreeBaseDirectoryPath = defaultWorktreeBaseDirectoryPath
     self.disabledWorktreeActions = disabledWorktreeActions
     self.customWorktreeActions = customWorktreeActions
@@ -279,6 +283,9 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     hideSingleTabBar =
       try container.decodeIfPresent(Bool.self, forKey: .hideSingleTabBar)
       ?? Self.default.hideSingleTabBar
+    allowArbitraryDeeplinkInput =
+      try container.decodeIfPresent(Bool.self, forKey: .allowArbitraryDeeplinkInput)
+      ?? Self.default.allowArbitraryDeeplinkInput
     defaultWorktreeBaseDirectoryPath =
       try container.decodeIfPresent(String.self, forKey: .defaultWorktreeBaseDirectoryPath)
       ?? Self.default.defaultWorktreeBaseDirectoryPath

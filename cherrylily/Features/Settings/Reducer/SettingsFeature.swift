@@ -35,6 +35,7 @@ struct SettingsFeature {
     var pullRequestMergeStrategy: PullRequestMergeStrategy
     var terminalThemeSyncEnabled: Bool
     var hideSingleTabBar: Bool
+    var allowArbitraryDeeplinkInput: Bool
     var defaultWorktreeBaseDirectoryPath: String
     var disabledWorktreeActions: Set<String>
     var customWorktreeActions: [CustomWorktreeAction]
@@ -81,6 +82,7 @@ struct SettingsFeature {
       pullRequestMergeStrategy = settings.pullRequestMergeStrategy
       terminalThemeSyncEnabled = settings.terminalThemeSyncEnabled
       hideSingleTabBar = settings.hideSingleTabBar
+      allowArbitraryDeeplinkInput = settings.allowArbitraryDeeplinkInput
       autoDeleteArchivedWorktreesAfterDays = settings.autoDeleteArchivedWorktreesAfterDays
       shortcutOverrides = settings.shortcutOverrides
       defaultWorktreeBaseDirectoryPath =
@@ -119,6 +121,7 @@ struct SettingsFeature {
         pullRequestMergeStrategy: pullRequestMergeStrategy,
         terminalThemeSyncEnabled: terminalThemeSyncEnabled,
         hideSingleTabBar: hideSingleTabBar,
+        allowArbitraryDeeplinkInput: allowArbitraryDeeplinkInput,
         defaultWorktreeBaseDirectoryPath: CherryLilyPaths.normalizedWorktreeBaseDirectoryPath(
           defaultWorktreeBaseDirectoryPath
         ),
@@ -141,6 +144,7 @@ struct SettingsFeature {
     case removeCustomAction(String)
     case setToolbarPin(id: String, pinned: Bool)
     case movePinnedToolbarAction(from: IndexSet, toOffset: Int)
+    case setAllowArbitraryDeeplinkInput(Bool)
     case showNotificationPermissionAlert(errorMessage: String?)
     case updateShortcut(id: AppShortcutID, override: AppShortcutOverride?)
     case toggleShortcutEnabled(id: AppShortcutID, enabled: Bool)
@@ -257,6 +261,11 @@ struct SettingsFeature {
 
       case .setSystemNotificationsEnabled(let isEnabled):
         state.systemNotificationsEnabled = isEnabled
+        state.syncGlobalDefaults(from: state.globalSettings)
+        return persist(state)
+
+      case .setAllowArbitraryDeeplinkInput(let isEnabled):
+        state.allowArbitraryDeeplinkInput = isEnabled
         state.syncGlobalDefaults(from: state.globalSettings)
         return persist(state)
 

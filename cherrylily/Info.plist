@@ -47,6 +47,17 @@
 	<true/>
 	<key>SUAutomaticallyUpdate</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>sh.cherrylily.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>cherrylily</string>
+			</array>
+		</dict>
+	</array>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>

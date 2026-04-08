@@ -19,55 +19,13 @@ struct WorktreeEnvironmentTests {
     #expect(env.count == 2)
   }
 
-  @Test func exportPrefixIsSingleLineWithLeadingSpace() {
-    let worktree = Worktree(
-      id: "/tmp/repo/wt-1",
-      name: "feature-branch",
-      detail: "detail",
-      workingDirectory: URL(fileURLWithPath: "/tmp/repo/wt-1"),
-      repositoryRootURL: URL(fileURLWithPath: "/tmp/repo/.bare"),
-    )
-    let exports = worktree.scriptEnvironmentExportPrefix
-    // Single semicolon-joined line keeps the shell's command history to one
-    // entry. Leading space lets HIST_IGNORE_SPACE (zsh) skip it entirely.
-    #expect(exports.hasPrefix(" "))
-    #expect(exports.contains("export CHERRYLILY_WORKTREE_PATH='/tmp/repo/wt-1'"))
-    #expect(exports.contains("export CHERRYLILY_ROOT_PATH='/tmp/repo/.bare'"))
-    #expect(exports.contains(";"))
-    #expect(exports.hasSuffix("\n"))
-    let lines = exports.trimmingCharacters(in: .newlines).components(separatedBy: "\n")
-    #expect(lines.count == 1, "expected single line, got \(lines.count): \(lines)")
-  }
-
-  @Test func exportPrefixQuotesPathsWithSpaces() {
-    let worktree = Worktree(
-      id: "/tmp/my repo/wt 1",
-      name: "feature-branch",
-      detail: "detail",
-      workingDirectory: URL(fileURLWithPath: "/tmp/my repo/wt 1"),
-      repositoryRootURL: URL(fileURLWithPath: "/tmp/my repo/.bare"),
-    )
-    let exports = worktree.scriptEnvironmentExportPrefix
-    #expect(exports.contains("export CHERRYLILY_WORKTREE_PATH='/tmp/my repo/wt 1'"))
-    #expect(exports.contains("export CHERRYLILY_ROOT_PATH='/tmp/my repo/.bare'"))
-  }
-
   @Test func blockingScriptLaunchWritesScriptAndMetadataFiles() throws {
-    let worktree = Worktree(
-      id: "/tmp/repo/wt-1",
-      name: "feature-branch",
-      detail: "detail",
-      workingDirectory: URL(fileURLWithPath: "/tmp/repo/wt-1"),
-      repositoryRootURL: URL(fileURLWithPath: "/tmp/repo"),
-    )
-
     let launch = try #require(
       try makeBlockingScriptLaunch(
         script: """
-        docker compose down
-        codex exec "test"
-        """,
-        environment: worktree.scriptEnvironment,
+          docker compose down
+          codex exec "test"
+          """,
         shellPath: "/opt/homebrew/bin/fish"
       )
     )
@@ -77,8 +35,6 @@ struct WorktreeEnvironmentTests {
 
     let scriptContents = try String(contentsOf: launch.scriptURL, encoding: .utf8)
     let runnerContents = try String(contentsOf: launch.runnerURL, encoding: .utf8)
-    let rootPathContents = try String(contentsOf: launch.rootPathURL, encoding: .utf8)
-    let worktreePathContents = try String(contentsOf: launch.worktreePathURL, encoding: .utf8)
     let shellPathContents = try String(contentsOf: launch.shellPathURL, encoding: .utf8)
 
     #expect(
@@ -87,21 +43,7 @@ struct WorktreeEnvironmentTests {
     )
     #expect(launch.commandInput == shellSingleQuoted(launch.runnerURL.path(percentEncoded: false)) + "\nexit\n")
     #expect(scriptContents == "docker compose down\ncodex exec \"test\"\n")
-    #expect(rootPathContents == "/tmp/repo\n")
-    #expect(worktreePathContents == "/tmp/repo/wt-1\n")
     #expect(shellPathContents == "/opt/homebrew/bin/fish\n")
-    #expect(
-      runnerContents.contains(
-        "IFS= read -r SUPACODE_ROOT_PATH < \(shellSingleQuoted(launch.rootPathURL.path(percentEncoded: false)))"
-      )
-        == true
-    )
-    #expect(
-      runnerContents.contains(
-        "IFS= read -r SUPACODE_WORKTREE_PATH < \(shellSingleQuoted(launch.worktreePathURL.path(percentEncoded: false)))"
-      )
-        == true
-    )
     #expect(
       runnerContents.contains(
         "IFS= read -r SUPACODE_SHELL_PATH < \(shellSingleQuoted(launch.shellPathURL.path(percentEncoded: false)))"
@@ -118,26 +60,12 @@ struct WorktreeEnvironmentTests {
     #expect(runnerContents.contains("codex exec \"test\"") == false)
   }
 
-  @Test func blockingScriptLaunchReturnsNilWhenRequiredEnvironmentIsMissing() throws {
-    #expect(
-      try makeBlockingScriptLaunch(
-        script: "echo test",
-        environment: ["SUPACODE_ROOT_PATH": "/tmp/repo"],
-        shellPath: "/bin/zsh"
-      ) == nil
-    )
-  }
-
   @Test func blockingScriptLaunchReturnsNilForWhitespaceOnlyScripts() throws {
     #expect(
       try makeBlockingScriptLaunch(
         script: """
-          
-        """,
-        environment: [
-          "SUPACODE_ROOT_PATH": "/tmp/repo",
-          "SUPACODE_WORKTREE_PATH": "/tmp/repo/wt-1",
-        ],
+
+          """,
         shellPath: "/bin/zsh"
       ) == nil
     )
@@ -147,10 +75,6 @@ struct WorktreeEnvironmentTests {
     let launch = try #require(
       try makeBlockingScriptLaunch(
         script: "exit 1",
-        environment: [
-          "SUPACODE_ROOT_PATH": "/tmp/repo",
-          "SUPACODE_WORKTREE_PATH": "/tmp/repo/wt-1",
-        ],
         shellPath: "/bin/zsh"
       )
     )
@@ -183,10 +107,6 @@ struct WorktreeEnvironmentTests {
     let launch = try #require(
       try makeBlockingScriptLaunch(
         script: "exit 1",
-        environment: [
-          "SUPACODE_ROOT_PATH": "/tmp/repo",
-          "SUPACODE_WORKTREE_PATH": "/tmp/repo/wt-1",
-        ],
         shellPath: "/bin/zsh",
         baseDirectoryURL: baseDirectoryURL
       )
