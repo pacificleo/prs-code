@@ -104,11 +104,11 @@ final class WorktreeTerminalManager {
 
   private func handleTabCommand(_ command: TerminalClient.Command) -> Bool {
     switch command {
-    case .createTab(let worktree, let runSetupScriptIfNew):
-      Task { createTabAsync(in: worktree, runSetupScriptIfNew: runSetupScriptIfNew) }
-    case .createTabWithInput(let worktree, let input, let runSetupScriptIfNew):
+    case .createTab(let worktree, let runSetupScriptIfNew, let id):
+      Task { createTabAsync(in: worktree, runSetupScriptIfNew: runSetupScriptIfNew, tabID: id) }
+    case .createTabWithInput(let worktree, let input, let runSetupScriptIfNew, let id):
       Task {
-        createTabAsync(in: worktree, runSetupScriptIfNew: runSetupScriptIfNew, initialInput: input)
+        createTabAsync(in: worktree, runSetupScriptIfNew: runSetupScriptIfNew, initialInput: input, tabID: id)
       }
     case .ensureInitialTab(let worktree, let runSetupScriptIfNew, let focusing):
       let state = state(for: worktree) { runSetupScriptIfNew }
@@ -131,6 +131,43 @@ final class WorktreeTerminalManager {
       closeTabsToRight(worktreeID: worktreeID, ofTabID: ofTabID)
     case .focusTab(let worktreeID, let tabID):
       focusTab(worktreeID: worktreeID, tabID: tabID)
+    case .selectTab(let worktree, let tabID):
+      state(for: worktree).selectTab(tabID)
+    case .focusSurface(let worktree, let tabID, let surfaceID, let input):
+      let terminal = state(for: worktree)
+      terminal.selectTab(tabID)
+      guard terminal.focusSurface(id: surfaceID) else {
+        terminalLogger.warning("focusSurface: surface \(surfaceID) not found in worktree \(worktree.id).")
+        break
+      }
+      if let input, !input.isEmpty {
+        terminal.focusAndInsertText(input + "\r")
+      }
+    case .splitSurface(let worktree, let tabID, let surfaceID, let direction, let input, let id):
+      let terminal = state(for: worktree)
+      terminal.selectTab(tabID)
+      let ghosttyDirection: GhosttySplitAction.NewDirection = direction == .vertical ? .down : .right
+      let splitSucceeded = terminal.performSplitAction(
+        .newSplit(direction: ghosttyDirection), for: surfaceID, newSurfaceID: id)
+      guard splitSucceeded else {
+        terminalLogger.warning("splitSurface: failed for surface \(surfaceID) in worktree \(worktree.id).")
+        break
+      }
+      guard let input, !input.isEmpty else { break }
+      terminal.focusAndInsertText(input + "\r")
+    case .destroyTab(let worktree, let tabID):
+      let terminal = state(for: worktree)
+      guard terminal.tabManager.tabs.contains(where: { $0.id == tabID }) else {
+        terminalLogger.warning("destroyTab: tab \(tabID.rawValue) not found in worktree \(worktree.id).")
+        break
+      }
+      terminal.closeTab(tabID)
+    case .destroySurface(let worktree, let tabID, let surfaceID):
+      let terminal = state(for: worktree)
+      terminal.selectTab(tabID)
+      if !terminal.closeSurface(id: surfaceID) {
+        terminalLogger.warning("destroySurface: surface \(surfaceID) not found in worktree \(worktree.id).")
+      }
     default:
       return false
     }
@@ -283,7 +320,8 @@ final class WorktreeTerminalManager {
   private func createTabAsync(
     in worktree: Worktree,
     runSetupScriptIfNew: Bool,
-    initialInput: String? = nil
+    initialInput: String? = nil,
+    tabID: UUID? = nil
   ) {
     let state = state(for: worktree) { runSetupScriptIfNew }
     let setupScript: String?
@@ -294,7 +332,7 @@ final class WorktreeTerminalManager {
     } else {
       setupScript = nil
     }
-    _ = state.createTab(setupScript: setupScript, initialInput: initialInput)
+    _ = state.createTab(setupScript: setupScript, initialInput: initialInput, tabID: tabID)
   }
 
   @discardableResult
@@ -336,6 +374,10 @@ final class WorktreeTerminalManager {
   func tabExists(worktreeID: Worktree.ID, tabID: TerminalTabID) -> Bool {
     guard let state = states[worktreeID] else { return false }
     return state.tabManager.tabs.contains(where: { $0.id == tabID })
+  }
+
+  func surfaceExists(worktreeID: Worktree.ID, tabID: TerminalTabID, surfaceID: UUID) -> Bool {
+    states[worktreeID]?.hasSurface(surfaceID, in: tabID) ?? false
   }
 
   func tabTitle(worktreeID: Worktree.ID, tabID: TerminalTabID) -> String? {

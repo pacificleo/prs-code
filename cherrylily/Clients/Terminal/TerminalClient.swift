@@ -74,8 +74,8 @@ extension TerminalClient: DependencyKey {
     send: { _ in },
     events: { AsyncStream { $0.finish() } },
     currentTabID: unimplemented("TerminalClient.currentTabID"),
-    tabExists: unimplemented("TerminalClient.tabExists", placeholder: true),
-    surfaceExists: unimplemented("TerminalClient.surfaceExists", placeholder: true),
+    tabExists: unimplemented("TerminalClient.tabExists", placeholder: false),
+    surfaceExists: unimplemented("TerminalClient.surfaceExists", placeholder: false),
     tabTitle: unimplemented("TerminalClient.tabTitle"),
     tabCount: unimplemented("TerminalClient.tabCount"),
     tabIndex: unimplemented("TerminalClient.tabIndex")

@@ -246,7 +246,8 @@ final class WorktreeTerminalState {
           // Tab selection is overridden below with the persisted selectedTabID.
           focusing: true,
           inheritingFromSurfaceId: nil,
-          context: context
+          context: context,
+          tabID: nil
         )
       )
       if let newTabID {
@@ -641,9 +642,9 @@ final class WorktreeTerminalState {
       let newSurface = createSurface(
         tabId: tabId,
         initialInput: nil,
+        surfaceID: newSurfaceID.map { SurfaceID(rawValue: $0) },
         inheritingFromSurfaceId: surfaceId,
-        context: GHOSTTY_SURFACE_CONTEXT_SPLIT,
-        surfaceID: newSurfaceID,
+        context: GHOSTTY_SURFACE_CONTEXT_SPLIT
       )
       do {
         let newTree = try tree.inserting(
@@ -941,8 +942,7 @@ final class WorktreeTerminalState {
     surfaceID: SurfaceID? = nil,
     cwd: URL? = nil,
     inheritingFromSurfaceId: UUID?,
-    context: ghostty_surface_context_e,
-    surfaceID: UUID? = nil
+    context: ghostty_surface_context_e
   ) -> GhosttySurfaceView {
     let inherited = inheritedSurfaceConfig(fromSurfaceId: inheritingFromSurfaceId, context: context)
     let resolvedSurfaceID = surfaceID ?? SurfaceID()

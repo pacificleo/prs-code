@@ -34,19 +34,4 @@ extension Worktree {
     ]
   }
 
-<<<<<<< HEAD:cherrylily/Domain/Worktree.swift
-  /// Shell export statements for prepending to scripts.
-  ///
-  /// All exports joined into a single line with `;` so only one history entry
-  /// is created per setup (instead of one per env var). Leading space lets
-  /// users with `HIST_IGNORE_SPACE` (zsh `setopt`) skip the line entirely.
-  var scriptEnvironmentExportPrefix: String {
-    let exports = scriptEnvironment
-      .sorted(by: { $0.key < $1.key })
-      .map { "export \($0.key)='\($0.value.replacing("'", with: "'\"'\"'"))'" }
-      .joined(separator: "; ")
-    return " \(exports)\n"
-  }
-=======
->>>>>>> a7f6d81f (Add deeplinks (#223)):supacode/Domain/Worktree.swift
 }
