@@ -131,8 +131,6 @@ final class WorktreeTerminalManager {
       closeTabsToRight(worktreeID: worktreeID, ofTabID: ofTabID)
     case .focusTab(let worktreeID, let tabID):
       focusTab(worktreeID: worktreeID, tabID: tabID)
-    case .selectTab(let worktree, let tabID):
-      state(for: worktree).selectTab(tabID)
     case .focusSurface(let worktree, let tabID, let surfaceID, let input):
       let terminal = state(for: worktree)
       terminal.selectTab(tabID)
