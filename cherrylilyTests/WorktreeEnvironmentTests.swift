@@ -41,7 +41,7 @@ struct WorktreeEnvironmentTests {
       launch.directoryURL.deletingLastPathComponent().path(percentEncoded: false)
         == FileManager.default.temporaryDirectory.path(percentEncoded: false)
     )
-    #expect(launch.commandInput == shellSingleQuoted(launch.runnerURL.path(percentEncoded: false)) + "\nexit\n")
+    #expect(launch.commandInput == shellSingleQuoted(launch.runnerURL.path(percentEncoded: false)) + "\n")
     #expect(scriptContents == "docker compose down\ncodex exec \"test\"\n")
     #expect(shellPathContents == "/opt/homebrew/bin/fish\n")
     #expect(
@@ -52,7 +52,7 @@ struct WorktreeEnvironmentTests {
     )
     #expect(
       runnerContents.contains(
-        "exec \"$SUPACODE_SHELL_PATH\" -l \(shellSingleQuoted(launch.scriptURL.path(percentEncoded: false)))"
+        "\"$SUPACODE_SHELL_PATH\" -l \(shellSingleQuoted(launch.scriptURL.path(percentEncoded: false)))"
       )
         == true
     )

@@ -4,7 +4,7 @@ import Foundation
 import Sharing
 import Testing
 
-@testable import supacode
+@testable import CherryLily
 
 @MainActor
 @Suite(.serialized)
@@ -818,7 +818,7 @@ struct AppFeatureDeeplinkTests {
     store.exhaustivity = .off
 
     await store.send(.deeplinkReceived(URL(string: "https://example.com")!))
-    // Non-supacode scheme is silently ignored (debug log only, no alert).
+    // Non-cherrylily scheme is silently ignored (debug log only, no alert).
     #expect(store.state.alert == nil)
   }
 
