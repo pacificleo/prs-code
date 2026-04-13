@@ -64,7 +64,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
   var pullRequestMergeStrategy: PullRequestMergeStrategy
   var terminalThemeSyncEnabled: Bool
   var hideSingleTabBar: Bool
-  var allowArbitraryDeeplinkInput: Bool
+  var automatedActionPolicy: AutomatedActionPolicy
   var autoDeleteArchivedWorktreesAfterDays: AutoDeletePeriod?
   var shortcutOverrides: [AppShortcutID: AppShortcutOverride]
 
@@ -100,7 +100,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     pullRequestMergeStrategy: .merge,
     terminalThemeSyncEnabled: false,
     hideSingleTabBar: false,
-    allowArbitraryDeeplinkInput: false,
+    automatedActionPolicy: .cliOnly,
     defaultWorktreeBaseDirectoryPath: nil,
     disabledWorktreeActions: [],
     customWorktreeActions: [],
@@ -137,7 +137,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     pullRequestMergeStrategy: PullRequestMergeStrategy = .merge,
     terminalThemeSyncEnabled: Bool = false,
     hideSingleTabBar: Bool = false,
-    allowArbitraryDeeplinkInput: Bool = false,
+    automatedActionPolicy: AutomatedActionPolicy = .cliOnly,
     defaultWorktreeBaseDirectoryPath: String? = nil,
     disabledWorktreeActions: Set<String> = [],
     customWorktreeActions: [CustomWorktreeAction] = [],
@@ -172,7 +172,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     self.pullRequestMergeStrategy = pullRequestMergeStrategy
     self.terminalThemeSyncEnabled = terminalThemeSyncEnabled
     self.hideSingleTabBar = hideSingleTabBar
-    self.allowArbitraryDeeplinkInput = allowArbitraryDeeplinkInput
+    self.automatedActionPolicy = automatedActionPolicy
     self.defaultWorktreeBaseDirectoryPath = defaultWorktreeBaseDirectoryPath
     self.disabledWorktreeActions = disabledWorktreeActions
     self.customWorktreeActions = customWorktreeActions
@@ -283,9 +283,16 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     hideSingleTabBar =
       try container.decodeIfPresent(Bool.self, forKey: .hideSingleTabBar)
       ?? Self.default.hideSingleTabBar
-    allowArbitraryDeeplinkInput =
-      try container.decodeIfPresent(Bool.self, forKey: .allowArbitraryDeeplinkInput)
-      ?? Self.default.allowArbitraryDeeplinkInput
+    // Migrate from the old Bool `allowArbitraryDeeplinkInput` to the new enum.
+    if let policy = try container.decodeIfPresent(AutomatedActionPolicy.self, forKey: .automatedActionPolicy) {
+      automatedActionPolicy = policy
+    } else if let legacyBool = try legacy.decodeIfPresent(
+      Bool.self, forKey: LegacyCodingKey(stringValue: "allowArbitraryDeeplinkInput")!)
+    {
+      automatedActionPolicy = legacyBool ? .always : .never
+    } else {
+      automatedActionPolicy = Self.default.automatedActionPolicy
+    }
     defaultWorktreeBaseDirectoryPath =
       try container.decodeIfPresent(String.self, forKey: .defaultWorktreeBaseDirectoryPath)
       ?? Self.default.defaultWorktreeBaseDirectoryPath

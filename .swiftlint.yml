@@ -3,6 +3,8 @@ strict: true
 included:
   - cherrylily
   - cherrylilyTests
+  - cherrylily-cli
+
 excluded:
   - ThirdParty/ghostty
 

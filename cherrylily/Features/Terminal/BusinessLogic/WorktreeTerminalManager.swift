@@ -21,6 +21,10 @@ final class WorktreeTerminalManager {
   private var eventContinuation: AsyncStream<TerminalClient.Event>.Continuation?
   private var pendingEvents: [TerminalClient.Event] = []
   var selectedWorktreeID: Worktree.ID?
+  /// Deeplink URL received from the CLI via socket. Second parameter is the client FD for response.
+  var onDeeplinkCommand: ((URL, Int32) -> Void)?
+  /// Query received from the CLI via socket. Parameters: resource name, params, client FD.
+  var onQuery: ((String, [String: String], Int32) -> Void)?
 
   init(
     runtime: GhosttyRuntime,
@@ -68,6 +72,42 @@ final class WorktreeTerminalManager {
       let body = notification.body ?? ""
       state.appendHookNotification(title: title, body: body, surfaceID: surfaceID)
     }
+    server.onCommand = { [weak self] deeplinkURL, clientFD in
+      guard let handler = self?.onDeeplinkCommand else {
+        AgentHookSocketServer.sendCommandResponse(clientFD: clientFD, ok: false, error: "Not ready.")
+        return
+      }
+      handler(deeplinkURL, clientFD)
+    }
+    server.onQuery = { [weak self] resource, params, clientFD in
+      guard let handler = self?.onQuery else {
+        AgentHookSocketServer.sendCommandResponse(clientFD: clientFD, ok: false, error: "Not ready.")
+        return
+      }
+      handler(resource, params, clientFD)
+    }
+  }
+
+  // MARK: - CLI queries.
+
+  func listTabs(worktreeID: String) -> [[String: String]]? {
+    let decoded = worktreeID.removingPercentEncoding ?? worktreeID
+    guard let state = states[decoded] else { return nil }
+    let selectedTabID = state.tabManager.selectedTabId
+    return state.tabManager.tabs.map { tab in
+      var entry = ["id": tab.id.rawValue.uuidString]
+      if tab.id == selectedTabID { entry["focused"] = "1" }
+      return entry
+    }
+  }
+
+  func listSurfaces(worktreeID: String, tabID: String) -> [[String: String]]? {
+    let decoded = worktreeID.removingPercentEncoding ?? worktreeID
+    guard let state = states[decoded],
+      let tabUUID = UUID(uuidString: tabID)
+    else { return nil }
+    let terminalTabID = TerminalTabID(rawValue: tabUUID)
+    return state.listSurfaces(tabID: terminalTabID)
   }
 
   /// Called once at app launch (from `CherryLilyApp.init`). Reads the persisted layout
@@ -145,14 +185,17 @@ final class WorktreeTerminalManager {
       let terminal = state(for: worktree)
       terminal.selectTab(tabID)
       let ghosttyDirection: GhosttySplitAction.NewDirection = direction == .vertical ? .down : .right
+      let resolvedInput = makeCommandInput(script: input ?? "")
       let splitSucceeded = terminal.performSplitAction(
-        .newSplit(direction: ghosttyDirection), for: surfaceID, newSurfaceID: id)
+        .newSplit(direction: ghosttyDirection),
+        for: surfaceID,
+        newSurfaceID: id,
+        initialInput: resolvedInput
+      )
       guard splitSucceeded else {
         terminalLogger.warning("splitSurface: failed for surface \(surfaceID) in worktree \(worktree.id).")
         break
       }
-      guard let input, !input.isEmpty else { break }
-      terminal.focusAndInsertText(input + "\r")
     case .destroyTab(let worktree, let tabID):
       let terminal = state(for: worktree)
       guard terminal.tabManager.tabs.contains(where: { $0.id == tabID }) else {
@@ -374,6 +417,10 @@ final class WorktreeTerminalManager {
     return state.tabManager.tabs.contains(where: { $0.id == tabID })
   }
 
+  func surfaceExistsInWorktree(worktreeID: Worktree.ID, surfaceID: UUID) -> Bool {
+    states[worktreeID]?.hasSurfaceAnywhere(surfaceID) ?? false
+  }
+
   func surfaceExists(worktreeID: Worktree.ID, tabID: TerminalTabID, surfaceID: UUID) -> Bool {
     states[worktreeID]?.hasSurface(surfaceID, in: tabID) ?? false
   }
@@ -408,6 +455,7 @@ final class WorktreeTerminalManager {
     states = states.filter { worktreeIDs.contains($0.key) }
     emitNotificationIndicatorCountIfNeeded()
   }
+
 
   func stateIfExists(for worktreeID: Worktree.ID) -> WorktreeTerminalState? {
     states[worktreeID]

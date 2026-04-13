@@ -59,12 +59,12 @@ struct SettingsView: View {
           .tag(SettingsSection.notifications)
         Label("Worktrees", systemImage: "list.dash")
           .tag(SettingsSection.worktree)
-        Label("Coding Agents", systemImage: "hammer")
-          .tag(SettingsSection.codingAgents)
         Label("Sessions", systemImage: "clock.arrow.circlepath")
           .tag(SettingsSection.sessions)
         Label("App Launcher", systemImage: "sparkles.square.filled.on.square")
           .tag(SettingsSection.appLauncher)
+        Label("Developer", systemImage: "hammer")
+          .tag(SettingsSection.developer)
         Label("GitHub", image: "github-mark")
           .tag(SettingsSection.github)
         Label("Shortcuts", systemImage: "keyboard")
@@ -93,12 +93,12 @@ struct SettingsView: View {
         NotificationsSettingsView(store: settingsStore)
       case .worktree:
         WorktreeSettingsView(store: settingsStore)
-      case .codingAgents:
-        CodingAgentsSettingsView(store: settingsStore)
       case .sessions:
         SessionsSettingsView(store: settingsStore)
           .navigationTitle("Sessions")
           .navigationSubtitle("Restore terminal contents across launches")
+      case .developer:
+        DeveloperSettingsView(store: settingsStore)
       case .shortcuts:
         KeyboardShortcutsSettingsView(store: settingsStore)
       case .updates:

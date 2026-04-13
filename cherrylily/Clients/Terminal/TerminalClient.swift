@@ -7,6 +7,7 @@ struct TerminalClient {
   var currentTabID: @MainActor @Sendable (Worktree.ID) -> TerminalTabID?
   var tabExists: @MainActor @Sendable (Worktree.ID, TerminalTabID) -> Bool
   var surfaceExists: @MainActor @Sendable (Worktree.ID, TerminalTabID, UUID) -> Bool
+  var surfaceExistsInWorktree: @MainActor @Sendable (Worktree.ID, UUID) -> Bool
   var tabTitle: @MainActor @Sendable (Worktree.ID, TerminalTabID) -> String?
   var tabCount: @MainActor @Sendable (Worktree.ID) -> Int
   var tabIndex: @MainActor @Sendable (Worktree.ID, TerminalTabID) -> Int?
@@ -65,6 +66,7 @@ extension TerminalClient: DependencyKey {
     currentTabID: { _ in nil },
     tabExists: { _, _ in false },
     surfaceExists: { _, _, _ in false },
+    surfaceExistsInWorktree: { _, _ in false },
     tabTitle: { _, _ in nil },
     tabCount: { _ in 0 },
     tabIndex: { _, _ in nil }
@@ -73,9 +75,10 @@ extension TerminalClient: DependencyKey {
   static let testValue = TerminalClient(
     send: { _ in },
     events: { AsyncStream { $0.finish() } },
-    currentTabID: unimplemented("TerminalClient.currentTabID"),
+    currentTabID: { _ in nil },
     tabExists: unimplemented("TerminalClient.tabExists", placeholder: false),
     surfaceExists: unimplemented("TerminalClient.surfaceExists", placeholder: false),
+    surfaceExistsInWorktree: unimplemented("TerminalClient.surfaceExistsInWorktree", placeholder: false),
     tabTitle: unimplemented("TerminalClient.tabTitle"),
     tabCount: unimplemented("TerminalClient.tabCount"),
     tabIndex: unimplemented("TerminalClient.tabIndex")
