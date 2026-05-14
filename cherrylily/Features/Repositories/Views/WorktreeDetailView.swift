@@ -61,13 +61,22 @@ struct WorktreeDetailView: View {
           openActionSelection: openActionSelection,
           showExtras: commandKeyObserver.isPressed,
           runScriptEnabled: runScriptEnabled,
-          runScriptIsRunning: runScriptIsRunning
+          runScriptIsRunning: runScriptIsRunning,
+          canGoBack: state.navigationHistory.canGoBack,
+          canGoForward: state.navigationHistory.canGoForward,
+          backDestinationLabel: navigationDestinationLabel(
+            entry: state.navigationHistory.backStack.dropLast().last,
+            repositories: repositories
+          ),
+          forwardDestinationLabel: navigationDestinationLabel(
+            entry: state.navigationHistory.forwardStack.last,
+            repositories: repositories
+          )
         )
         WorktreeToolbarContent(
           toolbarState: toolbarState,
-          onRenameBranch: { newBranch in
-            store.send(.repositories(.requestRenameBranch(selectedWorktree.id, newBranch)))
-          },
+          onNavigateBack: { store.send(.navigateBack) },
+          onNavigateForward: { store.send(.navigateForward) },
           onOpenWorktree: { action in
             store.send(.openWorktree(action))
           },
@@ -90,7 +99,65 @@ struct WorktreeDetailView: View {
       runScriptEnabled: runScriptEnabled,
       runScriptIsRunning: runScriptIsRunning
     )
-    return applyFocusedActions(content: content, actions: actions)
+    let withFocused = applyFocusedActions(content: content, actions: actions)
+    return applyRenameBranchOverlay(
+      content: withFocused,
+      selectedWorktreeID: selectedWorktree?.id
+    )
+  }
+
+  private func applyRenameBranchOverlay<Content: View>(
+    content: Content,
+    selectedWorktreeID: Worktree.ID?
+  ) -> some View {
+    content
+      .background(renameBranchShortcutBackground(selectedWorktreeID: selectedWorktreeID))
+      .sheet(isPresented: renameBranchPresentedBinding) {
+        RenameBranchPopover(
+          draftName: Binding(
+            get: { store.renameBranchDraft },
+            set: { store.send(.renameBranchDraftChanged($0)) }
+          ),
+          onCancel: { store.send(.setRenameBranchPromptPresented(false)) },
+          onSubmit: { _ in store.send(.submitRenameBranch) }
+        )
+      }
+  }
+
+  private var renameBranchPresentedBinding: Binding<Bool> {
+    Binding(
+      get: { store.isRenameBranchPromptPresented },
+      set: { store.send(.setRenameBranchPromptPresented($0)) }
+    )
+  }
+
+  @ViewBuilder
+  private func renameBranchShortcutBackground(selectedWorktreeID: Worktree.ID?) -> some View {
+    if let selectedWorktreeID {
+      Button("") {
+        store.send(.beginRenameBranch(selectedWorktreeID))
+      }
+      .keyboardShortcut("m", modifiers: .command)
+      .opacity(0)
+      .frame(width: 0, height: 0)
+      .accessibilityHidden(true)
+    } else {
+      EmptyView()
+    }
+  }
+
+  private func navigationDestinationLabel(
+    entry: NavigationEntry?,
+    repositories: RepositoriesFeature.State
+  ) -> String? {
+    guard let entry, let worktree = repositories.worktree(for: entry.worktreeID) else {
+      return nil
+    }
+    let repositoryName = repositories.repositoryName(for: worktree.repositoryRootURL.path(percentEncoded: false))
+    if let repositoryName, repositoryName != worktree.name {
+      return "\(repositoryName) · \(worktree.name)"
+    }
+    return worktree.name
   }
 
   private func selectedWorktreeSummaries(
@@ -247,6 +314,10 @@ struct WorktreeDetailView: View {
     let showExtras: Bool
     let runScriptEnabled: Bool
     let runScriptIsRunning: Bool
+    let canGoBack: Bool
+    let canGoForward: Bool
+    let backDestinationLabel: String?
+    let forwardDestinationLabel: String?
 
     var runScriptHelpText: String {
       "Run Script (\(AppShortcuts.runScript.display))"
@@ -255,11 +326,26 @@ struct WorktreeDetailView: View {
     var stopRunScriptHelpText: String {
       "Stop Script (\(AppShortcuts.stopRunScript.display))"
     }
+
+    var backHelpText: String {
+      if let backDestinationLabel {
+        return "Back to \(backDestinationLabel) (⌘←)"
+      }
+      return "Back (⌘←)"
+    }
+
+    var forwardHelpText: String {
+      if let forwardDestinationLabel {
+        return "Forward to \(forwardDestinationLabel) (⌘→)"
+      }
+      return "Forward (⌘→)"
+    }
   }
 
   fileprivate struct WorktreeToolbarContent: ToolbarContent {
     let toolbarState: WorktreeToolbarState
-    let onRenameBranch: (String) -> Void
+    let onNavigateBack: () -> Void
+    let onNavigateForward: () -> Void
     let onOpenWorktree: (OpenWorktreeAction) -> Void
     let onOpenActionSelectionChanged: (OpenWorktreeAction) -> Void
     let onCopyPath: () -> Void
@@ -269,11 +355,20 @@ struct WorktreeDetailView: View {
     let onStopRunScript: () -> Void
 
     var body: some ToolbarContent {
-      ToolbarItem {
-        WorktreeDetailTitleView(
-          branchName: toolbarState.branchName,
-          onSubmit: onRenameBranch
-        )
+      ToolbarItemGroup {
+        Button(action: onNavigateBack) {
+          Image(systemName: "chevron.backward")
+        }
+        .help(toolbarState.backHelpText)
+        .keyboardShortcut(.leftArrow, modifiers: .command)
+        .disabled(!toolbarState.canGoBack)
+
+        Button(action: onNavigateForward) {
+          Image(systemName: "chevron.forward")
+        }
+        .help(toolbarState.forwardHelpText)
+        .keyboardShortcut(.rightArrow, modifiers: .command)
+        .disabled(!toolbarState.canGoForward)
       }
 
       ToolbarSpacer(.flexible)
@@ -559,7 +654,11 @@ private struct WorktreeToolbarPreview: View {
       openActionSelection: .finder,
       showExtras: false,
       runScriptEnabled: true,
-      runScriptIsRunning: false
+      runScriptIsRunning: false,
+      canGoBack: true,
+      canGoForward: false,
+      backDestinationLabel: "preview · main",
+      forwardDestinationLabel: nil
     )
     let observer = CommandKeyObserver()
     observer.isPressed = false
@@ -574,7 +673,8 @@ private struct WorktreeToolbarPreview: View {
     .toolbar {
       WorktreeDetailView.WorktreeToolbarContent(
         toolbarState: toolbarState,
-        onRenameBranch: { _ in },
+        onNavigateBack: {},
+        onNavigateForward: {},
         onOpenWorktree: { _ in },
         onOpenActionSelectionChanged: { _ in },
         onCopyPath: {},

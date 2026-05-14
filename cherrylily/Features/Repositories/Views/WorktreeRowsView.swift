@@ -260,6 +260,12 @@ struct WorktreeRowsView: View {
         .help("Pin to top")
       }
     }
+    if !isBulkSelection {
+      Button("Rename Branch…") {
+        store.send(.requestRenameBranchPrompt(worktree.id))
+      }
+      .help("Rename Branch (⌘M)")
+    }
     Button("Copy Path") {
       NSPasteboard.general.clearContents()
       NSPasteboard.general.setString(worktree.workingDirectory.path, forType: .string)

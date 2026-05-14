@@ -1,52 +1,6 @@
 import SwiftUI
 
-struct WorktreeDetailTitleView: View {
-  let branchName: String
-  let onSubmit: (String) -> Void
-
-  @State private var isPresented = false
-  @State private var isHovered = false
-  @State private var draftName = ""
-
-  var body: some View {
-    Button {
-      draftName = branchName
-      isPresented = true
-    } label: {
-      HStack(spacing: 6) {
-        Image(systemName: "arrow.trianglehead.branch")
-          .foregroundStyle(.secondary)
-          .accessibilityHidden(true)
-        Text(branchName)
-        if isHovered {
-          Image(systemName: "pencil")
-            .foregroundStyle(.secondary)
-            .accessibilityHidden(true)
-        }
-      }
-      .font(.headline)
-    }
-    .help("Rename branch (⌘M)")
-    .keyboardShortcut("m", modifiers: .command)
-    .onHover { hovering in
-      isHovered = hovering
-    }
-    .popover(isPresented: $isPresented) {
-      RenameBranchPopover(
-        draftName: $draftName,
-        onCancel: { isPresented = false },
-        onSubmit: { newName in
-          isPresented = false
-          if newName != branchName {
-            onSubmit(newName)
-          }
-        }
-      )
-    }
-  }
-}
-
-private struct RenameBranchPopover: View {
+struct RenameBranchPopover: View {
   @Binding var draftName: String
   let onCancel: () -> Void
   let onSubmit: (String) -> Void

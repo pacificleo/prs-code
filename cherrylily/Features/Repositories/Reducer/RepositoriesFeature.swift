@@ -233,6 +233,7 @@ struct RepositoriesFeature {
     case dismissToast
     case delayedPullRequestRefresh(Worktree.ID)
     case openRepositorySettings(Repository.ID)
+    case requestRenameBranchPrompt(Worktree.ID)
     case worktreeCreationPrompt(PresentationAction<WorktreeCreationPromptFeature.Action>)
     case alert(PresentationAction<Alert>)
     case delegate(Delegate)
@@ -290,6 +291,7 @@ struct RepositoriesFeature {
     case repositoriesChanged(IdentifiedArrayOf<Repository>)
     case openRepositorySettings(Repository.ID)
     case worktreeCreated(Worktree)
+    case requestRenameBranchPrompt(Worktree.ID)
   }
 
   @Dependency(AnalyticsClient.self) private var analyticsClient
@@ -2506,6 +2508,9 @@ struct RepositoriesFeature {
 
       case .openRepositorySettings(let repositoryID):
         return .send(.delegate(.openRepositorySettings(repositoryID)))
+
+      case .requestRenameBranchPrompt(let worktreeID):
+        return .send(.delegate(.requestRenameBranchPrompt(worktreeID)))
 
       case .alert(.dismiss):
         state.alert = nil

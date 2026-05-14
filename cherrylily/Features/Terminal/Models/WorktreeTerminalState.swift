@@ -38,6 +38,7 @@ final class WorktreeTerminalState {
   var onTabCreated: (() -> Void)?
   var onTabClosed: (() -> Void)?
   var onFocusChanged: ((UUID) -> Void)?
+  var onTabFocusChanged: ((TerminalTabID) -> Void)?
   var onTaskStatusChanged: ((WorktreeTaskStatus) -> Void)?
   var onRunScriptStatusChanged: ((Bool) -> Void)?
   var onCommandPaletteToggle: (() -> Void)?
@@ -52,6 +53,9 @@ final class WorktreeTerminalState {
       wrappedValue: RepositorySettings.default,
       .repositorySettings(worktree.repositoryRootURL)
     )
+    self.tabManager.onSelectedTabChanged = { [weak self] tabId in
+      self?.onTabFocusChanged?(tabId)
+    }
   }
 
   var taskStatus: WorktreeTaskStatus {

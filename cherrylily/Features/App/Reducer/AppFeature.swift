@@ -22,6 +22,10 @@ struct AppFeature {
     var runScriptStatusByWorktreeID: [Worktree.ID: Bool] = [:]
     var notificationIndicatorCount: Int = 0
     var lastKnownSystemNotificationsEnabled: Bool
+    var navigationHistory = NavigationHistory()
+    var isRenameBranchPromptPresented = false
+    var renameBranchDraft = ""
+    var renameBranchTargetWorktreeID: Worktree.ID?
     @Presents var alert: AlertState<Alert>?
 
     init(
@@ -63,6 +67,12 @@ struct AppFeature {
     case systemNotificationsPermissionFailed(errorMessage: String?)
     case alert(PresentationAction<Alert>)
     case terminalEvent(TerminalClient.Event)
+    case navigateBack
+    case navigateForward
+    case beginRenameBranch(Worktree.ID)
+    case setRenameBranchPromptPresented(Bool)
+    case renameBranchDraftChanged(String)
+    case submitRenameBranch
   }
 
   enum Alert: Equatable {
@@ -128,6 +138,13 @@ struct AppFeature {
       case .repositories(.delegate(.selectedWorktreeChanged(let worktree))):
         let lastFocusedWorktreeID = worktree?.id
         let repositoryPersistence = repositoryPersistence
+        if let worktree {
+          let entry = NavigationEntry(
+            worktreeID: worktree.id,
+            tabID: terminalClient.currentTabID(worktree.id)
+          )
+          state.navigationHistory.record(entry)
+        }
         guard let worktree else {
           state.openActionSelection = .finder
           state.selectedRunScript = ""
@@ -226,6 +243,9 @@ struct AppFeature {
             await settingsWindowClient.show()
           }
         )
+
+      case .repositories(.delegate(.requestRenameBranchPrompt(let worktreeID))):
+        return .send(.beginRenameBranch(worktreeID))
 
       case .settings(.setSelection(let selection)):
         let resolvedSelection = selection ?? .general
@@ -710,8 +730,72 @@ struct AppFeature {
       case .terminalEvent(.setupScriptConsumed(let worktreeID)):
         return .send(.repositories(.consumeSetupScript(worktreeID)))
 
+      case .terminalEvent(.tabFocusChanged(let worktreeID, let tabID)):
+        guard state.repositories.selectedWorktreeID == worktreeID else { return .none }
+        let entry = NavigationEntry(worktreeID: worktreeID, tabID: tabID)
+        state.navigationHistory.record(entry)
+        return .none
+
       case .terminalEvent:
         return .none
+
+      case .beginRenameBranch(let worktreeID):
+        guard let worktree = state.repositories.worktree(for: worktreeID) else { return .none }
+        state.renameBranchTargetWorktreeID = worktreeID
+        state.renameBranchDraft = worktree.name
+        state.isRenameBranchPromptPresented = true
+        return .none
+
+      case .setRenameBranchPromptPresented(let isPresented):
+        state.isRenameBranchPromptPresented = isPresented
+        if !isPresented {
+          state.renameBranchDraft = ""
+          state.renameBranchTargetWorktreeID = nil
+        }
+        return .none
+
+      case .renameBranchDraftChanged(let draft):
+        state.renameBranchDraft = draft
+        return .none
+
+      case .submitRenameBranch:
+        guard let worktreeID = state.renameBranchTargetWorktreeID else {
+          state.isRenameBranchPromptPresented = false
+          state.renameBranchDraft = ""
+          return .none
+        }
+        let trimmed = state.renameBranchDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return .none }
+        state.isRenameBranchPromptPresented = false
+        state.renameBranchDraft = ""
+        state.renameBranchTargetWorktreeID = nil
+        return .send(.repositories(.requestRenameBranch(worktreeID, trimmed)))
+
+      case .navigateBack:
+        let repositories = state.repositories
+        let terminalClient = self.terminalClient
+        let isValid: (NavigationEntry) -> Bool = { entry in
+          guard repositories.worktree(for: entry.worktreeID) != nil else { return false }
+          if let tabID = entry.tabID {
+            return terminalClient.tabExists(entry.worktreeID, tabID)
+          }
+          return true
+        }
+        guard let dest = state.navigationHistory.goBack(isValid: isValid) else { return .none }
+        return navigationEffect(for: dest, currentSelected: state.repositories.selectedWorktreeID)
+
+      case .navigateForward:
+        let repositories = state.repositories
+        let terminalClient = self.terminalClient
+        let isValid: (NavigationEntry) -> Bool = { entry in
+          guard repositories.worktree(for: entry.worktreeID) != nil else { return false }
+          if let tabID = entry.tabID {
+            return terminalClient.tabExists(entry.worktreeID, tabID)
+          }
+          return true
+        }
+        guard let dest = state.navigationHistory.goForward(isValid: isValid) else { return .none }
+        return navigationEffect(for: dest, currentSelected: state.repositories.selectedWorktreeID)
       }
     }
     core
@@ -727,5 +811,23 @@ struct AppFeature {
     Scope(state: \.commandPalette, action: \.commandPalette) {
       CommandPaletteFeature()
     }
+  }
+
+  private func navigationEffect(
+    for entry: NavigationEntry,
+    currentSelected: Worktree.ID?
+  ) -> Effect<Action> {
+    var effects: [Effect<Action>] = []
+    if currentSelected != entry.worktreeID {
+      effects.append(.send(.repositories(.selectWorktree(entry.worktreeID, focusTerminal: true))))
+    }
+    if let tabID = entry.tabID {
+      effects.append(
+        .run { _ in
+          await terminalClient.send(.focusTab(worktreeID: entry.worktreeID, tabID: tabID))
+        }
+      )
+    }
+    return .merge(effects)
   }
 }

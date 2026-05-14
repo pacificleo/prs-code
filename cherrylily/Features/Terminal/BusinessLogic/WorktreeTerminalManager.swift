@@ -50,6 +50,8 @@ final class WorktreeTerminalManager {
       _ = closeFocusedTab(in: worktree)
     case .closeFocusedSurface(let worktree):
       _ = closeFocusedSurface(in: worktree)
+    case .focusTab(let worktreeID, let tabID):
+      focusTab(worktreeID: worktreeID, tabID: tabID)
     default:
       return false
     }
@@ -156,6 +158,9 @@ final class WorktreeTerminalManager {
     state.onFocusChanged = { [weak self] surfaceID in
       self?.emit(.focusChanged(worktreeID: worktree.id, surfaceID: surfaceID))
     }
+    state.onTabFocusChanged = { [weak self] tabID in
+      self?.emit(.tabFocusChanged(worktreeID: worktree.id, tabID: tabID))
+    }
     state.onTaskStatusChanged = { [weak self] status in
       self?.emit(.taskStatusChanged(worktreeID: worktree.id, status: status))
     }
@@ -200,6 +205,21 @@ final class WorktreeTerminalManager {
   func closeFocusedSurface(in worktree: Worktree) -> Bool {
     let state = state(for: worktree)
     return state.closeFocusedSurface()
+  }
+
+  func focusTab(worktreeID: Worktree.ID, tabID: TerminalTabID) {
+    guard let state = states[worktreeID] else { return }
+    guard state.tabManager.tabs.contains(where: { $0.id == tabID }) else { return }
+    state.selectTab(tabID)
+  }
+
+  func tabExists(worktreeID: Worktree.ID, tabID: TerminalTabID) -> Bool {
+    guard let state = states[worktreeID] else { return false }
+    return state.tabManager.tabs.contains(where: { $0.id == tabID })
+  }
+
+  func currentTabID(worktreeID: Worktree.ID) -> TerminalTabID? {
+    states[worktreeID]?.tabManager.selectedTabId
   }
 
   func prune(keeping worktreeIDs: Set<Worktree.ID>) {

@@ -32,7 +32,9 @@ struct AppFeatureDefaultEditorTests {
       }
     }
 
-    await store.send(.repositories(.delegate(.selectedWorktreeChanged(worktree))))
+    await store.send(.repositories(.delegate(.selectedWorktreeChanged(worktree)))) {
+      $0.navigationHistory.record(NavigationEntry(worktreeID: worktree.id, tabID: nil))
+    }
     await store.receive(\.worktreeSettingsLoaded)
     #expect(store.state.openActionSelection == .finder)
     #expect(store.state.selectedRunScript == "")
@@ -85,7 +87,9 @@ struct AppFeatureDefaultEditorTests {
       $0.repositoryLocalSettingsStorage = localStorage.storage
     }
 
-    await store.send(.repositories(.delegate(.selectedWorktreeChanged(worktree))))
+    await store.send(.repositories(.delegate(.selectedWorktreeChanged(worktree)))) {
+      $0.navigationHistory.record(NavigationEntry(worktreeID: worktree.id, tabID: nil))
+    }
     await store.receive(\.worktreeSettingsLoaded) {
       $0.openActionSelection = .terminal
       $0.selectedRunScript = "pnpm dev"
@@ -119,7 +123,9 @@ struct AppFeatureDefaultEditorTests {
       $0.settingsFileURL = settingsFileURL
     }
 
-    await store.send(.repositories(.delegate(.selectedWorktreeChanged(worktree))))
+    await store.send(.repositories(.delegate(.selectedWorktreeChanged(worktree)))) {
+      $0.navigationHistory.record(NavigationEntry(worktreeID: worktree.id, tabID: nil))
+    }
     await store.receive(\.worktreeSettingsLoaded) {
       $0.openActionSelection = expectedOpenActionSelection
     }

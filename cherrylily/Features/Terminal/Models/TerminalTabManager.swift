@@ -4,7 +4,15 @@ import Observation
 @Observable
 final class TerminalTabManager {
   var tabs: [TerminalTabItem] = []
-  var selectedTabId: TerminalTabID?
+  var selectedTabId: TerminalTabID? {
+    didSet {
+      guard oldValue != selectedTabId, let newId = selectedTabId else { return }
+      onSelectedTabChanged?(newId)
+    }
+  }
+
+  @ObservationIgnored
+  var onSelectedTabChanged: ((TerminalTabID) -> Void)?
 
   func createTab(title: String, icon: String?, isTitleLocked: Bool = false) -> TerminalTabID {
     let tab = TerminalTabItem(title: title, icon: icon, isTitleLocked: isTitleLocked)

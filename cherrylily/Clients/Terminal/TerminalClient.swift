@@ -4,6 +4,8 @@ import Foundation
 struct TerminalClient {
   var send: @MainActor @Sendable (Command) -> Void
   var events: @MainActor @Sendable () -> AsyncStream<Event>
+  var currentTabID: @MainActor @Sendable (Worktree.ID) -> TerminalTabID?
+  var tabExists: @MainActor @Sendable (Worktree.ID, TerminalTabID) -> Bool
 
   enum Command: Equatable {
     case createTab(Worktree, runSetupScriptIfNew: Bool)
@@ -22,6 +24,7 @@ struct TerminalClient {
     case prune(Set<Worktree.ID>)
     case setNotificationsEnabled(Bool)
     case setSelectedWorktreeID(Worktree.ID?)
+    case focusTab(worktreeID: Worktree.ID, tabID: TerminalTabID)
   }
 
   enum Event: Equatable {
@@ -30,6 +33,7 @@ struct TerminalClient {
     case tabCreated(worktreeID: Worktree.ID)
     case tabClosed(worktreeID: Worktree.ID)
     case focusChanged(worktreeID: Worktree.ID, surfaceID: UUID)
+    case tabFocusChanged(worktreeID: Worktree.ID, tabID: TerminalTabID)
     case taskStatusChanged(worktreeID: Worktree.ID, status: WorktreeTaskStatus)
     case runScriptStatusChanged(worktreeID: Worktree.ID, isRunning: Bool)
     case commandPaletteToggleRequested(worktreeID: Worktree.ID)
@@ -40,12 +44,16 @@ struct TerminalClient {
 extension TerminalClient: DependencyKey {
   static let liveValue = TerminalClient(
     send: { _ in fatalError("TerminalClient.send not configured") },
-    events: { fatalError("TerminalClient.events not configured") }
+    events: { fatalError("TerminalClient.events not configured") },
+    currentTabID: { _ in nil },
+    tabExists: { _, _ in false }
   )
 
   static let testValue = TerminalClient(
     send: { _ in },
-    events: { AsyncStream { $0.finish() } }
+    events: { AsyncStream { $0.finish() } },
+    currentTabID: { _ in nil },
+    tabExists: { _, _ in false }
   )
 }
 
