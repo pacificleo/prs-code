@@ -117,7 +117,7 @@ case .navigateBack:
 
 ### UI changes
 
-**Removed:** `WorktreeDetailTitleView` from the toolbar in `WorktreeDetailView.swift` (lines 271–278). The view file itself can stay (we may reuse the popover from the context menu) or be deleted if the popover is rebuilt inline.
+**Removed:** `WorktreeDetailTitleView` from the toolbar in `WorktreeDetailView.swift` (lines 271–278). In `WorktreeDetailTitleView.swift`, delete the title-button view; keep `RenameBranchPopover` (it will be reused by the sidebar context menu and the ⌘M shortcut). Rename the file to `RenameBranchPopover.swift`.
 
 **Added:** Two `ToolbarItem`s in the leading slot, in this order:
 
