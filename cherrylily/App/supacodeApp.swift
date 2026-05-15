@@ -117,8 +117,12 @@ struct CherryLilyApp: App {
     let appStore = Store(
       initialState: AppFeature.State(settings: SettingsFeature.State(settings: initialSettings))
     ) {
-      AppFeature()
-        .logActions()
+      #if DEBUG
+        AppFeature()
+          .logActions()
+      #else
+        AppFeature()
+      #endif
     } withDependencies: { values in
       values.terminalClient = TerminalClient(
         send: { command in
