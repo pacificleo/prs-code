@@ -27,12 +27,7 @@ struct OpenWorktreeAction: Identifiable, Equatable, Hashable, Sendable {
     case .editor:
       return .symbol("apple.terminal")
     default:
-      guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier)
-      else { return nil }
-      if let imageData = NSWorkspace.shared.icon(forFile: appURL.path).tiffRepresentation {
-          return .app(imageData)
-      }
-      return nil
+      return OpenWorktreeActionCache.menuIcon(forBundleIdentifier: bundleIdentifier)
     }
   }
 
@@ -42,7 +37,7 @@ struct OpenWorktreeAction: Identifiable, Equatable, Hashable, Sendable {
       return true
     default:
       if bundleIdentifier == "custom" { return true }
-      return NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) != nil
+      return OpenWorktreeActionCache.isInstalled(bundleIdentifier: bundleIdentifier)
     }
   }
 
