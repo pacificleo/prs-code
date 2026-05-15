@@ -73,11 +73,17 @@ struct AppFeature {
     case setRenameBranchPromptPresented(Bool)
     case renameBranchDraftChanged(String)
     case submitRenameBranch
+    case requestCloseTab(worktreeID: Worktree.ID, tabID: TerminalTabID)
+    case requestCloseOtherTabs(worktreeID: Worktree.ID, keepingTabID: TerminalTabID)
+    case requestCloseTabsToRight(worktreeID: Worktree.ID, ofTabID: TerminalTabID)
   }
 
   enum Alert: Equatable {
     case dismiss
     case confirmQuit
+    case confirmCloseTab(worktreeID: Worktree.ID, tabID: TerminalTabID)
+    case confirmCloseOtherTabs(worktreeID: Worktree.ID, keepingTabID: TerminalTabID)
+    case confirmCloseTabsToRight(worktreeID: Worktree.ID, ofTabID: TerminalTabID)
   }
 
   @Dependency(AnalyticsClient.self) private var analyticsClient
@@ -489,9 +495,9 @@ struct AppFeature {
         guard let worktree = state.repositories.worktree(for: state.repositories.selectedWorktreeID) else {
           return .none
         }
-        analyticsClient.capture("terminal_tab_closed", nil)
-        return .run { _ in
-          await terminalClient.send(.closeFocusedTab(worktree))
+        return .run { send in
+          guard let tabID = await terminalClient.currentTabID(worktree.id) else { return }
+          await send(.requestCloseTab(worktreeID: worktree.id, tabID: tabID))
         }
 
       case .closeSurface:
@@ -501,6 +507,80 @@ struct AppFeature {
         return .run { _ in
           await terminalClient.send(.closeFocusedSurface(worktree))
         }
+
+      case .requestCloseTab(let worktreeID, let tabID):
+        guard state.settings.confirmBeforeClosingTabs else {
+          analyticsClient.capture("terminal_tab_closed", nil)
+          return .run { _ in
+            await terminalClient.send(.closeTab(worktreeID: worktreeID, tabID: tabID))
+          }
+        }
+        let title = terminalClient.tabTitle(worktreeID, tabID) ?? "tab"
+        state.alert = AlertState {
+          TextState("Close “\(title)”?")
+        } actions: {
+          ButtonState(role: .destructive, action: .confirmCloseTab(worktreeID: worktreeID, tabID: tabID)) {
+            TextState("Close")
+          }
+          ButtonState(role: .cancel, action: .dismiss) {
+            TextState("Cancel")
+          }
+        }
+        return .none
+
+      case .requestCloseOtherTabs(let worktreeID, let keepingTabID):
+        let totalTabs = bulkCloseOthersCount(worktreeID: worktreeID, keepingTabID: keepingTabID)
+        guard totalTabs > 0 else { return .none }
+        guard state.settings.confirmBeforeClosingTabs else {
+          analyticsClient.capture("terminal_tab_closed", nil)
+          return .run { _ in
+            await terminalClient.send(.closeOtherTabs(worktreeID: worktreeID, keepingTabID: keepingTabID))
+          }
+        }
+        let worktreeName = state.repositories.worktree(for: worktreeID)?.name ?? "this worktree"
+        state.alert = AlertState {
+          TextState("Close other tabs in “\(worktreeName)”?")
+        } actions: {
+          ButtonState(
+            role: .destructive,
+            action: .confirmCloseOtherTabs(worktreeID: worktreeID, keepingTabID: keepingTabID)
+          ) {
+            TextState("Close")
+          }
+          ButtonState(role: .cancel, action: .dismiss) {
+            TextState("Cancel")
+          }
+        } message: {
+          TextState("This will close \(totalTabs) tab\(totalTabs == 1 ? "" : "s").")
+        }
+        return .none
+
+      case .requestCloseTabsToRight(let worktreeID, let ofTabID):
+        let totalTabs = bulkCloseToRightCount(worktreeID: worktreeID, ofTabID: ofTabID)
+        guard totalTabs > 0 else { return .none }
+        guard state.settings.confirmBeforeClosingTabs else {
+          analyticsClient.capture("terminal_tab_closed", nil)
+          return .run { _ in
+            await terminalClient.send(.closeTabsToRight(worktreeID: worktreeID, ofTabID: ofTabID))
+          }
+        }
+        let anchorTitle = terminalClient.tabTitle(worktreeID, ofTabID) ?? "tab"
+        state.alert = AlertState {
+          TextState("Close tabs to the right of “\(anchorTitle)”?")
+        } actions: {
+          ButtonState(
+            role: .destructive,
+            action: .confirmCloseTabsToRight(worktreeID: worktreeID, ofTabID: ofTabID)
+          ) {
+            TextState("Close")
+          }
+          ButtonState(role: .cancel, action: .dismiss) {
+            TextState("Cancel")
+          }
+        } message: {
+          TextState("This will close \(totalTabs) tab\(totalTabs == 1 ? "" : "s").")
+        }
+        return .none
 
       case .startSearch:
         guard let worktree = state.repositories.worktree(for: state.repositories.selectedWorktreeID) else {
@@ -583,6 +663,27 @@ struct AppFeature {
         state.alert = nil
         return .run { @MainActor _ in
           NSApplication.shared.terminate(nil)
+        }
+
+      case .alert(.presented(.confirmCloseTab(let worktreeID, let tabID))):
+        state.alert = nil
+        analyticsClient.capture("terminal_tab_closed", nil)
+        return .run { _ in
+          await terminalClient.send(.closeTab(worktreeID: worktreeID, tabID: tabID))
+        }
+
+      case .alert(.presented(.confirmCloseOtherTabs(let worktreeID, let keepingTabID))):
+        state.alert = nil
+        analyticsClient.capture("terminal_tab_closed", nil)
+        return .run { _ in
+          await terminalClient.send(.closeOtherTabs(worktreeID: worktreeID, keepingTabID: keepingTabID))
+        }
+
+      case .alert(.presented(.confirmCloseTabsToRight(let worktreeID, let ofTabID))):
+        state.alert = nil
+        analyticsClient.capture("terminal_tab_closed", nil)
+        return .run { _ in
+          await terminalClient.send(.closeTabsToRight(worktreeID: worktreeID, ofTabID: ofTabID))
         }
 
       case .alert:
@@ -719,6 +820,9 @@ struct AppFeature {
         state.navigationHistory.record(entry)
         return .none
 
+      case .terminalEvent(.tabCloseRequested(let worktreeID, let tabID)):
+        return .send(.requestCloseTab(worktreeID: worktreeID, tabID: tabID))
+
       case .terminalEvent(.blockingScriptCompleted(let worktreeID, let kind, let exitCode)):
         switch kind {
         case .archive:
@@ -820,5 +924,16 @@ struct AppFeature {
       )
     }
     return .merge(effects)
+  }
+
+  private func bulkCloseOthersCount(worktreeID: Worktree.ID, keepingTabID: TerminalTabID) -> Int {
+    let total = terminalClient.tabCount(worktreeID)
+    return max(0, total - 1)
+  }
+
+  private func bulkCloseToRightCount(worktreeID: Worktree.ID, ofTabID: TerminalTabID) -> Int {
+    let total = terminalClient.tabCount(worktreeID)
+    guard let index = terminalClient.tabIndex(worktreeID, ofTabID) else { return 0 }
+    return max(0, total - index - 1)
   }
 }

@@ -57,6 +57,11 @@ struct AppearanceSettingsView: View {
             isOn: $store.confirmBeforeQuit
           )
           .help("Ask before quitting CherryLily")
+          Toggle(
+            "Confirm before closing terminal tabs",
+            isOn: $store.confirmBeforeClosingTabs
+          )
+          .help("Show a confirmation dialog when closing a tab")
         }
       }
       .formStyle(.grouped)

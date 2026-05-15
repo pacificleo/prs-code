@@ -132,6 +132,15 @@ struct CherryLilyApp: App {
         },
         tabExists: { worktreeID, tabID in
           terminalManager.tabExists(worktreeID: worktreeID, tabID: tabID)
+        },
+        tabTitle: { worktreeID, tabID in
+          terminalManager.tabTitle(worktreeID: worktreeID, tabID: tabID)
+        },
+        tabCount: { worktreeID in
+          terminalManager.tabCount(worktreeID: worktreeID)
+        },
+        tabIndex: { worktreeID, tabID in
+          terminalManager.tabIndex(worktreeID: worktreeID, tabID: tabID)
         }
       )
       values.worktreeInfoWatcher = WorktreeInfoWatcherClient(

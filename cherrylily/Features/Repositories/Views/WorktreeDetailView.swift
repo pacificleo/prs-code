@@ -218,7 +218,16 @@ struct WorktreeDetailView: View {
         manager: terminalManager,
         shouldRunSetupScript: shouldRunSetupScript,
         forceAutoFocus: shouldFocusTerminal,
-        createTab: { store.send(.newTerminal) }
+        createTab: { store.send(.newTerminal) },
+        requestCloseTab: { tabId in
+          store.send(.requestCloseTab(worktreeID: selectedWorktree.id, tabID: tabId))
+        },
+        requestCloseOthers: { tabId in
+          store.send(.requestCloseOtherTabs(worktreeID: selectedWorktree.id, keepingTabID: tabId))
+        },
+        requestCloseToRight: { tabId in
+          store.send(.requestCloseTabsToRight(worktreeID: selectedWorktree.id, ofTabID: tabId))
+        }
       )
       .id(selectedWorktree.id)
       .frame(maxWidth: .infinity, maxHeight: .infinity)

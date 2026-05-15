@@ -45,6 +45,7 @@ final class WorktreeTerminalState {
   var onNotificationIndicatorChanged: (() -> Void)?
   var onTabCreated: (() -> Void)?
   var onTabClosed: (() -> Void)?
+  var onRequestCloseTab: ((TerminalTabID) -> Void)?
   var onFocusChanged: ((UUID) -> Void)?
   var onTabFocusChanged: ((TerminalTabID) -> Void)?
   var onTaskStatusChanged: ((WorktreeTaskStatus) -> Void)?
@@ -737,7 +738,11 @@ final class WorktreeTerminalState {
     }
     view.bridge.onCloseTab = { [weak self] _ in
       guard let self else { return false }
-      self.closeTab(tabId)
+      if let hook = self.onRequestCloseTab {
+        hook(tabId)
+      } else {
+        self.closeTab(tabId)
+      }
       return true
     }
     view.bridge.onGotoTab = { [weak self] target in

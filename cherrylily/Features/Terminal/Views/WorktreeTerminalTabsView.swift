@@ -7,6 +7,9 @@ struct WorktreeTerminalTabsView: View {
   let shouldRunSetupScript: Bool
   let forceAutoFocus: Bool
   let createTab: () -> Void
+  let requestCloseTab: (TerminalTabID) -> Void
+  let requestCloseOthers: (TerminalTabID) -> Void
+  let requestCloseToRight: (TerminalTabID) -> Void
   @State private var windowActivity = WindowActivityState.inactive
 
   var body: some View {
@@ -22,15 +25,9 @@ struct WorktreeTerminalTabsView: View {
           _ = state.performBindingActionOnFocusedSurface("new_split:right")
         },
         canSplit: state.tabManager.selectedTabId != nil,
-        closeTab: { tabId in
-          state.closeTab(tabId)
-        },
-        closeOthers: { tabId in
-          state.closeOtherTabs(keeping: tabId)
-        },
-        closeToRight: { tabId in
-          state.closeTabsToRight(of: tabId)
-        },
+        closeTab: requestCloseTab,
+        closeOthers: requestCloseOthers,
+        closeToRight: requestCloseToRight,
         closeAll: {
           state.closeAllTabs()
         }

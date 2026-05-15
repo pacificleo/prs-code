@@ -11,6 +11,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
   var appearanceMode: AppearanceMode
   var defaultEditorID: String
   var confirmBeforeQuit: Bool
+  var confirmBeforeClosingTabs: Bool
   var updateChannel: UpdateChannel
   var updatesAutomaticallyCheckForUpdates: Bool
   var updatesAutomaticallyDownloadUpdates: Bool
@@ -35,6 +36,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     appearanceMode: .dark,
     defaultEditorID: "auto",
     confirmBeforeQuit: true,
+    confirmBeforeClosingTabs: true,
     updateChannel: .stable,
     updatesAutomaticallyCheckForUpdates: true,
     updatesAutomaticallyDownloadUpdates: false,
@@ -59,6 +61,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     appearanceMode: AppearanceMode,
     defaultEditorID: String,
     confirmBeforeQuit: Bool,
+    confirmBeforeClosingTabs: Bool = true,
     updateChannel: UpdateChannel,
     updatesAutomaticallyCheckForUpdates: Bool,
     updatesAutomaticallyDownloadUpdates: Bool,
@@ -81,6 +84,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     self.appearanceMode = appearanceMode
     self.defaultEditorID = defaultEditorID
     self.confirmBeforeQuit = confirmBeforeQuit
+    self.confirmBeforeClosingTabs = confirmBeforeClosingTabs
     self.updateChannel = updateChannel
     self.updatesAutomaticallyCheckForUpdates = updatesAutomaticallyCheckForUpdates
     self.updatesAutomaticallyDownloadUpdates = updatesAutomaticallyDownloadUpdates
@@ -110,6 +114,9 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     confirmBeforeQuit =
       try container.decodeIfPresent(Bool.self, forKey: .confirmBeforeQuit)
       ?? Self.default.confirmBeforeQuit
+    confirmBeforeClosingTabs =
+      try container.decodeIfPresent(Bool.self, forKey: .confirmBeforeClosingTabs)
+      ?? Self.default.confirmBeforeClosingTabs
     updateChannel =
       try container.decodeIfPresent(UpdateChannel.self, forKey: .updateChannel)
       ?? Self.default.updateChannel

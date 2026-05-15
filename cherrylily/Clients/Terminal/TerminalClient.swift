@@ -6,6 +6,9 @@ struct TerminalClient {
   var events: @MainActor @Sendable () -> AsyncStream<Event>
   var currentTabID: @MainActor @Sendable (Worktree.ID) -> TerminalTabID?
   var tabExists: @MainActor @Sendable (Worktree.ID, TerminalTabID) -> Bool
+  var tabTitle: @MainActor @Sendable (Worktree.ID, TerminalTabID) -> String?
+  var tabCount: @MainActor @Sendable (Worktree.ID) -> Int
+  var tabIndex: @MainActor @Sendable (Worktree.ID, TerminalTabID) -> Int?
 
   enum Command: Equatable {
     case createTab(Worktree, runSetupScriptIfNew: Bool)
@@ -16,6 +19,9 @@ struct TerminalClient {
     case runBlockingScript(Worktree, kind: BlockingScriptKind, script: String)
     case closeFocusedTab(Worktree)
     case closeFocusedSurface(Worktree)
+    case closeTab(worktreeID: Worktree.ID, tabID: TerminalTabID)
+    case closeOtherTabs(worktreeID: Worktree.ID, keepingTabID: TerminalTabID)
+    case closeTabsToRight(worktreeID: Worktree.ID, ofTabID: TerminalTabID)
     case performBindingAction(Worktree, action: String)
     case startSearch(Worktree)
     case searchSelection(Worktree)
@@ -33,6 +39,7 @@ struct TerminalClient {
     case notificationIndicatorChanged(count: Int)
     case tabCreated(worktreeID: Worktree.ID)
     case tabClosed(worktreeID: Worktree.ID)
+    case tabCloseRequested(worktreeID: Worktree.ID, tabID: TerminalTabID)
     case focusChanged(worktreeID: Worktree.ID, surfaceID: UUID)
     case tabFocusChanged(worktreeID: Worktree.ID, tabID: TerminalTabID)
     case taskStatusChanged(worktreeID: Worktree.ID, status: WorktreeTaskStatus)
@@ -48,14 +55,20 @@ extension TerminalClient: DependencyKey {
     send: { _ in fatalError("TerminalClient.send not configured") },
     events: { fatalError("TerminalClient.events not configured") },
     currentTabID: { _ in nil },
-    tabExists: { _, _ in false }
+    tabExists: { _, _ in false },
+    tabTitle: { _, _ in nil },
+    tabCount: { _ in 0 },
+    tabIndex: { _, _ in nil }
   )
 
   static let testValue = TerminalClient(
     send: { _ in },
     events: { AsyncStream { $0.finish() } },
     currentTabID: { _ in nil },
-    tabExists: { _, _ in false }
+    tabExists: { _, _ in false },
+    tabTitle: { _, _ in nil },
+    tabCount: { _ in 0 },
+    tabIndex: { _, _ in nil }
   )
 }
 

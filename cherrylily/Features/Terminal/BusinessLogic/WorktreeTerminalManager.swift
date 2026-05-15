@@ -52,6 +52,12 @@ final class WorktreeTerminalManager {
       _ = closeFocusedTab(in: worktree)
     case .closeFocusedSurface(let worktree):
       _ = closeFocusedSurface(in: worktree)
+    case .closeTab(let worktreeID, let tabID):
+      closeTab(worktreeID: worktreeID, tabID: tabID)
+    case .closeOtherTabs(let worktreeID, let keepingTabID):
+      closeOtherTabs(worktreeID: worktreeID, keepingTabID: keepingTabID)
+    case .closeTabsToRight(let worktreeID, let ofTabID):
+      closeTabsToRight(worktreeID: worktreeID, ofTabID: ofTabID)
     case .focusTab(let worktreeID, let tabID):
       focusTab(worktreeID: worktreeID, tabID: tabID)
     default:
@@ -157,6 +163,9 @@ final class WorktreeTerminalManager {
     state.onTabClosed = { [weak self] in
       self?.emit(.tabClosed(worktreeID: worktree.id))
     }
+    state.onRequestCloseTab = { [weak self] tabID in
+      self?.emit(.tabCloseRequested(worktreeID: worktree.id, tabID: tabID))
+    }
     state.onFocusChanged = { [weak self] surfaceID in
       self?.emit(.focusChanged(worktreeID: worktree.id, surfaceID: surfaceID))
     }
@@ -218,9 +227,39 @@ final class WorktreeTerminalManager {
     state.selectTab(tabID)
   }
 
+  func closeTab(worktreeID: Worktree.ID, tabID: TerminalTabID) {
+    guard let state = states[worktreeID] else { return }
+    guard state.tabManager.tabs.contains(where: { $0.id == tabID }) else { return }
+    state.closeTab(tabID)
+  }
+
+  func closeOtherTabs(worktreeID: Worktree.ID, keepingTabID: TerminalTabID) {
+    guard let state = states[worktreeID] else { return }
+    guard state.tabManager.tabs.contains(where: { $0.id == keepingTabID }) else { return }
+    state.closeOtherTabs(keeping: keepingTabID)
+  }
+
+  func closeTabsToRight(worktreeID: Worktree.ID, ofTabID: TerminalTabID) {
+    guard let state = states[worktreeID] else { return }
+    guard state.tabManager.tabs.contains(where: { $0.id == ofTabID }) else { return }
+    state.closeTabsToRight(of: ofTabID)
+  }
+
   func tabExists(worktreeID: Worktree.ID, tabID: TerminalTabID) -> Bool {
     guard let state = states[worktreeID] else { return false }
     return state.tabManager.tabs.contains(where: { $0.id == tabID })
+  }
+
+  func tabTitle(worktreeID: Worktree.ID, tabID: TerminalTabID) -> String? {
+    states[worktreeID]?.tabManager.tabs.first(where: { $0.id == tabID })?.title
+  }
+
+  func tabCount(worktreeID: Worktree.ID) -> Int {
+    states[worktreeID]?.tabManager.tabs.count ?? 0
+  }
+
+  func tabIndex(worktreeID: Worktree.ID, tabID: TerminalTabID) -> Int? {
+    states[worktreeID]?.tabManager.tabs.firstIndex(where: { $0.id == tabID })
   }
 
   func currentTabID(worktreeID: Worktree.ID) -> TerminalTabID? {
