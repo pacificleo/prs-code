@@ -10,9 +10,11 @@ Make terminal contents (tabs, splits, working directories, scrollback) come back
 |---|---|
 | Default state | **On.** Modern dev tools restore by default. |
 | User awareness of tmux | **Zero.** UI never says "tmux", "session", "PTY", "pane". |
-| tmux binary | **Bundled inside `CherryLily.app/Contents/MacOS/tmux-cherrylily`** — no external dependency. |
+| tmux binary | **Bundled inside `CherryLily.app/Contents/MacOS/tmux-cherrylily`** — no external dependency. Pinned stable version, refreshed monthly with CherryLily releases. |
 | Save trigger | **On app quit.** Optional hourly safety net (default off). |
 | Restore mechanism | tmux server keeps shells alive between app quits. On reboot, replay saved scrollback into fresh sessions. |
+| tmux server crash | **Auto-restart and replay.** UI shows a brief "reconnecting" banner; live shells lost; scrollback restored from last save. |
+| Migration default | **Persistence ON for both new and existing users.** No upgrade modal. |
 | Mapping | **1 tmux server per CherryLily install, 1 tmux session per Ghostty surface.** Custom socket `cherrylily` isolates from user's own tmux. |
 | Out-of-scope features | Live process resumption, command replay, restore of in-flight job state. Those are physically impossible across reboot. |
 
@@ -326,9 +328,9 @@ These warrant explicit decisions before implementation:
 
 ### 1. tmux version pinning and updates
 
-We need a pinned version (3.5a or whatever current). When tmux upstream releases bug fixes, we have to rebuild and ship. Build infrastructure: download → compile → universal binary → codesign → embed. Risk: a tmux bug we ship is harder to fix than user-installed tmux.
+We pin a stable tmux version (e.g. 3.5a). When upstream releases bug fixes, we rebuild and ship as part of CherryLily's normal release cycle. **Acceptable cadence: monthly tmux updates aligned with CherryLily releases.** Build infrastructure: download → compile → universal binary → codesign → embed.
 
-**Question:** acceptable to ship monthly with tmux updates, or do we want to use `system tmux` if available and bundled tmux as fallback?
+If a critical tmux bug surfaces between releases, we ship an out-of-cycle CherryLily update.
 
 ### 2. App size impact
 
@@ -336,14 +338,17 @@ tmux universal binary is ~1.5 MB. Ghostty already adds ~30 MB. Acceptable but wo
 
 ### 3. tmux server crash recovery
 
-If the bundled tmux server crashes (rare but possible — bug in tmux, kernel signal), every CherryLily surface loses its shell. Two options:
+If the bundled tmux server crashes (rare — typically OOM-kill, kernel SIGBUS on corrupted shared memory, or an unfixed tmux bug; with a stable pin, expect under one incident per user-year), every CherryLily surface loses its shell.
 
-- **(a) Detect via socket loss; show "Sessions disconnected" banner; offer to recreate.**
-- **(b) Auto-restart the server on detection; recreate sessions from layout; replay scrollback files.**
+**Behavior: auto-restart-and-replay.** Detection trigger: socket file missing or `tmux ls` exit non-zero. CherryLily:
 
-(b) is more user-friendly but loses any output between last save and crash.
+1. Marks all surfaces as "reconnecting" (UI shows a one-line banner per surface)
+2. Spawns a new tmux server with the managed config
+3. Recreates all sessions per the live layout
+4. Replays the most recent scrollback file for each (which may be up to 1 hour stale if hourly autosave is on, or only as old as the last quit otherwise)
+5. Live shells are gone; replayed content shows above the new prompts
 
-**Question:** which behavior?
+This trades a bit of work for a much better UX: the failure is mostly invisible. The "reconnecting" banner remains for 3 seconds after recovery so the user knows something happened (and that any in-flight commands are gone).
 
 ### 4. Permissions
 
@@ -365,16 +370,29 @@ Today's setup script runs as the initial input to a fresh `zsh`. With tmux under
 
 ### 7. Notification flow with tmux passthrough
 
-CherryLily uses Ghostty's bell + OSC 9 for tab notification badges. tmux's `allow-passthrough on` should forward OSC 9. **Needs explicit testing**, since tmux historically had spotty passthrough support and some sequences get rewritten.
+CherryLily uses Ghostty's bell + OSC 9 for tab notification badges. tmux's `allow-passthrough on` should forward OSC 9 and OSC 777, but tmux historically had spotty support and some sequences get rewritten.
+
+**Decision: thoroughly test passthrough as part of the implementation phase.** Specifically test, with persistence ON:
+
+- BEL (bell) → CherryLily tab notification badge appears
+- OSC 9 (`\033]9;message\007`) → desktop notification fires
+- OSC 777 (notification-with-title) → desktop notification fires with correct title/body
+- OSC 7 (working directory) → CherryLily tracks CWD changes
+- OSC 0 / OSC 2 (window/icon title) → tab title updates
+- OSC 8 (hyperlink) → renders as clickable in Ghostty
+- OSC 133 (semantic prompt) → shell integration / prompt detection still works
+- OSC 52 (clipboard write) — **disable in tmux config**, security risk
+
+If any of the above fail with tmux underneath, flag and decide on a per-sequence basis whether to patch tmux, work around in CherryLily, or accept regression.
 
 ### 8. Migration for existing users
 
-Existing CherryLily installs have no surface UUIDs persisted. On upgrade:
+Existing CherryLily installs have no surface UUIDs persisted. On upgrade with persistence default ON:
 
-- v1: First launch after upgrade with persistence ON → today's tabs get fresh UUIDs, written to layout, normal flow from there. **No history backfill.**
-- Alternative: persistence default OFF for existing users (only ON for new installs). Detect via `lastVersion < persistenceFeatureVersion`.
+- First launch after upgrade: today's tabs get fresh UUIDs, written to layout, normal flow from there. **No history backfill** (today's scrollback is in Ghostty's grid, not captured).
+- From the second launch onward, persistence operates normally.
 
-**Question:** default ON or OFF for existing users? I'd argue ON with a one-time "New: session restore is enabled — disable in Settings if you prefer fresh shells" notification.
+**No notification or onboarding modal.** The setting is on by default; existing users discover it organically when they next reopen and find their tabs intact. Users who don't want this can flip it off in Settings.
 
 ### 9. Performance regression measurement
 
