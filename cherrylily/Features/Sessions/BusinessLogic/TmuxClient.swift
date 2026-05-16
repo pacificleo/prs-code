@@ -72,6 +72,75 @@ nonisolated struct TmuxClient: Sendable {
     }
   }
 
+  /// Captures the scrollback of a session's first pane. Output is raw bytes (ANSI/escape
+  /// sequences included). The caller is expected to run `ScrollbackStore.sanitize(_:)`
+  /// before persisting.
+  ///
+  /// Streams stdout via `readabilityHandler` so multi-megabyte captures don't deadlock
+  /// (see NOTE on `runSync`).
+  func capturePane(sessionName: String, scrollbackLimit: Int) async throws -> Data {
+    try await withCheckedThrowingContinuation { continuation in
+      Task.detached {
+        do {
+          let result = try captureSync(
+            sessionName: sessionName,
+            scrollbackLimit: scrollbackLimit
+          )
+          continuation.resume(returning: result)
+        } catch {
+          continuation.resume(throwing: error)
+        }
+      }
+    }
+  }
+
+  private func captureSync(sessionName: String, scrollbackLimit: Int) throws -> Data {
+    let process = Process()
+    process.executableURL = executableURL
+    process.arguments = [
+      "-L", socketName,
+      "capture-pane",
+      "-p",                     // print to stdout
+      "-e",                     // include escape sequences
+      "-S", "-\(scrollbackLimit)",
+      "-t", "\(sessionName):0.0",
+    ]
+    let outPipe = Pipe()
+    let errPipe = Pipe()
+    process.standardOutput = outPipe
+    process.standardError = errPipe
+
+    // Drain stdout incrementally so the kernel buffer doesn't fill and deadlock the writer.
+    let buffer = LockedDataBuffer()
+    outPipe.fileHandleForReading.readabilityHandler = { handle in
+      let chunk = handle.availableData
+      if !chunk.isEmpty {
+        buffer.append(chunk)
+      }
+    }
+
+    try process.run()
+    process.waitUntilExit()
+    outPipe.fileHandleForReading.readabilityHandler = nil
+    // Drain any final bytes that arrived between the last handler invocation and exit
+    let tail = outPipe.fileHandleForReading.readDataToEndOfFile()
+    buffer.append(tail)
+    let result = buffer.snapshot()
+
+    let stderr = String(
+      bytes: errPipe.fileHandleForReading.readDataToEndOfFile(),
+      encoding: .utf8
+    ) ?? ""
+
+    guard process.terminationStatus == 0 else {
+      throw TmuxClientError.commandFailed(
+        stderr: stderr,
+        exitCode: process.terminationStatus
+      )
+    }
+    return result
+  }
+
   /// Kills the entire server, dropping all sessions. Tolerates "no server running".
   func killServer() throws {
     // Synchronous because used in defer blocks; uses runSync helper.
@@ -128,4 +197,24 @@ nonisolated struct TmuxClient: Sendable {
 
 enum TmuxClientError: Error, Equatable {
   case commandFailed(stderr: String, exitCode: Int32)
+}
+
+/// Thread-safe append-only byte buffer used to collect `readabilityHandler` chunks.
+/// The handler closure is `@Sendable`; a class with internal locking is the simplest
+/// way to share mutable state across it without tripping Swift 6 concurrency checks.
+private final class LockedDataBuffer: @unchecked Sendable {
+  private let lock = NSLock()
+  nonisolated(unsafe) private var data = Data()
+
+  nonisolated func append(_ chunk: Data) {
+    lock.lock()
+    data.append(chunk)
+    lock.unlock()
+  }
+
+  nonisolated func snapshot() -> Data {
+    lock.lock()
+    defer { lock.unlock() }
+    return data
+  }
 }
