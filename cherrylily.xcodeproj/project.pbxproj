@@ -16,6 +16,7 @@
 		D661760B2F250A60000FC27C /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = D661760A2F250A60000FC27C /* CasePaths */; };
 		D6A1CB312F1F4ABF004FDABD /* GhosttyKit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A1CB2F2F1F4A48004FDABD /* GhosttyKit.xcframework */; };
 		D6A1CB362F1F4ACB004FDABD /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A1CB342F1F4AC2004FDABD /* Carbon.framework */; };
+		D6E1B0012F40000000000001 /* tmux-cherrylily in Embed Executables */ = {isa = PBXBuildFile; fileRef = D6E1B0002F40000000000000 /* tmux-cherrylily */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		DFE570C142184CC387C1BC78 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = B5698573F7354B14B940EA60 /* Sparkle */; };
 /* End PBXBuildFile section */
 
@@ -29,6 +30,20 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		D6E1B0022F40000000000002 /* Embed Executables */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 6;
+			files = (
+				D6E1B0012F40000000000001 /* tmux-cherrylily in Embed Executables */,
+			);
+			name = "Embed Executables";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		D64162AD2F23CAF100260CA3 /* ghostty */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ghostty; path = Resources/ghostty; sourceTree = "<group>"; };
 		D64162AE2F23CAF100260CA3 /* terminfo */ = {isa = PBXFileReference; lastKnownFileType = folder; name = terminfo; path = Resources/terminfo; sourceTree = "<group>"; };
@@ -36,6 +51,7 @@
 		D69CE04A2F1F378200584C57 /* CherryLily.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CherryLily.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D6A1CB2F2F1F4A48004FDABD /* GhosttyKit.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = GhosttyKit.xcframework; sourceTree = "<group>"; };
 		D6A1CB342F1F4AC2004FDABD /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
+		D6E1B0002F40000000000000 /* tmux-cherrylily */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "tmux-cherrylily"; sourceTree = "<group>"; };
 		D6F821012F1FCBC1004B4174 /* cherrylilyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = cherrylilyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -117,6 +133,7 @@
 			children = (
 				D6A1CB342F1F4AC2004FDABD /* Carbon.framework */,
 				D6A1CB2F2F1F4A48004FDABD /* GhosttyKit.xcframework */,
+				D6E1B0002F40000000000000 /* tmux-cherrylily */,
 			);
 			path = Frameworks;
 			sourceTree = "<group>";
@@ -132,6 +149,7 @@
 				D67F9B122F33000100A1B2C3 /* Verify git-wt script */,
 				D69CE0472F1F378200584C57 /* Frameworks */,
 				D69CE0482F1F378200584C57 /* Resources */,
+				D6E1B0022F40000000000002 /* Embed Executables */,
 			);
 			buildRules = (
 			);
