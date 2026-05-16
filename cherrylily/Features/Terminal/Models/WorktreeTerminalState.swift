@@ -18,6 +18,7 @@ final class WorktreeTerminalState {
   let tabManager: TerminalTabManager
   private let runtime: GhosttyRuntime
   private let worktree: Worktree
+  private let persistenceEnabled: () -> Bool
   @ObservationIgnored
   @SharedReader private var repositorySettings: RepositorySettings
   private var trees: [TerminalTabID: SplitTree<GhosttySurfaceView>] = [:]
@@ -54,9 +55,15 @@ final class WorktreeTerminalState {
   var onCommandPaletteToggle: (() -> Void)?
   var onSetupScriptConsumed: (() -> Void)?
 
-  init(runtime: GhosttyRuntime, worktree: Worktree, runSetupScript: Bool = false) {
+  init(
+    runtime: GhosttyRuntime,
+    worktree: Worktree,
+    runSetupScript: Bool = false,
+    persistenceEnabled: @escaping () -> Bool = { false }
+  ) {
     self.runtime = runtime
     self.worktree = worktree
+    self.persistenceEnabled = persistenceEnabled
     self.pendingSetupScript = runSetupScript
     self.tabManager = TerminalTabManager()
     _repositorySettings = SharedReader(
@@ -724,11 +731,12 @@ final class WorktreeTerminalState {
     context: ghostty_surface_context_e
   ) -> GhosttySurfaceView {
     let inherited = inheritedSurfaceConfig(fromSurfaceId: inheritingFromSurfaceId, context: context)
+    let effectiveCommand = resolveLaunchCommand(callerOverride: command, inherited: inherited)
     let view = GhosttySurfaceView(
       runtime: runtime,
       workingDirectory: inherited.workingDirectory ?? worktree.workingDirectory,
       initialInput: initialInput,
-      command: command,
+      command: effectiveCommand,
       fontSize: inherited.fontSize,
       context: context
     )
@@ -826,6 +834,31 @@ final class WorktreeTerminalState {
       return URL(fileURLWithPath: path, isDirectory: true)
     }
     return InheritedSurfaceConfig(workingDirectory: workingDirectory, fontSize: fontSize)
+  }
+
+  /// Resolves the launch command for a new surface. If the caller passed a non-nil
+  /// `command`, that wins. Otherwise, when persistence is enabled and the bundled
+  /// tmux binary is available, returns a tmux invocation that wraps the user's
+  /// shell. Returns nil to let Ghostty spawn the default shell directly.
+  private func resolveLaunchCommand(
+    callerOverride command: String?,
+    inherited: InheritedSurfaceConfig
+  ) -> String? {
+    if let command { return command }
+    guard persistenceEnabled() else { return nil }
+    guard TmuxBinary.isAvailable else {
+      SupaLogger("Sessions").warning("tmux binary unavailable — falling back to direct shell")
+      return nil
+    }
+    let paths = SessionPaths()
+    let surface = SurfaceID()
+    let cwd = (inherited.workingDirectory ?? worktree.workingDirectory).path
+    return SurfaceLaunchCommand.build(
+      tmuxBinaryPath: TmuxBinary.bundledURL.path,
+      configPath: paths.tmuxConfigFile.path,
+      surface: surface,
+      cwd: cwd
+    )
   }
 
   private func currentFocusedSurfaceId() -> UUID? {

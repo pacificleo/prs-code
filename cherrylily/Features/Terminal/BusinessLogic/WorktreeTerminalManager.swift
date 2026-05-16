@@ -150,7 +150,8 @@ final class WorktreeTerminalManager {
     let state = WorktreeTerminalState(
       runtime: runtime,
       worktree: worktree,
-      runSetupScript: runSetupScript
+      runSetupScript: runSetupScript,
+      persistenceEnabled: { [weak self] in self?.persistenceEnabled() ?? false }
     )
     state.setNotificationsEnabled(notificationsEnabled)
     state.isSelected = { [weak self] in
