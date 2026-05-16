@@ -1,7 +1,7 @@
 import Foundation
 
 /// Resolves the location of the tmux executable bundled inside CherryLily.app.
-enum TmuxBinary {
+nonisolated enum TmuxBinary {
   /// Path to the bundled tmux binary inside the running app's MacOS directory.
   /// In tests this resolves to a path inside the test runner; the file may not exist there.
   static var bundledURL: URL {

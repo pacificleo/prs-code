@@ -3,7 +3,7 @@ import Foundation
 /// Atomically reads and writes the session layout JSON file.
 /// Corruption-tolerant: a malformed file is treated as "no layout" rather than throwing,
 /// so a bad snapshot doesn't permanently break startup.
-struct SessionLayoutStore {
+nonisolated struct SessionLayoutStore {
   let paths: SessionPaths
 
   init(paths: SessionPaths) {

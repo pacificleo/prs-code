@@ -2,7 +2,7 @@ import Foundation
 
 /// Filesystem paths used by the session-persistence subsystem.
 /// Construct with the user's Application Support root in production; tests pass `/tmp` paths.
-struct SessionPaths: Sendable {
+nonisolated struct SessionPaths: Sendable {
   let root: URL
 
   /// Default production root: `~/Library/Application Support/CherryLily/`.
