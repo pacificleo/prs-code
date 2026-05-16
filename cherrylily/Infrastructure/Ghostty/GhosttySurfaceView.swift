@@ -52,6 +52,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
   private var surfaceRef: GhosttyRuntime.SurfaceReference?
   private let workingDirectoryCString: UnsafeMutablePointer<CChar>?
   private let initialInputCString: UnsafeMutablePointer<CChar>?
+  private let commandCString: UnsafeMutablePointer<CChar>?
   private let fontSize: Float32
   private let context: ghostty_surface_context_e
   private var trackingArea: NSTrackingArea?
@@ -154,6 +155,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
     runtime: GhosttyRuntime,
     workingDirectory: URL?,
     initialInput: String? = nil,
+    command: String? = nil,
     fontSize: Float32? = nil,
     context: ghostty_surface_context_e
   ) {
@@ -173,6 +175,11 @@ final class GhosttySurfaceView: NSView, Identifiable {
       initialInputCString = initialInput.withCString { strdup($0) }
     } else {
       initialInputCString = nil
+    }
+    if let command {
+      commandCString = command.withCString { strdup($0) }
+    } else {
+      commandCString = nil
     }
     super.init(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
     wantsLayer = true
@@ -208,6 +215,9 @@ final class GhosttySurfaceView: NSView, Identifiable {
     }
     if let initialInputCString {
       free(initialInputCString)
+    }
+    if let commandCString {
+      free(commandCString)
     }
   }
 
@@ -845,6 +855,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
     config.font_size = fontSize
     config.working_directory = workingDirectoryCString.map { UnsafePointer($0) }
     config.initial_input = initialInputCString.map { UnsafePointer($0) }
+    config.command = commandCString.map { UnsafePointer($0) }
     config.context = context
     surface = ghostty_surface_new(app, &config)
     bridge.surface = surface
