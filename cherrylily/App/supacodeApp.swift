@@ -30,6 +30,8 @@ private enum GhosttyCLI {
 @MainActor
 final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
   var appStore: StoreOf<AppFeature>?
+  var terminalManager: WorktreeTerminalManager?
+  var persistence: SessionPersistence?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     // Disable press-and-hold accent menu so that key repeat works in the terminal.
@@ -52,6 +54,35 @@ final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
     false
+  }
+
+  func applicationWillTerminate(_ notification: Notification) {
+    guard let persistence, let terminalManager else { return }
+    @Shared(.settingsFile) var settings
+    guard settings.global.restoreSessionsOnLaunch else { return }
+
+    let states = terminalManager.allWorktreeStates.map { (id, state) -> (Worktree.ID, any WorktreeStateSnapshotting) in
+      (id, state as any WorktreeStateSnapshotting)
+    }
+    let layout = LayoutSnapshotBuilder.build(
+      worktreeStates: states,
+      now: Date()
+    )
+
+    do {
+      try persistence.writeLayout(layout)
+    } catch {
+      SupaLogger("Sessions").warning("layout write on quit failed: \(error)")
+    }
+
+    // Capture is async; we synchronously wait up to 2 seconds before letting
+    // macOS SIGKILL us. DispatchSemaphore because this delegate method is sync.
+    let semaphore = DispatchSemaphore(value: 0)
+    Task {
+      _ = await persistence.captureAll(for: layout)
+      semaphore.signal()
+    }
+    _ = semaphore.wait(timeout: .now() + .seconds(2))
   }
 
   private func mainWindow(from sender: NSApplication) -> NSWindow? {
@@ -107,12 +138,14 @@ struct CherryLilyApp: App {
     _ghostty = State(initialValue: runtime)
     let shortcuts = GhosttyShortcutManager(runtime: runtime)
     _ghosttyShortcuts = State(initialValue: shortcuts)
+    let persistence = SessionPersistence(paths: SessionPaths())
     let terminalManager = WorktreeTerminalManager(
       runtime: runtime,
       persistenceEnabled: {
         @Shared(.settingsFile) var settingsFile
         return settingsFile.global.restoreSessionsOnLaunch
       },
+      persistence: persistence,
     )
     if initialSettings.restoreSessionsOnLaunch {
       do {
@@ -175,6 +208,8 @@ struct CherryLilyApp: App {
     }
     _store = State(initialValue: appStore)
     appDelegate.appStore = appStore
+    appDelegate.terminalManager = terminalManager
+    appDelegate.persistence = persistence
     SettingsWindowManager.shared.configure(
       store: appStore,
       ghosttyShortcuts: shortcuts,
