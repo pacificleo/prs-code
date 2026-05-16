@@ -98,3 +98,10 @@ nonisolated enum CherryLilyPaths {
     return repoName
   }
 }
+
+extension CherryLilyPaths {
+  /// Filesystem paths used by the session-persistence subsystem.
+  static var sessions: SessionPaths {
+    SessionPaths()
+  }
+}
