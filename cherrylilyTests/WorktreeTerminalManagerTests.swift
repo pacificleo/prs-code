@@ -469,6 +469,25 @@ struct WorktreeTerminalManagerTests {
     #expect(!state.tabManager.tabs.map(\.id).contains(tabId))
   }
 
+  @Test func storesPersistenceEnabledClosure() {
+    let on = WorktreeTerminalManager(
+      runtime: GhosttyRuntime(),
+      persistenceEnabled: { true },
+    )
+    #expect(on.persistenceEnabled() == true)
+
+    let off = WorktreeTerminalManager(
+      runtime: GhosttyRuntime(),
+      persistenceEnabled: { false },
+    )
+    #expect(off.persistenceEnabled() == false)
+  }
+
+  @Test func persistenceEnabledDefaultsToFalse() {
+    let manager = WorktreeTerminalManager(runtime: GhosttyRuntime())
+    #expect(manager.persistenceEnabled() == false)
+  }
+
   private func makeWorktree() -> Worktree {
     Worktree(
       id: "/tmp/repo/wt-1",

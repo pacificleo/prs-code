@@ -107,7 +107,13 @@ struct CherryLilyApp: App {
     _ghostty = State(initialValue: runtime)
     let shortcuts = GhosttyShortcutManager(runtime: runtime)
     _ghosttyShortcuts = State(initialValue: shortcuts)
-    let terminalManager = WorktreeTerminalManager(runtime: runtime)
+    let terminalManager = WorktreeTerminalManager(
+      runtime: runtime,
+      persistenceEnabled: {
+        @Shared(.settingsFile) var settingsFile
+        return settingsFile.global.restoreSessionsOnLaunch
+      },
+    )
     _terminalManager = State(initialValue: terminalManager)
     let worktreeInfoWatcher = WorktreeInfoWatcherManager()
     _worktreeInfoWatcher = State(initialValue: worktreeInfoWatcher)

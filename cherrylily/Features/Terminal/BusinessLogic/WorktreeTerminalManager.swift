@@ -7,6 +7,7 @@ private let terminalLogger = SupaLogger("Terminal")
 @Observable
 final class WorktreeTerminalManager {
   private let runtime: GhosttyRuntime
+  let persistenceEnabled: @Sendable () -> Bool
   private var states: [Worktree.ID: WorktreeTerminalState] = [:]
   private var notificationsEnabled = true
   private var lastNotificationIndicatorCount: Int?
@@ -14,8 +15,12 @@ final class WorktreeTerminalManager {
   private var pendingEvents: [TerminalClient.Event] = []
   var selectedWorktreeID: Worktree.ID?
 
-  init(runtime: GhosttyRuntime) {
+  init(
+    runtime: GhosttyRuntime,
+    persistenceEnabled: @escaping @Sendable () -> Bool = { false },
+  ) {
     self.runtime = runtime
+    self.persistenceEnabled = persistenceEnabled
   }
 
   func handleCommand(_ command: TerminalClient.Command) {
