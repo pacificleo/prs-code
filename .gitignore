@@ -63,7 +63,9 @@ fastlane/screenshots/**/*.png
 fastlane/test_output
 
 Frameworks/GhosttyKit.xcframework
+Frameworks/tmux-cherrylily
 Resources/ghostty
 Resources/terminfo
+build/
 *.profraw
 .env

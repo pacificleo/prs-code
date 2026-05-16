@@ -18,7 +18,7 @@ VERSION ?=
 BUILD ?=
 XCODEBUILD_FLAGS ?=
 .DEFAULT_GOAL := help
-.PHONY: build-ghostty-xcframework build-app run-app install-dev-build build-release install-release-build archive export-archive format lint check test bump-version bump-and-release log-stream
+.PHONY: build-ghostty-xcframework build-tmux build-app run-app install-dev-build build-release install-release-build archive export-archive format lint check test bump-version bump-and-release log-stream
 
 help:  # Display this help.
 	@-+echo "Run make with one of the following targets:"
@@ -39,7 +39,15 @@ $(GHOSTTY_BUILD_OUTPUTS):
 	mkdir -p "$$terminfo_dst"; \
 	rsync -a --delete "$$terminfo_src/" "$$terminfo_dst/"
 
-build-app: build-ghostty-xcframework # Build the macOS app (Debug)
+build-tmux: # Build the bundled tmux universal binary
+	@if [ ! -f "$(CURRENT_MAKEFILE_DIR)/Frameworks/tmux-cherrylily" ]; then \
+	  echo "Building tmux..."; \
+	  bash $(CURRENT_MAKEFILE_DIR)/scripts/build-tmux.sh; \
+	else \
+	  echo "tmux-cherrylily already built. Run 'rm Frameworks/tmux-cherrylily' to force rebuild."; \
+	fi
+
+build-app: build-ghostty-xcframework build-tmux # Build the macOS app (Debug)
 	bash -o pipefail -c 'xcodebuild -project cherrylily.xcodeproj -scheme cherrylily -configuration Debug build -skipMacroValidation -clonedSourcePackagesDirPath $(SPM_CACHE_DIR) 2>&1 | mise exec -- xcsift -qw --format toon'
 
 run-app: build-app # Build then launch (Debug) with log streaming
@@ -64,7 +72,7 @@ install-dev-build: build-app # install dev build to /Applications
 	ditto "$$src" "$$dst"; \
 	echo "installed $$dst"
 
-build-release: build-ghostty-xcframework # Build the macOS app (Release, unsigned)
+build-release: build-ghostty-xcframework build-tmux # Build the macOS app (Release, unsigned)
 	bash -o pipefail -c 'xcodebuild -project cherrylily.xcodeproj -scheme cherrylily -configuration Release build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -skipMacroValidation -clonedSourcePackagesDirPath $(SPM_CACHE_DIR) $(XCODEBUILD_FLAGS) 2>&1 | mise exec -- xcsift -qw --format toon'
 
 install-release-build: build-release # install release build to /Applications
