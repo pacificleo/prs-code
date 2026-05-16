@@ -11,6 +11,7 @@ struct SettingsFeature {
     var defaultEditorID: String
     var confirmBeforeQuit: Bool
     var confirmBeforeClosingTabs: Bool
+    var restoreSessionsOnLaunch: Bool
     var updateChannel: UpdateChannel
     var updatesAutomaticallyCheckForUpdates: Bool
     var updatesAutomaticallyDownloadUpdates: Bool
@@ -39,6 +40,7 @@ struct SettingsFeature {
       defaultEditorID = normalizedDefaultEditorID
       confirmBeforeQuit = settings.confirmBeforeQuit
       confirmBeforeClosingTabs = settings.confirmBeforeClosingTabs
+      restoreSessionsOnLaunch = settings.restoreSessionsOnLaunch
       updateChannel = settings.updateChannel
       updatesAutomaticallyCheckForUpdates = settings.updatesAutomaticallyCheckForUpdates
       updatesAutomaticallyDownloadUpdates = settings.updatesAutomaticallyDownloadUpdates
@@ -66,6 +68,7 @@ struct SettingsFeature {
         defaultEditorID: defaultEditorID,
         confirmBeforeQuit: confirmBeforeQuit,
         confirmBeforeClosingTabs: confirmBeforeClosingTabs,
+        restoreSessionsOnLaunch: restoreSessionsOnLaunch,
         updateChannel: updateChannel,
         updatesAutomaticallyCheckForUpdates: updatesAutomaticallyCheckForUpdates,
         updatesAutomaticallyDownloadUpdates: updatesAutomaticallyDownloadUpdates,
@@ -149,6 +152,7 @@ struct SettingsFeature {
         state.defaultEditorID = normalizedSettings.defaultEditorID
         state.confirmBeforeQuit = normalizedSettings.confirmBeforeQuit
         state.confirmBeforeClosingTabs = normalizedSettings.confirmBeforeClosingTabs
+        state.restoreSessionsOnLaunch = normalizedSettings.restoreSessionsOnLaunch
         state.updateChannel = normalizedSettings.updateChannel
         state.updatesAutomaticallyCheckForUpdates = normalizedSettings.updatesAutomaticallyCheckForUpdates
         state.updatesAutomaticallyDownloadUpdates = normalizedSettings.updatesAutomaticallyDownloadUpdates

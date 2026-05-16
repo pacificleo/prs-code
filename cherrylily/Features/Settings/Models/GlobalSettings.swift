@@ -12,6 +12,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
   var defaultEditorID: String
   var confirmBeforeQuit: Bool
   var confirmBeforeClosingTabs: Bool
+  var restoreSessionsOnLaunch: Bool
   var updateChannel: UpdateChannel
   var updatesAutomaticallyCheckForUpdates: Bool
   var updatesAutomaticallyDownloadUpdates: Bool
@@ -37,6 +38,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     defaultEditorID: "auto",
     confirmBeforeQuit: true,
     confirmBeforeClosingTabs: true,
+    restoreSessionsOnLaunch: true,
     updateChannel: .stable,
     updatesAutomaticallyCheckForUpdates: true,
     updatesAutomaticallyDownloadUpdates: false,
@@ -62,6 +64,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     defaultEditorID: String,
     confirmBeforeQuit: Bool,
     confirmBeforeClosingTabs: Bool = true,
+    restoreSessionsOnLaunch: Bool = true,
     updateChannel: UpdateChannel,
     updatesAutomaticallyCheckForUpdates: Bool,
     updatesAutomaticallyDownloadUpdates: Bool,
@@ -85,6 +88,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     self.defaultEditorID = defaultEditorID
     self.confirmBeforeQuit = confirmBeforeQuit
     self.confirmBeforeClosingTabs = confirmBeforeClosingTabs
+    self.restoreSessionsOnLaunch = restoreSessionsOnLaunch
     self.updateChannel = updateChannel
     self.updatesAutomaticallyCheckForUpdates = updatesAutomaticallyCheckForUpdates
     self.updatesAutomaticallyDownloadUpdates = updatesAutomaticallyDownloadUpdates
@@ -117,6 +121,9 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     confirmBeforeClosingTabs =
       try container.decodeIfPresent(Bool.self, forKey: .confirmBeforeClosingTabs)
       ?? Self.default.confirmBeforeClosingTabs
+    restoreSessionsOnLaunch =
+      try container.decodeIfPresent(Bool.self, forKey: .restoreSessionsOnLaunch)
+      ?? Self.default.restoreSessionsOnLaunch
     updateChannel =
       try container.decodeIfPresent(UpdateChannel.self, forKey: .updateChannel)
       ?? Self.default.updateChannel
