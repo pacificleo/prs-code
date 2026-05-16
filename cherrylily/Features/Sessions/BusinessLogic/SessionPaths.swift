@@ -32,7 +32,7 @@ struct SessionPaths: Sendable {
   var tmuxSocketName: String { "cherrylily" }
 
   func scrollbackFile(for id: SurfaceID) -> URL {
-    sessionsDirectory.appending(path: "\(id.rawValue.uuidString).bin")
+    sessionsDirectory.appending(path: "\(id.rawValue.uuidString.lowercased()).bin")
   }
 
   /// Ensures all required directories exist. Idempotent.
