@@ -101,4 +101,23 @@ struct ScrollbackStoreTests {
     let cleaned = ScrollbackStore.sanitize(dangerous)
     #expect(String(decoding: cleaned, as: UTF8.self) == "rest")
   }
+
+  @Test func sanitizePreservesOSC1337NotConfusedWith133() {
+    // OSC 1337 is iTerm2's image protocol — common in the wild. The digit-greedy
+    // parse must read all 4 digits as 1337 and NOT match the OSC 133 strip filter
+    // on the substring "133". Regression-pin this so a future "optimize the parser"
+    // refactor can't silently start matching prefixes.
+    let input = Data("\u{001b}]1337;File=name=foo\u{0007}after".utf8)
+    let cleaned = ScrollbackStore.sanitize(input)
+    #expect(String(decoding: cleaned, as: UTF8.self) == "\u{001b}]1337;File=name=foo\u{0007}after")
+  }
+
+  @Test func sanitizeDropsUnterminatedDangerousOSCToEOF() {
+    // A truncated tmux capture-pane could produce a dangerous OSC with no terminator.
+    // The parser must drop everything from the OSC start through end-of-input rather
+    // than accidentally preserving the dangerous payload because no BEL/ESC-\\ was found.
+    let input = Data("keep\u{001b}]52;c;dGVzdA".utf8)  // no BEL, no ESC \
+    let cleaned = ScrollbackStore.sanitize(input)
+    #expect(String(decoding: cleaned, as: UTF8.self) == "keep")
+  }
 }
