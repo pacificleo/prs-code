@@ -5,8 +5,9 @@ enum TmuxBinary {
   /// Path to the bundled tmux binary inside the running app's MacOS directory.
   /// In tests this resolves to a path inside the test runner; the file may not exist there.
   static var bundledURL: URL {
-    let exe = Bundle.main.executableURL
-      ?? Bundle.main.bundleURL.appending(path: "Contents/MacOS/CherryLily")
+    guard let exe = Bundle.main.executableURL else {
+      preconditionFailure("Bundle.main.executableURL is nil — TmuxBinary cannot resolve")
+    }
     return exe.deletingLastPathComponent().appending(path: "tmux-cherrylily")
   }
 

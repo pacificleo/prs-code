@@ -5,19 +5,19 @@ import Testing
 
 struct TmuxBinaryTests {
   @Test func resolvedPathIsInsideAppBundle() {
-    // Resolution uses Bundle.main; in the test bundle this points at the test runner.
-    // We assert the structure (path ends with the expected filename), not absolute equality.
     let url = TmuxBinary.bundledURL
     #expect(url.lastPathComponent == "tmux-cherrylily")
+    // Resolution must produce a path inside a `Contents/MacOS` directory.
+    // In tests the bundle is the test runner; in production it's CherryLily.app.
+    let parent = url.deletingLastPathComponent().path
+    #expect(parent.hasSuffix("/Contents/MacOS") || parent.hasSuffix("/MacOS"))
   }
 
-  @Test func executableExistsAfterAppBundleBuild() {
-    // This test only meaningfully passes when run inside an integration setup
-    // where CherryLily.app has been built. In unit-only runs the bundled binary
-    // path may not exist; we guard with a soft assertion.
-    let url = TmuxBinary.bundledURL
-    if FileManager.default.fileExists(atPath: url.path) {
-      #expect(FileManager.default.isExecutableFile(atPath: url.path))
-    }
+  @Test func executableExistsAfterAppBundleBuild() throws {
+    // Skip cleanly when the binary isn't present (unit-only test runs).
+    // When it is present (integration runs after `make build-app`), the executable bit
+    // must be set — that's what the Embed Executables phase guarantees.
+    try #require(TmuxBinary.isAvailable)
+    #expect(FileManager.default.isExecutableFile(atPath: TmuxBinary.bundledURL.path))
   }
 }
