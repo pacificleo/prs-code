@@ -8,10 +8,6 @@ private nonisolated let layoutLogger = SupaLogger("SessionLayout")
 nonisolated struct SessionLayoutStore: Sendable {
   let paths: SessionPaths
 
-  init(paths: SessionPaths) {
-    self.paths = paths
-  }
-
   /// Loads the layout file. Returns nil if:
   /// - the file doesn't exist (first launch, or file was deleted)
   /// - the file's JSON is malformed (truncated/corrupt — logged, treated as fresh start)

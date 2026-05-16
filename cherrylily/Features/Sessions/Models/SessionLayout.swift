@@ -39,7 +39,7 @@ nonisolated struct SessionLayout: Codable, Equatable, Sendable {
 
   /// Flattens all SurfaceIDs across every worktree/tab. Used by orphan reconciliation.
   var allSurfaceIDs: [SurfaceID] {
-    worktrees.flatMap { wt in wt.tabs.flatMap { tab in tab.surfaces.map(\.id) } }
+    worktrees.flatMap { worktree in worktree.tabs.flatMap { tab in tab.surfaces.map(\.id) } }
   }
 
   private enum CodingKeys: String, CodingKey {

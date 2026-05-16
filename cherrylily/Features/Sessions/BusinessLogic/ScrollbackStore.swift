@@ -5,10 +5,6 @@ import Foundation
 nonisolated struct ScrollbackStore: Sendable {
   let paths: SessionPaths
 
-  init(paths: SessionPaths) {
-    self.paths = paths
-  }
-
   /// Writes scrollback bytes for the given surface, after sanitizing.
   func write(bytes: Data, for id: SurfaceID) throws {
     try paths.ensureDirectoriesExist()
@@ -55,44 +51,44 @@ nonisolated struct ScrollbackStore: Sendable {
     let bytes = [UInt8](input)
     var out = [UInt8]()
     out.reserveCapacity(bytes.count)
-    var i = 0
-    while i < bytes.count {
+    var cursor = 0
+    while cursor < bytes.count {
       // Detect ESC ] (start of OSC)
-      if i + 1 < bytes.count, bytes[i] == 0x1B, bytes[i + 1] == 0x5D {
+      if cursor + 1 < bytes.count, bytes[cursor] == 0x1B, bytes[cursor + 1] == 0x5D {
         // Parse the OSC code (digits up to first ';' or terminator)
-        var j = i + 2
+        var codeEnd = cursor + 2
         var codeBytes = [UInt8]()
-        while j < bytes.count, bytes[j] >= 0x30, bytes[j] <= 0x39 {
-          codeBytes.append(bytes[j])
-          j += 1
+        while codeEnd < bytes.count, bytes[codeEnd] >= 0x30, bytes[codeEnd] <= 0x39 {
+          codeBytes.append(bytes[codeEnd])
+          codeEnd += 1
         }
-        let codeStr = String(decoding: codeBytes, as: UTF8.self)
+        let codeStr = String(bytes: codeBytes, encoding: .utf8) ?? ""
         let code = Int(codeStr) ?? -1
         // Find terminator: BEL (0x07) or ESC \ (0x1B 0x5C)
-        var k = j
-        while k < bytes.count {
-          if bytes[k] == 0x07 {
-            k += 1
+        var terminatorEnd = codeEnd
+        while terminatorEnd < bytes.count {
+          if bytes[terminatorEnd] == 0x07 {
+            terminatorEnd += 1
             break
           }
-          if bytes[k] == 0x1B, k + 1 < bytes.count, bytes[k + 1] == 0x5C {
-            k += 2
+          if bytes[terminatorEnd] == 0x1B, terminatorEnd + 1 < bytes.count, bytes[terminatorEnd + 1] == 0x5C {
+            terminatorEnd += 2
             break
           }
-          k += 1
+          terminatorEnd += 1
         }
         // If this is a dangerous OSC code, drop the whole sequence; otherwise keep.
         if [52, 8, 133].contains(code) {
-          i = k
+          cursor = terminatorEnd
           continue
         }
         // Keep the bytes as-is
-        out.append(contentsOf: bytes[i..<k])
-        i = k
+        out.append(contentsOf: bytes[cursor..<terminatorEnd])
+        cursor = terminatorEnd
         continue
       }
-      out.append(bytes[i])
-      i += 1
+      out.append(bytes[cursor])
+      cursor += 1
     }
     return Data(out)
   }

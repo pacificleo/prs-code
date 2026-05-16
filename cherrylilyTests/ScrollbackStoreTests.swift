@@ -49,10 +49,10 @@ struct ScrollbackStoreTests {
     defer { try? FileManager.default.removeItem(at: paths.root) }
 
     let store = ScrollbackStore(paths: paths)
-    let a = SurfaceID(); let b = SurfaceID()
-    try store.write(bytes: Data("a".utf8), for: a)
-    try store.write(bytes: Data("b".utf8), for: b)
-    #expect(Set(try store.storedSurfaceIDs()) == Set([a, b]))
+    let firstID = SurfaceID(); let secondID = SurfaceID()
+    try store.write(bytes: Data("a".utf8), for: firstID)
+    try store.write(bytes: Data("b".utf8), for: secondID)
+    #expect(Set(try store.storedSurfaceIDs()) == Set([firstID, secondID]))
   }
 
   @Test func storedSurfaceIDsIgnoresNonUUIDFiles() throws {
@@ -70,7 +70,7 @@ struct ScrollbackStoreTests {
     let dangerous = Data("safe\u{001b}]52;c;dGVzdA==\u{0007}safe".utf8)
     let cleaned = ScrollbackStore.sanitize(dangerous)
     #expect(!cleaned.contains([0x1B, 0x5D, 0x35, 0x32]))   // ESC ] 5 2
-    let asString = String(decoding: cleaned, as: UTF8.self)
+    let asString = String(bytes: cleaned, encoding: .utf8) ?? ""
     #expect(asString == "safesafe")
   }
 
@@ -78,14 +78,14 @@ struct ScrollbackStoreTests {
     // OSC 8 = ESC ] 8 ; params ; URI ST  text  ESC ] 8 ; ; ST
     let dangerous = Data("\u{001b}]8;;https://evil\u{0007}link\u{001b}]8;;\u{0007}".utf8)
     let cleaned = ScrollbackStore.sanitize(dangerous)
-    let asString = String(decoding: cleaned, as: UTF8.self)
+    let asString = String(bytes: cleaned, encoding: .utf8) ?? ""
     #expect(asString == "link")
   }
 
   @Test func sanitizeStripsOSC133SemanticPrompt() {
     let dangerous = Data("normal\u{001b}]133;A\u{0007}prompt".utf8)
     let cleaned = ScrollbackStore.sanitize(dangerous)
-    #expect(String(decoding: cleaned, as: UTF8.self) == "normalprompt")
+    #expect(String(bytes: cleaned, encoding: .utf8) == "normalprompt")
   }
 
   @Test func sanitizePreservesColorEscapes() {
@@ -99,7 +99,7 @@ struct ScrollbackStoreTests {
     // OSC sequences can be terminated with ST = ESC \ (instead of BEL)
     let dangerous = Data("\u{001b}]52;c;dGVzdA==\u{001b}\u{005c}rest".utf8)
     let cleaned = ScrollbackStore.sanitize(dangerous)
-    #expect(String(decoding: cleaned, as: UTF8.self) == "rest")
+    #expect(String(bytes: cleaned, encoding: .utf8) == "rest")
   }
 
   @Test func sanitizePreservesOSC1337NotConfusedWith133() {
@@ -109,7 +109,7 @@ struct ScrollbackStoreTests {
     // refactor can't silently start matching prefixes.
     let input = Data("\u{001b}]1337;File=name=foo\u{0007}after".utf8)
     let cleaned = ScrollbackStore.sanitize(input)
-    #expect(String(decoding: cleaned, as: UTF8.self) == "\u{001b}]1337;File=name=foo\u{0007}after")
+    #expect(String(bytes: cleaned, encoding: .utf8) == "\u{001b}]1337;File=name=foo\u{0007}after")
   }
 
   @Test func sanitizeDropsUnterminatedDangerousOSCToEOF() {
@@ -118,6 +118,6 @@ struct ScrollbackStoreTests {
     // than accidentally preserving the dangerous payload because no BEL/ESC-\\ was found.
     let input = Data("keep\u{001b}]52;c;dGVzdA".utf8)  // no BEL, no ESC \
     let cleaned = ScrollbackStore.sanitize(input)
-    #expect(String(decoding: cleaned, as: UTF8.self) == "keep")
+    #expect(String(bytes: cleaned, encoding: .utf8) == "keep")
   }
 }

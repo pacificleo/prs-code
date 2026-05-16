@@ -57,23 +57,23 @@ struct SessionLayoutTests {
   }
 
   @Test func allSurfaceIDsCollectsAcrossAllWorktrees() {
-    let s1 = SurfaceID(); let s2 = SurfaceID(); let s3 = SurfaceID()
+    let firstID = SurfaceID(); let secondID = SurfaceID(); let thirdID = SurfaceID()
     let layout = SessionLayout(
       savedAt: Date(),
       worktrees: [
         PersistedWorktree(worktreeID: "wt1", selectedTabID: nil, tabs: [
           PersistedTab(id: UUID(), title: "t1", surfaces: [
-            PersistedSurface(id: s1, cwd: nil),
-            PersistedSurface(id: s2, cwd: nil),
-          ])
+            PersistedSurface(id: firstID, cwd: nil),
+            PersistedSurface(id: secondID, cwd: nil),
+          ]),
         ]),
         PersistedWorktree(worktreeID: "wt2", selectedTabID: nil, tabs: [
           PersistedTab(id: UUID(), title: "t2", surfaces: [
-            PersistedSurface(id: s3, cwd: nil),
-          ])
+            PersistedSurface(id: thirdID, cwd: nil),
+          ]),
         ]),
       ]
     )
-    #expect(Set(layout.allSurfaceIDs) == Set([s1, s2, s3]))
+    #expect(Set(layout.allSurfaceIDs) == Set([firstID, secondID, thirdID]))
   }
 }

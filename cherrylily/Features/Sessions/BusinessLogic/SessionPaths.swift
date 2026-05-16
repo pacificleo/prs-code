@@ -13,7 +13,9 @@ nonisolated struct SessionPaths: Sendable {
       appropriateFor: nil,
       create: true
     )
-    let resolved = (appSupport ?? URL(fileURLWithPath: NSHomeDirectory()).appending(path: "Library/Application Support"))
+    let fallback = URL(fileURLWithPath: NSHomeDirectory())
+      .appending(path: "Library/Application Support")
+    let resolved = (appSupport ?? fallback)
       .appending(path: "CherryLily")
     return resolved
   }

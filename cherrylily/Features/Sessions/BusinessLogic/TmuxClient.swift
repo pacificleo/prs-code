@@ -10,11 +10,6 @@ nonisolated struct TmuxClient: Sendable {
   /// Socket name passed via `tmux -L`. Isolates our sessions from the user's normal tmux.
   let socketName: String
 
-  init(executableURL: URL, socketName: String) {
-    self.executableURL = executableURL
-    self.socketName = socketName
-  }
-
   // MARK: - Cleanup-tolerance markers
 
   /// Stderr substrings that mean "no live server / socket / session" — i.e. the
@@ -110,7 +105,7 @@ nonisolated struct TmuxClient: Sendable {
     }
   }
 
-  // FIXME(phase-3): The current `waitUntilExit()` then `readDataToEndOfFile()` order
+  // NOTE(phase-3): The current `waitUntilExit()` then `readDataToEndOfFile()` order
   // deadlocks when stdout/stderr exceeds the pipe buffer (~64KB on macOS). Phase 1
   // commands (tmux ls / kill-session / kill-server) produce tiny outputs so this is
   // safe today. Phase 3's capture-pane will produce large outputs and must restructure
@@ -125,8 +120,8 @@ nonisolated struct TmuxClient: Sendable {
     process.standardError = errPipe
     try process.run()
     process.waitUntilExit()
-    let stdout = String(decoding: outPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-    let stderr = String(decoding: errPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+    let stdout = String(bytes: outPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+    let stderr = String(bytes: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
     return ProcessResult(exitCode: process.terminationStatus, stdout: stdout, stderr: stderr)
   }
 }
