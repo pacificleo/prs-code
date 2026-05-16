@@ -114,6 +114,17 @@ struct CherryLilyApp: App {
         return settingsFile.global.restoreSessionsOnLaunch
       },
     )
+    if initialSettings.restoreSessionsOnLaunch {
+      do {
+        try TmuxConfigWriter(paths: SessionPaths())
+          .writeIfChanged(
+            scrollbackLimit: 50_000,
+            userShell: ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+          )
+      } catch {
+        SupaLogger("Sessions").warning("Failed to write tmux.conf at launch: \(error)")
+      }
+    }
     _terminalManager = State(initialValue: terminalManager)
     let worktreeInfoWatcher = WorktreeInfoWatcherManager()
     _worktreeInfoWatcher = State(initialValue: worktreeInfoWatcher)
