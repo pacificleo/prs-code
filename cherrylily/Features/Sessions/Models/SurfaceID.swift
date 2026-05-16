@@ -2,7 +2,7 @@ import Foundation
 
 /// A stable identifier for a Ghostty surface, persisted across app restarts so
 /// the same surface always attaches to the same tmux session.
-struct SurfaceID: Codable, Hashable, Sendable {
+nonisolated struct SurfaceID: Codable, Hashable, Sendable {
   let rawValue: UUID
 
   init(rawValue: UUID = UUID()) {

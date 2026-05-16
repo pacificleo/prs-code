@@ -1,11 +1,14 @@
 import Foundation
 
+// `Persisted*` prefix distinguishes on-disk DTOs from live runtime types
+// (`Worktree`, `TerminalTabItem`, `GhosttySurfaceView`).
+
 /// A snapshot of CherryLily's terminal layout: which worktrees are open,
 /// which tabs they hold, which surfaces (Ghostty panes) live in those tabs,
 /// and what working directory each surface was at when the snapshot was taken.
 ///
 /// Persisted as JSON to `SessionPaths.layoutFile`.
-struct SessionLayout: Codable, Equatable, Sendable {
+nonisolated struct SessionLayout: Codable, Equatable, Sendable {
   static let currentVersion = 1
 
   let version: Int
@@ -44,19 +47,19 @@ struct SessionLayout: Codable, Equatable, Sendable {
   }
 }
 
-struct PersistedWorktree: Codable, Equatable, Sendable {
+nonisolated struct PersistedWorktree: Codable, Equatable, Sendable {
   let worktreeID: String
   let selectedTabID: UUID?
   let tabs: [PersistedTab]
 }
 
-struct PersistedTab: Codable, Equatable, Sendable {
+nonisolated struct PersistedTab: Codable, Equatable, Sendable {
   let id: UUID
   let title: String
   let surfaces: [PersistedSurface]
 }
 
-struct PersistedSurface: Codable, Equatable, Sendable {
+nonisolated struct PersistedSurface: Codable, Equatable, Sendable {
   let id: SurfaceID
   /// Captured working directory at snapshot time. Restore launches the new shell with `-c <cwd>`.
   let cwd: URL?
