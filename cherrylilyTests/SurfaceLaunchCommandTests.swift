@@ -9,7 +9,7 @@ struct SurfaceLaunchCommandTests {
     root: URL(fileURLWithPath: "/Users/test/Library/Application Support/CherryLily/Sessions")
   )
 
-  @Test func generatesExecTmuxNewSessionInvocation() {
+  @Test func generatesTmuxNewSessionInvocation() {
     let command = SurfaceLaunchCommand.build(
       tmuxBinaryPath: "/Applications/CherryLily.app/Contents/MacOS/tmux",
       configPath: Self.paths.tmuxConfigFile.path,
@@ -17,12 +17,26 @@ struct SurfaceLaunchCommandTests {
       cwd: "/Users/test/projects/repo"
     )
 
-    #expect(command.contains("exec "))
     #expect(command.contains("\"/Applications/CherryLily.app/Contents/MacOS/tmux\""))
     #expect(command.contains("-L cherrylily"))
     #expect(command.contains("new-session -A"))
     #expect(command.contains("-s \"\(Self.surface.tmuxSessionName)\""))
     #expect(command.contains("-c \"/Users/test/projects/repo\""))
+  }
+
+  // Regression test for a bug where the command started with `exec `, causing
+  // Ghostty (which already wraps the string as `exec -l <cmd>`) to produce
+  // `exec -l exec ...` — bash's exec builtin then tried to launch a program
+  // literally named `exec` and failed with "exec: exec: not found".
+  @Test func doesNotStartWithExecPrefix() {
+    let command = SurfaceLaunchCommand.build(
+      tmuxBinaryPath: "/path/to/tmux",
+      configPath: "/path/to/tmux.conf",
+      surface: Self.surface,
+      cwd: "/cwd"
+    )
+    #expect(!command.hasPrefix("exec "))
+    #expect(command.hasPrefix("\"/path/to/tmux\""))
   }
 
   @Test func includesConfigFilePath() {

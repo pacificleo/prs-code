@@ -2,11 +2,13 @@ import Foundation
 
 /// Composes the tmux invocation string passed to Ghostty's `surface_config.command`.
 ///
-/// The resulting string is interpreted by `/bin/sh` (Ghostty spawns commands through the
-/// user's shell). All file paths and the session name are POSIX double-quoted so paths
-/// containing spaces or shell metacharacters work correctly.
+/// Ghostty wraps the string as `/bin/bash --noprofile --norc -c "exec -l <our_string>"`
+/// (see ThirdParty/ghostty/src/termio/exec.zig). Because Ghostty already prepends `exec`
+/// for us, the string we produce must NOT start with `exec` — doing so makes bash run
+/// `exec exec ...` which tries to exec a program literally named `exec`.
 ///
-/// `exec` replaces the spawned shell process with tmux, so closing tmux closes the surface.
+/// All file paths and the session name are POSIX double-quoted so paths containing spaces
+/// or shell metacharacters work correctly.
 nonisolated enum SurfaceLaunchCommand {
   static func build(
     tmuxBinaryPath: String,
@@ -19,7 +21,7 @@ nonisolated enum SurfaceLaunchCommand {
     let quotedSession = posixDoubleQuote(surface.tmuxSessionName)
     let quotedCwd = posixDoubleQuote(cwd)
     return
-      "exec \(quotedBinary) -L cherrylily -f \(quotedConfig) "
+      "\(quotedBinary) -L cherrylily -f \(quotedConfig) "
       + "new-session -A -s \(quotedSession) -c \(quotedCwd)"
   }
 
