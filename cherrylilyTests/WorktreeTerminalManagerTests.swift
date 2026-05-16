@@ -470,17 +470,17 @@ struct WorktreeTerminalManagerTests {
   }
 
   @Test func storesPersistenceEnabledClosure() {
-    let on = WorktreeTerminalManager(
+    let enabled = WorktreeTerminalManager(
       runtime: GhosttyRuntime(),
       persistenceEnabled: { true },
     )
-    #expect(on.persistenceEnabled() == true)
+    #expect(enabled.persistenceEnabled() == true)
 
-    let off = WorktreeTerminalManager(
+    let disabled = WorktreeTerminalManager(
       runtime: GhosttyRuntime(),
       persistenceEnabled: { false },
     )
-    #expect(off.persistenceEnabled() == false)
+    #expect(disabled.persistenceEnabled() == false)
   }
 
   @Test func persistenceEnabledDefaultsToFalse() {
