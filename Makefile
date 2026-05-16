@@ -44,7 +44,8 @@ build-tmux: # Build the bundled tmux universal binary
 	  echo "Building tmux..."; \
 	  bash $(CURRENT_MAKEFILE_DIR)/scripts/build-tmux.sh; \
 	else \
-	  echo "tmux-cherrylily already built. Run 'rm Frameworks/tmux-cherrylily' to force rebuild."; \
+	  current="$$($(CURRENT_MAKEFILE_DIR)/Frameworks/tmux-cherrylily -V 2>/dev/null || echo unknown)"; \
+	  echo "tmux-cherrylily already built ($$current). Run 'rm Frameworks/tmux-cherrylily' to force rebuild."; \
 	fi
 
 build-app: build-ghostty-xcframework build-tmux # Build the macOS app (Debug)

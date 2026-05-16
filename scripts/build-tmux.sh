@@ -6,6 +6,12 @@ set -euo pipefail
 
 TMUX_VERSION="${TMUX_VERSION:-3.5a}"
 LIBEVENT_VERSION="${LIBEVENT_VERSION:-2.1.12-stable}"
+# SHA-256 checksums for the pinned source tarballs. Bumping a *_VERSION above
+# without also updating the matching *_SHA256 here will fail the integrity check
+# below — that is intentional. Recompute with:
+#   curl -L <url> | shasum -a 256
+TMUX_SHA256="${TMUX_SHA256:-16216bd0877170dfcc64157085ba9013610b12b082548c7c9542cc0103198951}"
+LIBEVENT_SHA256="${LIBEVENT_SHA256:-92e6de1be9ec176428fd2367677e61ceffc2ee1cb119035037a27d346b0403bb}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 WORK_DIR="${ROOT_DIR}/build/tmux-build"
@@ -13,6 +19,33 @@ OUT_BINARY="${ROOT_DIR}/Frameworks/tmux-cherrylily"
 
 mkdir -p "$WORK_DIR"
 cd "$WORK_DIR"
+
+# fetch_and_verify <url> <output-tarball> <expected-sha256>
+# Downloads atomically (to .tmp, then mv), retries on transient failures, and
+# verifies the SHA-256 before returning. On checksum mismatch the bad tarball
+# is deleted and the script exits non-zero.
+fetch_and_verify() {
+  local url="$1"
+  local out="$2"
+  local expected="$3"
+
+  if [ ! -f "$out" ]; then
+    echo "Downloading $(basename "$out")..."
+    curl --fail --location --silent --show-error --retry 3 \
+      -o "${out}.tmp" "$url"
+    mv "${out}.tmp" "$out"
+  fi
+
+  echo "Verifying SHA-256 of $(basename "$out")..."
+  if ! echo "${expected}  ${out}" | shasum -a 256 -c - >/dev/null; then
+    echo "ERROR: SHA-256 mismatch for ${out}" >&2
+    echo "  expected: ${expected}" >&2
+    echo "  actual:   $(shasum -a 256 "$out" | awk '{print $1}')" >&2
+    echo "Deleting corrupt tarball. Re-run the build to retry." >&2
+    rm -f "$out"
+    exit 1
+  fi
+}
 
 build_arch() {
   local arch="$1"
@@ -35,8 +68,10 @@ build_arch() {
 
   # libevent (tmux's only required external dep)
   if [ ! -d "libevent-${LIBEVENT_VERSION}" ]; then
-    curl -L -o "libevent-${LIBEVENT_VERSION}.tar.gz" \
-      "https://github.com/libevent/libevent/releases/download/release-${LIBEVENT_VERSION}/libevent-${LIBEVENT_VERSION}.tar.gz"
+    fetch_and_verify \
+      "https://github.com/libevent/libevent/releases/download/release-${LIBEVENT_VERSION}/libevent-${LIBEVENT_VERSION}.tar.gz" \
+      "libevent-${LIBEVENT_VERSION}.tar.gz" \
+      "$LIBEVENT_SHA256"
     tar xf "libevent-${LIBEVENT_VERSION}.tar.gz"
   fi
   pushd "libevent-${LIBEVENT_VERSION}"
@@ -50,8 +85,10 @@ build_arch() {
 
   # tmux
   if [ ! -d "tmux-${TMUX_VERSION}" ]; then
-    curl -L -o "tmux-${TMUX_VERSION}.tar.gz" \
-      "https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz"
+    fetch_and_verify \
+      "https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz" \
+      "tmux-${TMUX_VERSION}.tar.gz" \
+      "$TMUX_SHA256"
     tar xf "tmux-${TMUX_VERSION}.tar.gz"
   fi
   pushd "tmux-${TMUX_VERSION}"
