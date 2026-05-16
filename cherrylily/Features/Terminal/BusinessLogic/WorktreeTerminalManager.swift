@@ -136,6 +136,11 @@ final class WorktreeTerminalManager {
     return stream
   }
 
+  /// Read-only snapshot of all (worktreeID, state) pairs. Used by LayoutSnapshotBuilder.
+  var allWorktreeStates: [(Worktree.ID, WorktreeTerminalState)] {
+    states.map { ($0.key, $0.value) }
+  }
+
   func state(
     for worktree: Worktree,
     runSetupScriptIfNew: () -> Bool = { false }

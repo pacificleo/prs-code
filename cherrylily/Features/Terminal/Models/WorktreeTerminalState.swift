@@ -1160,3 +1160,20 @@ final class WorktreeTerminalState {
     return maxIndex + 1
   }
 }
+
+extension WorktreeTerminalState: WorktreeStateSnapshotting {
+  var snapshot: WorktreeStateSnapshot {
+    WorktreeStateSnapshot(
+      selectedTabID: tabManager.selectedTabId?.rawValue,
+      tabs: tabManager.tabs.map { tab in
+        let views = trees[tab.id]?.leaves() ?? []
+        return WorktreeTabSnapshot(
+          tabID: tab.id.rawValue,
+          title: tab.title,
+          surfaceIDs: views.map(\.id),
+          cwds: views.map { $0.bridge.state.pwd.map { URL(fileURLWithPath: $0) } }
+        )
+      }
+    )
+  }
+}
