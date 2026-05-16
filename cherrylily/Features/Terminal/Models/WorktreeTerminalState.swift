@@ -141,6 +141,7 @@ final class WorktreeTerminalState {
         isTitleLocked: false,
         initialInput: resolvedInput,
         command: command,
+        surfaceID: nil,
         focusing: focusing,
         inheritingFromSurfaceId: resolvedInheritanceSurfaceId,
         context: context
@@ -165,6 +166,7 @@ final class WorktreeTerminalState {
         isTitleLocked: true,
         initialInput: input,
         command: nil,
+        surfaceID: nil,
         focusing: true,
         inheritingFromSurfaceId: currentFocusedSurfaceId(),
         context: GHOSTTY_SURFACE_CONTEXT_TAB
@@ -203,6 +205,7 @@ final class WorktreeTerminalState {
         isTitleLocked: true,
         initialInput: input,
         command: nil,
+        surfaceID: nil,
         focusing: true,
         inheritingFromSurfaceId: currentFocusedSurfaceId(),
         context: GHOSTTY_SURFACE_CONTEXT_TAB
@@ -225,6 +228,7 @@ final class WorktreeTerminalState {
     let isTitleLocked: Bool
     let initialInput: String?
     let command: String?
+    let surfaceID: SurfaceID?
     let focusing: Bool
     let inheritingFromSurfaceId: UUID?
     let context: ghostty_surface_context_e
@@ -241,6 +245,7 @@ final class WorktreeTerminalState {
       inheritingFromSurfaceId: creation.inheritingFromSurfaceId,
       initialInput: creation.initialInput,
       command: creation.command,
+      surfaceID: creation.surfaceID,
       context: creation.context
     )
     tabIsRunningById[tabId] = false
@@ -426,6 +431,7 @@ final class WorktreeTerminalState {
     inheritingFromSurfaceId: UUID? = nil,
     initialInput: String? = nil,
     command: String? = nil,
+    surfaceID: SurfaceID? = nil,
     context: ghostty_surface_context_e = GHOSTTY_SURFACE_CONTEXT_TAB
   ) -> SplitTree<GhosttySurfaceView> {
     if let existing = trees[tabId] {
@@ -435,6 +441,7 @@ final class WorktreeTerminalState {
       tabId: tabId,
       initialInput: initialInput,
       command: command,
+      surfaceID: surfaceID,
       inheritingFromSurfaceId: inheritingFromSurfaceId,
       context: context
     )
@@ -727,12 +734,19 @@ final class WorktreeTerminalState {
     tabId: TerminalTabID,
     initialInput: String?,
     command: String? = nil,
+    surfaceID: SurfaceID? = nil,
     inheritingFromSurfaceId: UUID?,
     context: ghostty_surface_context_e
   ) -> GhosttySurfaceView {
     let inherited = inheritedSurfaceConfig(fromSurfaceId: inheritingFromSurfaceId, context: context)
-    let effectiveCommand = resolveLaunchCommand(callerOverride: command, inherited: inherited)
+    let resolvedSurfaceID = surfaceID ?? SurfaceID()
+    let effectiveCommand = resolveLaunchCommand(
+      callerOverride: command,
+      inherited: inherited,
+      surfaceID: resolvedSurfaceID
+    )
     let view = GhosttySurfaceView(
+      id: resolvedSurfaceID.rawValue,
       runtime: runtime,
       workingDirectory: inherited.workingDirectory ?? worktree.workingDirectory,
       initialInput: initialInput,
@@ -842,7 +856,8 @@ final class WorktreeTerminalState {
   /// shell. Returns nil to let Ghostty spawn the default shell directly.
   private func resolveLaunchCommand(
     callerOverride command: String?,
-    inherited: InheritedSurfaceConfig
+    inherited: InheritedSurfaceConfig,
+    surfaceID: SurfaceID
   ) -> String? {
     if let command { return command }
     guard persistenceEnabled() else { return nil }
@@ -851,12 +866,11 @@ final class WorktreeTerminalState {
       return nil
     }
     let paths = SessionPaths()
-    let surface = SurfaceID()
     let cwd = (inherited.workingDirectory ?? worktree.workingDirectory).path
     return SurfaceLaunchCommand.build(
       tmuxBinaryPath: TmuxBinary.bundledURL.path,
       configPath: paths.tmuxConfigFile.path,
-      surface: surface,
+      surface: surfaceID,
       cwd: cwd
     )
   }
