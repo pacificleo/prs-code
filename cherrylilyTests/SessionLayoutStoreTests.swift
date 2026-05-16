@@ -64,4 +64,41 @@ struct SessionLayoutStoreTests {
     let loaded = try store.load()
     #expect(loaded?.savedAt == Date(timeIntervalSince1970: 2))
   }
+
+  @Test func saveCreatesParentDirectoriesIfMissing() throws {
+    let paths = Self.makeTempPaths()
+    // Note: do NOT call ensureDirectoriesExist here; the test verifies save() does it
+    defer { try? FileManager.default.removeItem(at: paths.root) }
+
+    let store = SessionLayoutStore(paths: paths)
+    let layout = SessionLayout(savedAt: Date(timeIntervalSince1970: 1), worktrees: [])
+    try store.save(layout)
+    #expect(FileManager.default.fileExists(atPath: paths.layoutFile.path))
+  }
+
+  @Test func loadReturnsNilForUnknownVersion() throws {
+    let paths = Self.makeTempPaths()
+    try paths.ensureDirectoriesExist()
+    defer { try? FileManager.default.removeItem(at: paths.root) }
+
+    // Hand-write a layout with a version SessionLayout doesn't recognize.
+    let json = #"""
+    {"version": 999, "savedAt": "2026-01-01T00:00:00Z", "worktrees": []}
+    """#
+    try Data(json.utf8).write(to: paths.layoutFile)
+    let store = SessionLayoutStore(paths: paths)
+    // SessionLayout's custom decoder throws DecodingError; SessionLayoutStore.load() catches it
+    // and returns nil (with a warning logged — verified by reading layoutLogger output if needed).
+    #expect(try store.load() == nil)
+  }
+
+  @Test func loadReturnsNilForEmptyFile() throws {
+    let paths = Self.makeTempPaths()
+    try paths.ensureDirectoriesExist()
+    defer { try? FileManager.default.removeItem(at: paths.root) }
+
+    try Data().write(to: paths.layoutFile)
+    let store = SessionLayoutStore(paths: paths)
+    #expect(try store.load() == nil)
+  }
 }
