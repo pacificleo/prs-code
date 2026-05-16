@@ -25,6 +25,41 @@ nonisolated enum SurfaceLaunchCommand {
       + "new-session -A -s \(quotedSession) -c \(quotedCwd)"
   }
 
+  /// Bundles the extra inputs needed by `buildWithReplay` so the call site stays under
+  /// the project-wide function-parameter-count lint cap.
+  struct ReplayOptions {
+    let scrollbackPath: String
+    let userShell: String
+  }
+
+  /// Same as `build` but instructs tmux to run `cat <scrollbackPath>; exec <userShell>`
+  /// as the session's command. Used for post-reboot restore — `cat` dumps saved bytes
+  /// to the terminal (including ANSI), then `exec` replaces cat with the user's real shell.
+  ///
+  /// Two layers of POSIX double-quoting:
+  /// 1. Each path inside the `cat .../exec ...` line is quoted (so it survives sh's parsing inside tmux)
+  /// 2. The whole `cat ...; exec ...` line is quoted (so it survives bash's parsing as tmux's last argv)
+  static func buildWithReplay(
+    tmuxBinaryPath: String,
+    configPath: String,
+    surface: SurfaceID,
+    cwd: String,
+    replay: ReplayOptions
+  ) -> String {
+    let quotedBinary = posixDoubleQuote(tmuxBinaryPath)
+    let quotedConfig = posixDoubleQuote(configPath)
+    let quotedSession = posixDoubleQuote(surface.tmuxSessionName)
+    let quotedCwd = posixDoubleQuote(cwd)
+    // Inner sh command — paths quoted so spaces work inside tmux's sh
+    let innerShellCommand =
+      "cat \(posixDoubleQuote(replay.scrollbackPath)); exec \(posixDoubleQuote(replay.userShell))"
+    // Outer quote — survives bash's parsing as ONE token
+    let quotedInner = posixDoubleQuote(innerShellCommand)
+    return
+      "\(quotedBinary) -L cherrylily -f \(quotedConfig) "
+      + "new-session -A -s \(quotedSession) -c \(quotedCwd) \(quotedInner)"
+  }
+
   /// Wraps a string in POSIX double quotes, escaping characters that retain special
   /// meaning inside double quotes: `\`, `"`, `$`, and `` ` ``.
   ///
