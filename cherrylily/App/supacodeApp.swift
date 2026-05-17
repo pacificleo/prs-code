@@ -156,7 +156,13 @@ struct CherryLilyApp: App {
     }
     _terminalManager = State(initialValue: terminalManager)
     terminalManager.loadLayoutOnLaunch()
-    if initialSettings.restoreSessionsOnLaunch, let layout = terminalManager.loadedLayout {
+    if initialSettings.restoreSessionsOnLaunch {
+      // Always reconcile when restore is enabled — an empty/missing layout means
+      // every live `cl_<uuid>` session on the socket is by definition an orphan
+      // (nothing expects them anymore). Skipping reconciliation would leak those
+      // sessions across launches.
+      let layout = terminalManager.loadedLayout
+        ?? SessionLayout(savedAt: Date(), worktrees: [])
       Task {
         await persistence.reconcileOrphans(against: layout)
       }

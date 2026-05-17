@@ -10,10 +10,12 @@ private nonisolated let sessionPersistenceLogger = SupaLogger("Sessions")
 ///   - `captureAll(for:)` — capture scrollback per surface, in parallel
 ///   - `reconcileOrphans(against:)` — kill orphan tmux sessions and delete orphan files
 ///
-/// `@MainActor` because it's wired into app delegate / TCA effects. Heavy I/O is
-/// offloaded via `Task.detached` inside the primitives themselves.
-@MainActor
-final class SessionPersistence {
+/// Intentionally NOT `@MainActor`. `applicationWillTerminate` parks the main thread
+/// inside a DispatchSemaphore waiting for `captureAll` to finish; a MainActor-bound
+/// `captureAll` would deadlock because the Task it spawns can never acquire the
+/// main thread to resume. All stored properties are `Sendable` value types, so the
+/// class is safely `Sendable`.
+final class SessionPersistence: Sendable {
   let paths: SessionPaths
   private let layoutStore: SessionLayoutStore
   private let scrollbackStore: ScrollbackStore
