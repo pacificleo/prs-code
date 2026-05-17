@@ -13,6 +13,8 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
   var confirmBeforeQuit: Bool
   var confirmBeforeClosingTabs: Bool
   var restoreSessionsOnLaunch: Bool
+  var sessionScrollbackLimit: Int?
+  var hourlyAutosaveEnabled: Bool
   var updateChannel: UpdateChannel
   var updatesAutomaticallyCheckForUpdates: Bool
   var updatesAutomaticallyDownloadUpdates: Bool
@@ -39,6 +41,8 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     confirmBeforeQuit: true,
     confirmBeforeClosingTabs: true,
     restoreSessionsOnLaunch: true,
+    sessionScrollbackLimit: 50_000,
+    hourlyAutosaveEnabled: false,
     updateChannel: .stable,
     updatesAutomaticallyCheckForUpdates: true,
     updatesAutomaticallyDownloadUpdates: false,
@@ -65,6 +69,8 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     confirmBeforeQuit: Bool,
     confirmBeforeClosingTabs: Bool = true,
     restoreSessionsOnLaunch: Bool = true,
+    sessionScrollbackLimit: Int? = 50_000,
+    hourlyAutosaveEnabled: Bool = false,
     updateChannel: UpdateChannel,
     updatesAutomaticallyCheckForUpdates: Bool,
     updatesAutomaticallyDownloadUpdates: Bool,
@@ -89,6 +95,8 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     self.confirmBeforeQuit = confirmBeforeQuit
     self.confirmBeforeClosingTabs = confirmBeforeClosingTabs
     self.restoreSessionsOnLaunch = restoreSessionsOnLaunch
+    self.sessionScrollbackLimit = sessionScrollbackLimit
+    self.hourlyAutosaveEnabled = hourlyAutosaveEnabled
     self.updateChannel = updateChannel
     self.updatesAutomaticallyCheckForUpdates = updatesAutomaticallyCheckForUpdates
     self.updatesAutomaticallyDownloadUpdates = updatesAutomaticallyDownloadUpdates
@@ -124,6 +132,14 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     restoreSessionsOnLaunch =
       try container.decodeIfPresent(Bool.self, forKey: .restoreSessionsOnLaunch)
       ?? Self.default.restoreSessionsOnLaunch
+    if let raw = try container.decodeIfPresent(Int.self, forKey: .sessionScrollbackLimit) {
+      sessionScrollbackLimit = raw
+    } else {
+      sessionScrollbackLimit = Self.default.sessionScrollbackLimit
+    }
+    hourlyAutosaveEnabled =
+      try container.decodeIfPresent(Bool.self, forKey: .hourlyAutosaveEnabled)
+      ?? Self.default.hourlyAutosaveEnabled
     updateChannel =
       try container.decodeIfPresent(UpdateChannel.self, forKey: .updateChannel)
       ?? Self.default.updateChannel
