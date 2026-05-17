@@ -12,6 +12,12 @@ nonisolated enum TmuxConfig {
 
     set -g history-limit \(scrollbackLimit)
     set -g status off
+    # Copy-mode temporarily re-paints the status line at the top of the pane to show
+    # the position indicator. Default `status-right` includes the wall-clock time which
+    # is meaningless overlay noise — blank it (and `status-left`) so only the position
+    # `[<line>/<total>]` shows up.
+    set -g status-left ""
+    set -g status-right ""
     set -g mouse on
     set -g default-terminal "xterm-256color"
     set -g destroy-unattached off
