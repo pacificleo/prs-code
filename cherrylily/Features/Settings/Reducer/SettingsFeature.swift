@@ -12,6 +12,8 @@ struct SettingsFeature {
     var confirmBeforeQuit: Bool
     var confirmBeforeClosingTabs: Bool
     var restoreSessionsOnLaunch: Bool
+    var sessionScrollbackLimit: Int?
+    var hourlyAutosaveEnabled: Bool
     var updateChannel: UpdateChannel
     var updatesAutomaticallyCheckForUpdates: Bool
     var updatesAutomaticallyDownloadUpdates: Bool
@@ -41,6 +43,8 @@ struct SettingsFeature {
       confirmBeforeQuit = settings.confirmBeforeQuit
       confirmBeforeClosingTabs = settings.confirmBeforeClosingTabs
       restoreSessionsOnLaunch = settings.restoreSessionsOnLaunch
+      sessionScrollbackLimit = settings.sessionScrollbackLimit
+      hourlyAutosaveEnabled = settings.hourlyAutosaveEnabled
       updateChannel = settings.updateChannel
       updatesAutomaticallyCheckForUpdates = settings.updatesAutomaticallyCheckForUpdates
       updatesAutomaticallyDownloadUpdates = settings.updatesAutomaticallyDownloadUpdates
@@ -69,6 +73,8 @@ struct SettingsFeature {
         confirmBeforeQuit: confirmBeforeQuit,
         confirmBeforeClosingTabs: confirmBeforeClosingTabs,
         restoreSessionsOnLaunch: restoreSessionsOnLaunch,
+        sessionScrollbackLimit: sessionScrollbackLimit,
+        hourlyAutosaveEnabled: hourlyAutosaveEnabled,
         updateChannel: updateChannel,
         updatesAutomaticallyCheckForUpdates: updatesAutomaticallyCheckForUpdates,
         updatesAutomaticallyDownloadUpdates: updatesAutomaticallyDownloadUpdates,
@@ -153,6 +159,8 @@ struct SettingsFeature {
         state.confirmBeforeQuit = normalizedSettings.confirmBeforeQuit
         state.confirmBeforeClosingTabs = normalizedSettings.confirmBeforeClosingTabs
         state.restoreSessionsOnLaunch = normalizedSettings.restoreSessionsOnLaunch
+        state.sessionScrollbackLimit = normalizedSettings.sessionScrollbackLimit
+        state.hourlyAutosaveEnabled = normalizedSettings.hourlyAutosaveEnabled
         state.updateChannel = normalizedSettings.updateChannel
         state.updatesAutomaticallyCheckForUpdates = normalizedSettings.updatesAutomaticallyCheckForUpdates
         state.updatesAutomaticallyDownloadUpdates = normalizedSettings.updatesAutomaticallyDownloadUpdates
