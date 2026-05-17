@@ -867,6 +867,22 @@ final class WorktreeTerminalState {
     }
     let paths = SessionPaths()
     let cwd = (inherited.workingDirectory ?? worktree.workingDirectory).path
+    let scrollbackFile = paths.scrollbackFile(for: surfaceID)
+
+    if FileManager.default.fileExists(atPath: scrollbackFile.path) {
+      let userShell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+      return SurfaceLaunchCommand.buildWithReplay(
+        tmuxBinaryPath: TmuxBinary.bundledURL.path,
+        configPath: paths.tmuxConfigFile.path,
+        surface: surfaceID,
+        cwd: cwd,
+        replay: SurfaceLaunchCommand.ReplayOptions(
+          scrollbackPath: scrollbackFile.path,
+          userShell: userShell
+        )
+      )
+    }
+
     return SurfaceLaunchCommand.build(
       tmuxBinaryPath: TmuxBinary.bundledURL.path,
       configPath: paths.tmuxConfigFile.path,
