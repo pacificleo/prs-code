@@ -86,7 +86,7 @@ struct SessionsSettingsView: View {
       titleVisibility: .visible
     ) {
       Button("Clear", role: .destructive) {
-        // Task 7 wires SessionDataClearer here. For now this is a no-op stub.
+        SessionDataClearer(paths: SessionPaths()).clearSavedData()
       }
       Button("Cancel", role: .cancel) {}
     } message: {
