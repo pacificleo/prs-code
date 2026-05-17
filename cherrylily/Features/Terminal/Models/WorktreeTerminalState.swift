@@ -172,7 +172,8 @@ final class WorktreeTerminalState {
       let context: ghostty_surface_context_e =
         tabManager.tabs.isEmpty ? GHOSTTY_SURFACE_CONTEXT_WINDOW : GHOSTTY_SURFACE_CONTEXT_TAB
 
-      // TODO Phase 6: restore the full split tree (PersistedTab.surfaces[1...]).
+      // Phase 6 will restore the full split tree (PersistedTab.surfaces[1...]);
+      // Phase 3 restores only the first surface per tab.
       let newTabID = createTab(
         TabCreation(
           title: persistedTab.title,
