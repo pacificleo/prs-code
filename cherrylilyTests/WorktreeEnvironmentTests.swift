@@ -19,7 +19,7 @@ struct WorktreeEnvironmentTests {
     #expect(env.count == 2)
   }
 
-  @Test func exportPrefixFormatsCorrectly() {
+  @Test func exportPrefixIsSingleLineWithLeadingSpace() {
     let worktree = Worktree(
       id: "/tmp/repo/wt-1",
       name: "feature-branch",
@@ -28,25 +28,15 @@ struct WorktreeEnvironmentTests {
       repositoryRootURL: URL(fileURLWithPath: "/tmp/repo/.bare"),
     )
     let exports = worktree.scriptEnvironmentExportPrefix
+    // Single semicolon-joined line keeps the shell's command history to one
+    // entry. Leading space lets HIST_IGNORE_SPACE (zsh) skip it entirely.
+    #expect(exports.hasPrefix(" "))
     #expect(exports.contains("export CHERRYLILY_WORKTREE_PATH='/tmp/repo/wt-1'"))
     #expect(exports.contains("export CHERRYLILY_ROOT_PATH='/tmp/repo/.bare'"))
+    #expect(exports.contains(";"))
     #expect(exports.hasSuffix("\n"))
-  }
-
-  @Test func exportPrefixIsSortedByKey() {
-    let worktree = Worktree(
-      id: "/tmp/repo/wt-1",
-      name: "feature-branch",
-      detail: "detail",
-      workingDirectory: URL(fileURLWithPath: "/tmp/repo/wt-1"),
-      repositoryRootURL: URL(fileURLWithPath: "/tmp/repo/.bare"),
-    )
-    let lines = worktree.scriptEnvironmentExportPrefix
-      .trimmingCharacters(in: .newlines)
-      .components(separatedBy: "\n")
-    #expect(lines.count == 2)
-    #expect(lines[0].contains("CHERRYLILY_ROOT_PATH"))
-    #expect(lines[1].contains("CHERRYLILY_WORKTREE_PATH"))
+    let lines = exports.trimmingCharacters(in: .newlines).components(separatedBy: "\n")
+    #expect(lines.count == 1, "expected single line, got \(lines.count): \(lines)")
   }
 
   @Test func exportPrefixQuotesPathsWithSpaces() {
