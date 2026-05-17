@@ -928,7 +928,11 @@ final class WorktreeTerminalState {
       return nil
     }
     let paths = SessionPaths()
-    let cwd = workingDirectory.path
+    // Fall back to the worktree root if the persisted cwd no longer resolves
+    // (e.g., user deleted a `/tmp/scratch` directory between sessions). tmux
+    // would fail `new-session -c <missing>` and Ghostty would surface the
+    // error in place of the terminal.
+    let cwd = Self.usableCwd(preferred: workingDirectory, fallback: worktree.workingDirectory).path
     let scrollbackFile = paths.scrollbackFile(for: surfaceID)
 
     if FileManager.default.fileExists(atPath: scrollbackFile.path) {
@@ -959,6 +963,18 @@ final class WorktreeTerminalState {
   private func currentFocusedSurfaceId() -> UUID? {
     guard let selectedTabId = tabManager.selectedTabId else { return nil }
     return focusedSurfaceIdByTab[selectedTabId]
+  }
+
+  /// Returns `preferred` when it points at an existing directory, otherwise `fallback`.
+  /// Used to keep tmux's `new-session -c <cwd>` from failing when the persisted CWD
+  /// has been deleted between sessions.
+  private static func usableCwd(preferred: URL, fallback: URL) -> URL {
+    var isDir: ObjCBool = false
+    let exists = FileManager.default.fileExists(atPath: preferred.path, isDirectory: &isDir)
+    if exists && isDir.boolValue {
+      return preferred
+    }
+    return fallback
   }
 
   private func updateTabTitle(for tabId: TerminalTabID) {

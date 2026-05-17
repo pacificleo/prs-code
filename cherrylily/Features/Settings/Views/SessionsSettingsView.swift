@@ -43,12 +43,13 @@ struct SessionsSettingsView: View {
         Toggle(isOn: $store.hourlyAutosaveEnabled) {
           VStack(alignment: .leading, spacing: 4) {
             Text("Save automatically every hour")
-            Text("In case CherryLily exits unexpectedly.")
+            Text("Coming soon — the autosave timer ships in a follow-up release.")
               .font(.caption)
               .foregroundStyle(.secondary)
           }
         }
-        .help("Periodically captures scrollback while CherryLily is running.")
+        .disabled(true)
+        .help("Will periodically capture scrollback while CherryLily is running.")
 
         VStack(alignment: .leading, spacing: 8) {
           Text("Storage")
