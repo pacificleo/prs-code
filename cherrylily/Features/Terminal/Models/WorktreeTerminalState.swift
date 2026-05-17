@@ -933,6 +933,8 @@ final class WorktreeTerminalState {
 
     if FileManager.default.fileExists(atPath: scrollbackFile.path) {
       let userShell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+      let zshIntegrationDir = ProcessInfo.processInfo.environment["GHOSTTY_RESOURCES_DIR"]
+        .map { "\($0)/shell-integration/zsh" }
       return SurfaceLaunchCommand.buildWithReplay(
         tmuxBinaryPath: TmuxBinary.bundledURL.path,
         configPath: paths.tmuxConfigFile.path,
@@ -940,7 +942,8 @@ final class WorktreeTerminalState {
         cwd: cwd,
         replay: SurfaceLaunchCommand.ReplayOptions(
           scrollbackPath: scrollbackFile.path,
-          userShell: userShell
+          userShell: userShell,
+          ghosttyZshIntegrationDir: zshIntegrationDir
         )
       )
     }

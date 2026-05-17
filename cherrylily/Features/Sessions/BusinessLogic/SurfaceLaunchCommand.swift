@@ -30,6 +30,17 @@ nonisolated enum SurfaceLaunchCommand {
   struct ReplayOptions {
     let scrollbackPath: String
     let userShell: String
+    /// Optional ZDOTDIR override so Ghostty's shell integration loads when zsh
+    /// starts via the replay path (it normally would be loaded by tmux's
+    /// `default-command`, but the replay shell command bypasses that).
+    /// Nil means use the user's normal zsh startup.
+    let ghosttyZshIntegrationDir: String?
+
+    init(scrollbackPath: String, userShell: String, ghosttyZshIntegrationDir: String? = nil) {
+      self.scrollbackPath = scrollbackPath
+      self.userShell = userShell
+      self.ghosttyZshIntegrationDir = ghosttyZshIntegrationDir
+    }
   }
 
   /// Same as `build` but instructs tmux to run `cat <scrollbackPath>; exec <userShell>`
@@ -50,9 +61,20 @@ nonisolated enum SurfaceLaunchCommand {
     let quotedConfig = posixDoubleQuote(configPath)
     let quotedSession = posixDoubleQuote(surface.tmuxSessionName)
     let quotedCwd = posixDoubleQuote(cwd)
+    // For zsh users with Ghostty integration available, prepend `env ZDOTDIR=...`
+    // so the spawned shell loads the integration (and emits OSC 133, which drives
+    // the worktree-busy spinner).
+    let execShell: String
+    if let zdotdir = replay.ghosttyZshIntegrationDir,
+       (replay.userShell as NSString).lastPathComponent == "zsh"
+    {
+      execShell = "env ZDOTDIR=\(posixDoubleQuote(zdotdir)) \(posixDoubleQuote(replay.userShell))"
+    } else {
+      execShell = posixDoubleQuote(replay.userShell)
+    }
     // Inner sh command — paths quoted so spaces work inside tmux's sh
     let innerShellCommand =
-      "cat \(posixDoubleQuote(replay.scrollbackPath)); exec \(posixDoubleQuote(replay.userShell))"
+      "cat \(posixDoubleQuote(replay.scrollbackPath)); exec \(execShell)"
     // Outer quote — survives bash's parsing as ONE token
     let quotedInner = posixDoubleQuote(innerShellCommand)
     return
