@@ -45,13 +45,17 @@ final class SessionPersistence {
   /// separate tmux subprocess; runs in parallel via `TaskGroup`.
   /// Returns the count of successful captures (failures are logged, not thrown).
   @discardableResult
-  func captureAll(for layout: SessionLayout) async -> Int {
+  func captureAll(for layout: SessionLayout, scrollbackLimit: Int?) async -> Int {
+    // For "Unlimited" (nil) cap at 1_000_000 — same convention as the tmux.conf
+    // bootstrap; avoids unbounded memory on very long captures.
+    let effectiveLimit = scrollbackLimit ?? 1_000_000
     var successCount = 0
     await withTaskGroup(of: Bool.self) { group in
       for surfaceID in layout.allSurfaceIDs {
         group.addTask { [tmuxClient, scrollbackStore] in
           await Self.captureOne(
             surfaceID: surfaceID,
+            scrollbackLimit: effectiveLimit,
             tmuxClient: tmuxClient,
             scrollbackStore: scrollbackStore
           )
@@ -67,13 +71,14 @@ final class SessionPersistence {
   /// Capture one surface — separate static to avoid main-actor capture in TaskGroup.
   private static func captureOne(
     surfaceID: SurfaceID,
+    scrollbackLimit: Int,
     tmuxClient: TmuxClient,
     scrollbackStore: ScrollbackStore
   ) async -> Bool {
     do {
       let rawBytes = try await tmuxClient.capturePane(
         sessionName: surfaceID.tmuxSessionName,
-        scrollbackLimit: 50_000  // hardcoded for now; Phase 4 reads from settings
+        scrollbackLimit: scrollbackLimit
       )
       let sanitized = ScrollbackStore.sanitize(rawBytes)
       try scrollbackStore.write(bytes: sanitized, for: surfaceID)

@@ -60,6 +60,7 @@ final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
     guard let persistence, let terminalManager else { return }
     @Shared(.settingsFile) var settings
     guard settings.global.restoreSessionsOnLaunch else { return }
+    let scrollbackLimit = settings.global.sessionScrollbackLimit
 
     let states = terminalManager.allWorktreeStates.map { (id, state) -> (Worktree.ID, any WorktreeStateSnapshotting) in
       (id, state as any WorktreeStateSnapshotting)
@@ -79,7 +80,7 @@ final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
     // macOS SIGKILL us. DispatchSemaphore because this delegate method is sync.
     let semaphore = DispatchSemaphore(value: 0)
     Task {
-      _ = await persistence.captureAll(for: layout)
+      _ = await persistence.captureAll(for: layout, scrollbackLimit: scrollbackLimit)
       semaphore.signal()
     }
     _ = semaphore.wait(timeout: .now() + .seconds(2))
