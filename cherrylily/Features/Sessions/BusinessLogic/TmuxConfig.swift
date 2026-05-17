@@ -19,10 +19,12 @@ nonisolated enum TmuxConfig {
     set -g default-shell "\(userShell)"
 
     # Lock down all keybindings — CherryLily handles all UX.
-    unbind -a -T prefix
-    unbind -a -T root
-    unbind -a -T copy-mode
-    unbind -a -T copy-mode-vi
+    # `-q` suppresses "table doesn't exist" errors on re-source (tmux removes
+    # empty tables, so a second `source-file` would otherwise fail noisily).
+    unbind -a -q -T prefix
+    unbind -a -q -T root
+    unbind -a -q -T copy-mode
+    unbind -a -q -T copy-mode-vi
 
     # Re-enable just enough mouse-scroll bindings to scroll tmux history.
     # In alternate-screen apps (vim, less), wheel events pass through to the app.

@@ -32,8 +32,8 @@ struct TmuxConfigTests {
 
   @Test func unbindsAllPrefixAndRootKeys() {
     let conf = TmuxConfig.generate(scrollbackLimit: 50_000, userShell: "/bin/zsh")
-    #expect(conf.contains("unbind -a -T prefix"))
-    #expect(conf.contains("unbind -a -T root"))
+    #expect(conf.contains("unbind -a -q -T prefix"))
+    #expect(conf.contains("unbind -a -q -T root"))
   }
 
   @Test func setsDefaultShell() {
