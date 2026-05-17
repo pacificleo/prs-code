@@ -26,6 +26,13 @@ nonisolated enum TmuxConfig {
     # errors on re-source.
     unbind -a -q -T prefix
 
+    # Mouse drag → enter copy-mode and start a selection. We bind this
+    # explicitly (rather than rely on the tmux default) because servers
+    # started with an earlier config that did `unbind -a -T root` won't
+    # have the default mouse bindings restored on re-source.
+    # In alt-screen apps (vim, claude TUI), pass the drag through to the app.
+    bind-key -T root MouseDrag1Pane if -Ft= "#{alternate_on}" "send-keys -M" "copy-mode -M"
+
     # Mouse selection → macOS clipboard via pbcopy. Override the default
     # MouseDragEnd1Pane binding (which relies on OSC 52 → terminal clipboard)
     # to copy directly with pbcopy. More reliable than the OSC 52 path and

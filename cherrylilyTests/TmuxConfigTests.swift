@@ -30,6 +30,14 @@ struct TmuxConfigTests {
     #expect(conf.contains("bind-key -T copy-mode-vi MouseDragEnd1Pane"))
   }
 
+  @Test func bindsMouseDragStartToEnterCopyMode() {
+    let conf = TmuxConfig.generate(scrollbackLimit: 50_000, userShell: "/bin/zsh")
+    // Without an explicit MouseDrag1Pane in root, a tmux server started under
+    // an earlier config that unbound -a -T root never gets the default
+    // copy-mode-on-drag behavior back via source-file. Bind explicitly.
+    #expect(conf.contains("bind-key -T root MouseDrag1Pane"))
+    #expect(conf.contains("copy-mode -M"))
+  }
   @Test func reliesOnDefaultWheelBindings() {
     let conf = TmuxConfig.generate(scrollbackLimit: 50_000, userShell: "/bin/zsh")
     // We rely on tmux's built-in WheelUpPane/WheelDownPane bindings in the root
