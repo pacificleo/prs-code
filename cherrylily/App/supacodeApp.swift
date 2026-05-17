@@ -148,15 +148,7 @@ struct CherryLilyApp: App {
       persistence: persistence,
     )
     if initialSettings.restoreSessionsOnLaunch {
-      do {
-        try TmuxConfigWriter(paths: SessionPaths())
-          .writeIfChanged(
-            scrollbackLimit: 50_000,
-            userShell: ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
-          )
-      } catch {
-        SupaLogger("Sessions").warning("Failed to write tmux.conf at launch: \(error)")
-      }
+      Self.bootstrapSessionPersistence(persistence: persistence)
     }
     _terminalManager = State(initialValue: terminalManager)
     terminalManager.loadLayoutOnLaunch()
@@ -221,6 +213,18 @@ struct CherryLilyApp: App {
       ghosttyShortcuts: shortcuts,
       commandKeyObserver: keyObserver
     )
+  }
+
+  private static func bootstrapSessionPersistence(persistence: SessionPersistence) {
+    do {
+      try TmuxConfigWriter(paths: persistence.paths)
+        .writeIfChanged(
+          scrollbackLimit: 50_000,
+          userShell: ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+        )
+    } catch {
+      SupaLogger("Sessions").warning("Failed to write tmux.conf at launch: \(error)")
+    }
   }
 
   var body: some Scene {
