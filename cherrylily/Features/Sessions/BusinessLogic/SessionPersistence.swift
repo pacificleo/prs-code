@@ -121,11 +121,21 @@ final class SessionPersistence: Sendable {
   /// POSIX errno 28 (`ENOSPC`) means out of disk space. Cocoa wraps this
   /// in NSCocoaErrorDomain with `.fileWriteOutOfSpaceError` (640); the
   /// underlying NSError chain often carries POSIXError as well.
+  ///
+  /// `tmux capture-pane` writes to a temp file under the hood and surfaces
+  /// kernel I/O failures via its stderr (rather than as a typed Cocoa error),
+  /// so we also substring-match the stderr captured into `TmuxClientError`.
   private static func isDiskFull(_ error: Error) -> Bool {
     if let posix = error as? POSIXError, posix.code == .ENOSPC { return true }
     let nsError = error as NSError
     if nsError.domain == NSCocoaErrorDomain, nsError.code == NSFileWriteOutOfSpaceError {
       return true
+    }
+    if case TmuxClientError.commandFailed(let stderr, _) = error {
+      let lower = stderr.lowercased()
+      if lower.contains("no space left") || lower.contains("disk full") {
+        return true
+      }
     }
     if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? Error {
       return isDiskFull(underlying)
