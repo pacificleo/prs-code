@@ -41,6 +41,16 @@ nonisolated enum TmuxConfig {
     bind-key -T copy-mode    MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "pbcopy"
     bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "pbcopy"
 
+    # Wheel + exit bindings in BOTH copy-mode tables. Defaults exist in copy-mode
+    # but not always in copy-mode-vi, and earlier CherryLily configs that did
+    # `unbind -a -T copy-mode-vi` leave servers without these defaults — re-source
+    # won't restore them. Bind explicitly so trackpad scroll + Escape/q work
+    # regardless of $EDITOR-driven mode-keys.
+    bind-key -T copy-mode-vi WheelUpPane   send-keys -X scroll-up
+    bind-key -T copy-mode-vi WheelDownPane send-keys -X scroll-down
+    bind-key -T copy-mode-vi Escape        send-keys -X cancel
+    bind-key -T copy-mode-vi q             send-keys -X cancel
+
     # Tab title / notifications passthrough
     set -g allow-passthrough on
     set -g set-titles on

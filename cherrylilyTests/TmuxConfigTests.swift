@@ -30,6 +30,18 @@ struct TmuxConfigTests {
     #expect(conf.contains("bind-key -T copy-mode-vi MouseDragEnd1Pane"))
   }
 
+  @Test func bindsCopyModeViWheelAndExitKeys() {
+    let conf = TmuxConfig.generate(scrollbackLimit: 50_000, userShell: "/bin/zsh")
+    // copy-mode-vi must have wheel + cancel bindings because tmux's defaults
+    // don't always populate it, and an earlier CherryLily config that did
+    // `unbind -a -T copy-mode-vi` leaves servers locked when source-file runs
+    // without re-adding the bindings explicitly.
+    #expect(conf.contains("bind-key -T copy-mode-vi WheelUpPane"))
+    #expect(conf.contains("bind-key -T copy-mode-vi WheelDownPane"))
+    #expect(conf.contains("bind-key -T copy-mode-vi Escape"))
+    #expect(conf.contains("bind-key -T copy-mode-vi q"))
+  }
+
   @Test func bindsMouseDragStartToEnterCopyMode() {
     let conf = TmuxConfig.generate(scrollbackLimit: 50_000, userShell: "/bin/zsh")
     // Without an explicit MouseDrag1Pane in root, a tmux server started under
