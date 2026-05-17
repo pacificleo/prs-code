@@ -32,13 +32,42 @@ final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
   var appStore: StoreOf<AppFeature>?
   var terminalManager: WorktreeTerminalManager?
   var persistence: SessionPersistence?
+  var autosaveTimer: HourlyAutosaveTimer?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     // Disable press-and-hold accent menu so that key repeat works in the terminal.
     UserDefaults.standard.register(defaults: [
       "ApplePressAndHoldEnabled": false
     ])
+    startAutosaveTimerIfNeeded()
     appStore?.send(.appLaunched)
+  }
+
+  /// Hourly autosave: timer always runs, but the snapshot closure short-circuits
+  /// (returns nil) whenever the user disables `hourlyAutosaveEnabled`. That keeps
+  /// us from plumbing settings-change events through the reducer just to toggle a
+  /// timer — the cost is one wake-up per hour even when disabled, which is
+  /// negligible. `captureAll` no-ops on a nil layout because we just don't call it.
+  private func startAutosaveTimerIfNeeded() {
+    guard let persistence, let terminalManager, autosaveTimer == nil else { return }
+    let timer = HourlyAutosaveTimer(
+      persistence: persistence,
+      snapshot: { [terminalManager] in
+        @Shared(.settingsFile) var settingsFile
+        guard settingsFile.global.hourlyAutosaveEnabled else { return nil }
+        let states = terminalManager.allWorktreeStates.map {
+          (id, state) -> (Worktree.ID, any WorktreeStateSnapshotting) in
+          (id, state as any WorktreeStateSnapshotting)
+        }
+        return LayoutSnapshotBuilder.build(worktreeStates: states, now: Date())
+      },
+      scrollbackLimit: {
+        @Shared(.settingsFile) var settingsFile
+        return settingsFile.global.sessionScrollbackLimit
+      }
+    )
+    timer.start()
+    autosaveTimer = timer
   }
 
   func applicationDidBecomeActive(_ notification: Notification) {
@@ -57,6 +86,7 @@ final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationWillTerminate(_ notification: Notification) {
+    autosaveTimer?.stop()
     guard let persistence, let terminalManager else { return }
     @Shared(.settingsFile) var settings
     guard settings.global.restoreSessionsOnLaunch else { return }
