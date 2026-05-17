@@ -179,7 +179,12 @@ final class WorktreeTerminalState {
       // fall back to the flat surfaces list for pre-Phase-6 layout files.
       let leaves = persistedTab.splitTree.map(Self.leaves(in:))
       let initialSurface = leaves?.first ?? persistedTab.surfaces.first
-      guard let initialSurface else { continue }
+      guard let initialSurface else {
+        SupaLogger("Sessions").warning(
+          "restoreTabs skipped tab '\(persistedTab.title)' — no leaves in persisted snapshot"
+        )
+        continue
+      }
 
       let context: ghostty_surface_context_e =
         tabManager.tabs.isEmpty ? GHOSTTY_SURFACE_CONTEXT_WINDOW : GHOSTTY_SURFACE_CONTEXT_TAB
@@ -225,6 +230,12 @@ final class WorktreeTerminalState {
       let target = persistedToNewTabID[selectedTabID]
     {
       tabManager.selectTab(target)
+      // The per-tab `focusing: true` above seeds `focusedSurfaceIdByTab` for every
+      // restored tab (needed so each tab has a known focused surface for later
+      // activation), but it also leaves the live first-responder pointed at the
+      // last-created tab's surface. Re-focus the selected tab's surface so the
+      // user lands where they expect when restore finishes.
+      focusSelectedTab()
     }
   }
 
