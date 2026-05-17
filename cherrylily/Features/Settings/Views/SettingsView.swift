@@ -35,6 +35,8 @@ struct SettingsView: View {
             .tag(SettingsSection.notifications)
           Label("Worktree", systemImage: "archivebox")
             .tag(SettingsSection.worktree)
+          Label("Sessions", systemImage: "clock.arrow.circlepath")
+            .tag(SettingsSection.sessions)
           Label("Shortcuts", systemImage: "command")
             .tag(SettingsSection.shortcuts)
           Label("Updates", systemImage: "arrow.down.circle")
@@ -77,6 +79,12 @@ struct SettingsView: View {
           WorktreeSettingsView(store: settingsStore)
             .navigationTitle("Worktree")
             .navigationSubtitle("Archive behavior")
+        }
+      case .sessions:
+        SettingsDetailView {
+          SessionsSettingsView(store: settingsStore)
+            .navigationTitle("Sessions")
+            .navigationSubtitle("Restore terminal contents across launches")
         }
       case .shortcuts:
         KeyboardShortcutsSettingsView(store: settingsStore)

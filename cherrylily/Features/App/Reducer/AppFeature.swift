@@ -272,7 +272,7 @@ struct AppFeature {
             rootURL: repository.rootURL,
             settings: repositorySettings
           )
-        case .general, .notifications, .worktree, .shortcuts, .updates, .advanced, .appLauncher, .github:
+        case .general, .notifications, .worktree, .sessions, .shortcuts, .updates, .advanced, .appLauncher, .github:
           state.settings.repositorySettings = nil
         }
         return .none
