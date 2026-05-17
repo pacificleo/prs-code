@@ -163,8 +163,11 @@ final class WorktreeTerminalManager {
   }
 
   /// Read-only snapshot of all (worktreeID, state) pairs. Used by LayoutSnapshotBuilder.
+  /// Sorted by worktree ID so the persisted layout is stable across runs — without
+  /// this, dictionary iteration order would shuffle the on-disk JSON and any diff
+  /// of `layout.json` between saves would be noisy.
   var allWorktreeStates: [(Worktree.ID, WorktreeTerminalState)] {
-    states.map { ($0.key, $0.value) }
+    states.map { ($0.key, $0.value) }.sorted(by: { $0.0 < $1.0 })
   }
 
   func state(
