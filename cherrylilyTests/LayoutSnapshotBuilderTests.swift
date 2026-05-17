@@ -46,7 +46,7 @@ struct LayoutSnapshotBuilderTests {
     #expect(tab.surfaces[0].cwd == cwd)
   }
 
-  @Test func snapshotHandlesMultipleSurfacesPerTab() {
+  @Test func snapshotKeepsOnlyLeftmostSurfaceForMultiPaneTab() {
     let surfaceA = UUID()
     let surfaceB = UUID()
     let tabID = UUID()
@@ -63,12 +63,13 @@ struct LayoutSnapshotBuilderTests {
       now: Date()
     )
 
+    // B3: until split restore lands, snapshot keeps only the leftmost leaf so the
+    // orphan reconciler reaps tmux state for the dropped panes.
     let surfaces = result.worktrees[0].tabs[0].surfaces
-    #expect(surfaces.count == 2)
+    #expect(surfaces.count == 1)
     #expect(surfaces[0].id.rawValue == surfaceA)
     #expect(surfaces[0].cwd == cwdA)
-    #expect(surfaces[1].id.rawValue == surfaceB)
-    #expect(surfaces[1].cwd == cwdB)
+    #expect(result.worktrees[0].tabs[0].splitTree == nil)
   }
 
   @Test func snapshotPreservesNilCwd() {
@@ -89,7 +90,11 @@ struct LayoutSnapshotBuilderTests {
     #expect(result.worktrees[0].tabs[0].surfaces[0].cwd == nil)
   }
 
-  @Test func snapshotWritesSplitTreeForHorizontalTwoPaneTab() {
+  @Test func snapshotIgnoresIncomingSplitTreeAndKeepsOnlyLeftmostSurface() {
+    // The plumbing for `splitTree` exists on the snapshot inputs (for forward
+    // compatibility) but the builder must NOT propagate it today — capturing
+    // multi-pane state would cause orphan reconciliation to keep tmux sessions
+    // alive for panes we don't yet restore.
     let leftUUID = UUID()
     let rightUUID = UUID()
     let tabID = UUID()
@@ -121,10 +126,10 @@ struct LayoutSnapshotBuilderTests {
     )
 
     let tab = result.worktrees[0].tabs[0]
-    #expect(tab.splitTree == splitTree)
-    // Flat surfaces list still reflects both panes for orphan reconciliation.
-    #expect(tab.surfaces.count == 2)
-    #expect(tab.surfaces.map(\.id.rawValue) == [leftUUID, rightUUID])
+    #expect(tab.splitTree == nil)
+    #expect(tab.surfaces.count == 1)
+    #expect(tab.surfaces[0].id.rawValue == leftUUID)
+    #expect(tab.surfaces[0].cwd == leftCwd)
   }
 
   @Test func snapshotSplitTreeIsNilForSinglePaneTab() {

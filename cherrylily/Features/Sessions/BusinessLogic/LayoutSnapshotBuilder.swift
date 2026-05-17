@@ -39,6 +39,15 @@ nonisolated struct WorktreeTabSnapshot: Sendable {
 
 /// Walks live `WorktreeTerminalState` instances and produces a `SessionLayout` DTO
 /// suitable for persistence. Pure — no side effects.
+///
+/// IMPORTANT: Multi-pane (split-tree) capture is intentionally disabled until the
+/// matching restore path lands. The orphan reconciler relies on
+/// `SessionLayout.allSurfaceIDs` matching the surfaces we can actually rehydrate.
+/// If we captured every leaf but only restored the leftmost, the reconciler would
+/// see the dropped panes' SurfaceIDs in `allSurfaceIDs`, treat them as live, and
+/// never kill the associated tmux sessions — a permanent leak. So today we emit
+/// only the leftmost leaf per tab, and the `splitTree` field is always nil even
+/// when the live tab has multiple panes.
 @MainActor
 enum LayoutSnapshotBuilder {
   static func build(
@@ -51,16 +60,22 @@ enum LayoutSnapshotBuilder {
         worktreeID: worktreeID,
         selectedTabID: snap.selectedTabID,
         tabs: snap.tabs.map { tab in
-          PersistedTab(
+          // Capture only the first surface/cwd so the persisted `allSurfaceIDs`
+          // matches the leftmost-leaf-only restore. Additional panes are dropped
+          // on purpose — see the type-level comment above.
+          let leftmostSurfaceID = tab.surfaceIDs.first
+          let leftmostCwd = tab.cwds.first ?? nil
+          let surfaces: [PersistedSurface]
+          if let leftmostSurfaceID {
+            surfaces = [PersistedSurface(id: SurfaceID(rawValue: leftmostSurfaceID), cwd: leftmostCwd)]
+          } else {
+            surfaces = []
+          }
+          return PersistedTab(
             id: tab.tabID,
             title: tab.title,
-            surfaces: zip(tab.surfaceIDs, tab.cwds).map { surfaceID, cwd in
-              PersistedSurface(
-                id: SurfaceID(rawValue: surfaceID),
-                cwd: cwd
-              )
-            },
-            splitTree: tab.splitTree
+            surfaces: surfaces,
+            splitTree: nil
           )
         }
       )

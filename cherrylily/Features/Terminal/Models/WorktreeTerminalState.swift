@@ -157,12 +157,13 @@ final class WorktreeTerminalState {
   /// Recreates tabs from a persisted worktree snapshot. Each tab uses its persisted
   /// title and its first surface's persisted ID and CWD.
   ///
-  /// Multi-pane (split tree) restoration is partial: when `persistedTab.splitTree`
-  /// is non-nil, we walk it leftmost-leaf-first and use that leaf as the tab's
-  /// initial surface. Non-leftmost leaves are NOT yet split into the live tree —
-  /// see the split-replay note below. Their persisted SurfaceIDs are still logged
-  /// so we know what we owe the user, and the orphan reconciler will reap their
-  /// scrollback/tmux state on the next save.
+  /// Phase 6 TODO: Multi-pane (split tree) restore is not implemented. Captures
+  /// intentionally drop split state today — see `LayoutSnapshotBuilder` — so we
+  /// only ever see one leaf per tab here. When restore lands, the snapshot path
+  /// will start capturing the full tree again and `splitTree` decoding below will
+  /// matter. Until then, this method handles both shapes: prefer the splitTree's
+  /// leftmost leaf when present (older layout.json files), otherwise the flat
+  /// `surfaces.first`.
   ///
   /// Safe to call only once, immediately after `WorktreeTerminalState` is constructed —
   /// guards on `tabManager.tabs.isEmpty` so re-calls are no-ops.
@@ -1299,13 +1300,19 @@ extension WorktreeTerminalState: WorktreeStateSnapshotting {
       selectedTabID: tabManager.selectedTabId?.rawValue,
       tabs: tabManager.tabs.map { tab in
         let tree = trees[tab.id]
-        let views = tree?.leaves() ?? []
+        // Capture only the leftmost leaf — the snapshot pipeline intentionally
+        // drops the rest of the split tree until restore can rebuild splits.
+        // See `LayoutSnapshotBuilder`'s type-level comment for why exposing more
+        // surfaces here would cause a tmux session leak via the orphan reconciler.
+        let leftmost = tree?.root?.leftmostLeaf()
+        let surfaceIDs = leftmost.map { [$0.id] } ?? []
+        let cwds = leftmost.map { [$0.bridge.state.pwd.map { URL(fileURLWithPath: $0) }] } ?? []
         return WorktreeTabSnapshot(
           tabID: tab.id.rawValue,
           title: tab.title,
-          surfaceIDs: views.map(\.id),
-          cwds: views.map { $0.bridge.state.pwd.map { URL(fileURLWithPath: $0) } },
-          splitTree: tree?.root.flatMap { Self.persistedTree(from: $0) }
+          surfaceIDs: surfaceIDs,
+          cwds: cwds,
+          splitTree: nil
         )
       }
     )
@@ -1314,6 +1321,10 @@ extension WorktreeTerminalState: WorktreeStateSnapshotting {
   /// Recursively converts a runtime `SplitTree.Node` into the persistable
   /// `PersistedSplitTree`. Each leaf carries its surface's stable `SurfaceID`
   /// and current working directory so restore can rebuild the exact layout.
+  ///
+  /// Currently unused — the snapshot path drops split state until restore is
+  /// implemented (see the snapshot getter above and `LayoutSnapshotBuilder`).
+  /// Kept so that wiring it back up later is a one-line change.
   private static func persistedTree(from node: SplitTree<GhosttySurfaceView>.Node) -> PersistedSplitTree {
     switch node {
     case .leaf(let view):
