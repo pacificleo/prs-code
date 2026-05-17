@@ -31,7 +31,7 @@ nonisolated enum TmuxConfig {
     # For zsh: point ZDOTDIR at Ghostty's integration dir; its .zshenv chains
     # back to the user's own .zshenv before loading the integration.
     # Bash/fish/elvish: fall through to plain shell — integration deferred.
-    set -g default-command 'if [ -n "$GHOSTTY_RESOURCES_DIR" ] && [ -d "$GHOSTTY_RESOURCES_DIR/shell-integration/zsh" ] && [ "$(basename "$SHELL")" = "zsh" ]; then exec env ZDOTDIR="$GHOSTTY_RESOURCES_DIR/shell-integration/zsh" "$SHELL" -l; else exec "$SHELL" -l; fi'
+    set -g default-command '\(defaultCommand)'
 
     # Disable the prefix table so Ctrl-b shortcuts (new window, split, etc.)
     # don't fire — CherryLily owns those. We intentionally do NOT unbind the
@@ -80,4 +80,15 @@ nonisolated enum TmuxConfig {
     set -g monitor-bell on
     """
   }
+
+  /// tmux's `default-command` body: if zsh is the user shell AND Ghostty's
+  /// shell integration is available, `exec env ZDOTDIR=... zsh -l`; otherwise
+  /// `exec $SHELL -l`. Split out so the long shell expression doesn't trip
+  /// the line-length lint (single-line in the .conf file regardless).
+  private static let defaultCommand: String = [
+    #"if [ -n "$GHOSTTY_RESOURCES_DIR" ] && [ -d "$GHOSTTY_RESOURCES_DIR/shell-integration/zsh" ]"#,
+    #"&& [ "$(basename "$SHELL")" = "zsh" ]; then"#,
+    #"exec env ZDOTDIR="$GHOSTTY_RESOURCES_DIR/shell-integration/zsh" "$SHELL" -l;"#,
+    #"else exec "$SHELL" -l; fi"#,
+  ].joined(separator: " ")
 }
