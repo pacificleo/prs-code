@@ -29,6 +29,8 @@ private enum GhosttyCLI {
 
 @MainActor
 final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
+  static let diskFullObservedKey = "cl.session.diskFullObserved"
+
   var appStore: StoreOf<AppFeature>?
   var terminalManager: WorktreeTerminalManager?
   var persistence: SessionPersistence?
@@ -38,11 +40,33 @@ final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
     // Disable press-and-hold accent menu so that key repeat works in the terminal.
     UserDefaults.standard.register(defaults: [
-      "ApplePressAndHoldEnabled": false
+      "ApplePressAndHoldEnabled": false,
     ])
     startAutosaveTimerIfNeeded()
     startHealthMonitorIfNeeded()
+    checkDiskFullOnLastQuit()
     appStore?.send(.appLaunched)
+  }
+
+  /// If the last quit's `captureAll` saw any ENOSPC failures, the app delegate
+  /// flips a UserDefaults flag (see `applicationWillTerminate`). On next launch
+  /// we show a one-time alert per the design spec, then clear the flag so the
+  /// alert appears at most once per disk-full event.
+  private func checkDiskFullOnLastQuit() {
+    let key = Self.diskFullObservedKey
+    guard UserDefaults.standard.bool(forKey: key) else { return }
+    UserDefaults.standard.set(false, forKey: key)
+    // Defer to next runloop so the alert appears after the main window comes up.
+    DispatchQueue.main.async {
+      let alert = NSAlert()
+      alert.messageText = "Could not save terminal contents"
+      alert.informativeText =
+        "CherryLily ran out of disk space while saving your terminal scrollback on the last quit. "
+        + "Free some space to ensure future sessions are saved."
+      alert.alertStyle = .warning
+      alert.addButton(withTitle: "OK")
+      alert.runModal()
+    }
   }
 
   /// Hourly autosave: timer always runs, but the snapshot closure short-circuits
@@ -138,7 +162,10 @@ final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
     // macOS SIGKILL us. DispatchSemaphore because this delegate method is sync.
     let semaphore = DispatchSemaphore(value: 0)
     Task {
-      _ = await persistence.captureAll(for: layout, scrollbackLimit: scrollbackLimit)
+      let report = await persistence.captureAll(for: layout, scrollbackLimit: scrollbackLimit)
+      if report.diskFullCount > 0 {
+        UserDefaults.standard.set(true, forKey: Self.diskFullObservedKey)
+      }
       semaphore.signal()
     }
     _ = semaphore.wait(timeout: .now() + .seconds(2))

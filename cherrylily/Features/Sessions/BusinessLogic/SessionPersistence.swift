@@ -2,6 +2,20 @@ import Foundation
 
 private nonisolated let sessionPersistenceLogger = SupaLogger("Sessions")
 
+/// Aggregate outcome of `captureAll`. The caller decides how to surface
+/// disk-full failures (the design spec calls for a one-time alert).
+nonisolated struct CaptureReport: Sendable, Equatable {
+  var successCount: Int = 0
+  var diskFullCount: Int = 0
+  var otherFailureCount: Int = 0
+}
+
+private enum CaptureOutcome {
+  case success
+  case diskFull
+  case other
+}
+
 /// Top-level orchestrator for session persistence. Composes the Phase 1 primitives
 /// (`SessionLayoutStore`, `ScrollbackStore`, `TmuxClient`, `OrphanReconciler`)
 /// into the operations CherryLily needs at app boundaries:
@@ -45,14 +59,15 @@ final class SessionPersistence: Sendable {
 
   /// Captures scrollback for every surface in the supplied layout. Each capture is a
   /// separate tmux subprocess; runs in parallel via `TaskGroup`.
-  /// Returns the count of successful captures (failures are logged, not thrown).
+  /// Returns a `CaptureReport` tallying successes and failure modes (failures are
+  /// logged here; the caller decides whether to surface them to the user).
   @discardableResult
-  func captureAll(for layout: SessionLayout, scrollbackLimit: Int?) async -> Int {
+  func captureAll(for layout: SessionLayout, scrollbackLimit: Int?) async -> CaptureReport {
     // For "Unlimited" (nil) cap at 1_000_000 — same convention as the tmux.conf
     // bootstrap; avoids unbounded memory on very long captures.
     let effectiveLimit = scrollbackLimit ?? 1_000_000
-    var successCount = 0
-    await withTaskGroup(of: Bool.self) { group in
+    var report = CaptureReport()
+    await withTaskGroup(of: CaptureOutcome.self) { group in
       for surfaceID in layout.allSurfaceIDs {
         group.addTask { [tmuxClient, scrollbackStore] in
           await Self.captureOne(
@@ -63,11 +78,15 @@ final class SessionPersistence: Sendable {
           )
         }
       }
-      for await success in group where success {
-        successCount += 1
+      for await outcome in group {
+        switch outcome {
+        case .success: report.successCount += 1
+        case .diskFull: report.diskFullCount += 1
+        case .other: report.otherFailureCount += 1
+        }
       }
     }
-    return successCount
+    return report
   }
 
   /// Capture one surface — separate static to avoid main-actor capture in TaskGroup.
@@ -76,7 +95,7 @@ final class SessionPersistence: Sendable {
     scrollbackLimit: Int,
     tmuxClient: TmuxClient,
     scrollbackStore: ScrollbackStore
-  ) async -> Bool {
+  ) async -> CaptureOutcome {
     do {
       let rawBytes = try await tmuxClient.capturePane(
         sessionName: surfaceID.tmuxSessionName,
@@ -84,13 +103,34 @@ final class SessionPersistence: Sendable {
       )
       let sanitized = ScrollbackStore.sanitize(rawBytes)
       try scrollbackStore.write(bytes: sanitized, for: surfaceID)
-      return true
+      return .success
     } catch {
+      if Self.isDiskFull(error) {
+        sessionPersistenceLogger.warning(
+          "capture for \(surfaceID.tmuxSessionName) failed: disk full"
+        )
+        return .diskFull
+      }
       sessionPersistenceLogger.warning(
         "capture failed for \(surfaceID.tmuxSessionName): \(error)"
       )
-      return false
+      return .other
     }
+  }
+
+  /// POSIX errno 28 (`ENOSPC`) means out of disk space. Cocoa wraps this
+  /// in NSCocoaErrorDomain with `.fileWriteOutOfSpaceError` (640); the
+  /// underlying NSError chain often carries POSIXError as well.
+  private static func isDiskFull(_ error: Error) -> Bool {
+    if let posix = error as? POSIXError, posix.code == .ENOSPC { return true }
+    let nsError = error as NSError
+    if nsError.domain == NSCocoaErrorDomain, nsError.code == NSFileWriteOutOfSpaceError {
+      return true
+    }
+    if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? Error {
+      return isDiskFull(underlying)
+    }
+    return false
   }
 
   /// Runs orphan reconciliation: kills tmux sessions whose IDs aren't in the layout,

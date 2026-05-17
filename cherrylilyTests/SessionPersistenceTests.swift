@@ -62,4 +62,24 @@ struct SessionPersistenceTests {
 
     #expect(FileManager.default.fileExists(atPath: paths.layoutFile.path))
   }
+
+  @Test func captureReportTotalsCountSuccessesAndFailures() {
+    // CaptureReport's fields are additive — used as a sanity test of the struct shape.
+    var report = CaptureReport()
+    report.successCount += 1
+    report.diskFullCount += 2
+    report.otherFailureCount += 3
+    #expect(report.successCount == 1)
+    #expect(report.diskFullCount == 2)
+    #expect(report.otherFailureCount == 3)
+  }
+
+  @Test func captureAllReturnsZeroReportForEmptyLayout() async throws {
+    let paths = Self.makePaths()
+    defer { try? FileManager.default.removeItem(at: paths.root) }
+    let persistence = SessionPersistence(paths: paths)
+    let layout = SessionLayout(savedAt: Date(), worktrees: [])
+    let report = await persistence.captureAll(for: layout, scrollbackLimit: nil)
+    #expect(report == CaptureReport())
+  }
 }
