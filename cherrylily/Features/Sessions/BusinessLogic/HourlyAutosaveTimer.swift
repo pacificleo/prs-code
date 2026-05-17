@@ -17,6 +17,10 @@ final class HourlyAutosaveTimer {
   private let scrollbackLimit: @MainActor () -> Int?
   private let queue: DispatchQueue
   private var timer: DispatchSourceTimer?
+  /// Set while a `captureAll` is in flight. Subsequent fires skip rather than
+  /// pile up — `captureAll` can take longer than the interval if there are many
+  /// surfaces, and overlapping invocations would race on disk writes.
+  private var isCapturing = false
 
   /// `interval` defaults to one hour. Tests pass shorter intervals.
   init(
@@ -44,6 +48,9 @@ final class HourlyAutosaveTimer {
     let handler: @Sendable () -> Void = { [weak self] in
       Task { @MainActor [weak self] in
         guard let self else { return }
+        guard !self.isCapturing else { return }
+        self.isCapturing = true
+        defer { self.isCapturing = false }
         guard let layout = self.snapshot() else { return }
         let limit = self.scrollbackLimit()
         _ = await self.persistence.captureAll(for: layout, scrollbackLimit: limit)
