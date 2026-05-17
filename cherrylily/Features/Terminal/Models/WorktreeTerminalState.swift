@@ -157,7 +157,7 @@ final class WorktreeTerminalState {
   /// Recreates tabs from a persisted worktree snapshot. Each tab uses its persisted
   /// title and its first surface's persisted ID and CWD.
   ///
-  /// Phase 6 TODO: Multi-pane (split tree) restore is not implemented. Captures
+  /// Phase 6 follow-up: Multi-pane (split tree) restore is not implemented. Captures
   /// intentionally drop split state today — see `LayoutSnapshotBuilder` — so we
   /// only ever see one leaf per tab here. When restore lands, the snapshot path
   /// will start capturing the full tree again and `splitTree` decoding below will
