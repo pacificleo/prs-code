@@ -148,7 +148,10 @@ struct CherryLilyApp: App {
       persistence: persistence,
     )
     if initialSettings.restoreSessionsOnLaunch {
-      Self.bootstrapSessionPersistence(persistence: persistence)
+      Self.bootstrapSessionPersistence(
+        persistence: persistence,
+        scrollbackLimit: initialSettings.sessionScrollbackLimit
+      )
     }
     _terminalManager = State(initialValue: terminalManager)
     terminalManager.loadLayoutOnLaunch()
@@ -215,11 +218,17 @@ struct CherryLilyApp: App {
     )
   }
 
-  private static func bootstrapSessionPersistence(persistence: SessionPersistence) {
+  private static func bootstrapSessionPersistence(
+    persistence: SessionPersistence,
+    scrollbackLimit: Int?
+  ) {
+    // For "Unlimited" (nil), cap at 1_000_000 — tmux's `history-limit 0` means
+    // NO scrollback, and unbounded growth risks memory bloat in long sessions.
+    let effectiveLimit = scrollbackLimit ?? 1_000_000
     do {
       try TmuxConfigWriter(paths: persistence.paths)
         .writeIfChanged(
-          scrollbackLimit: 50_000,
+          scrollbackLimit: effectiveLimit,
           userShell: ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
         )
     } catch {
