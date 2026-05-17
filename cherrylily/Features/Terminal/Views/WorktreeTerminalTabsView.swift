@@ -49,7 +49,10 @@ struct WorktreeTerminalTabsView: View {
       }
     )
     .onAppear {
-      state.ensureInitialTab(focusing: false)
+      // Intentionally no `ensureInitialTab` here — switching to an empty
+      // worktree should leave it empty (showing EmptyTerminalPaneView) until
+      // the user clicks +. Newly-created worktrees still get an auto-tab via
+      // the TCA `ensureInitialTab` action dispatched from RepositoriesFeature.
       if shouldAutoFocusTerminal {
         state.focusSelectedTab()
       }
