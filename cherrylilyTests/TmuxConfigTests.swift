@@ -76,6 +76,16 @@ struct TmuxConfigTests {
     #expect(conf.contains("set -g allow-passthrough on"))
   }
 
+  @Test func forwardsBellToTerminal() {
+    let conf = TmuxConfig.generate(scrollbackLimit: 50_000, userShell: "/bin/zsh")
+    // Bell must reach Ghostty so the worktree notification badge fires —
+    // tmux normally consumes BEL and surfaces it in the status line, which
+    // we have off.
+    #expect(conf.contains("set -g bell-action any"))
+    #expect(conf.contains("set -g visual-bell off"))
+    #expect(conf.contains("set -g monitor-bell on"))
+  }
+
   @Test func setsXtermTerminal() {
     let conf = TmuxConfig.generate(scrollbackLimit: 50_000, userShell: "/bin/zsh")
     #expect(conf.contains("set -g default-terminal \"xterm-256color\""))

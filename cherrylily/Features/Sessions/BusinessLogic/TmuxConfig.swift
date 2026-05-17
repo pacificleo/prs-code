@@ -61,6 +61,14 @@ nonisolated enum TmuxConfig {
     set -g allow-passthrough on
     set -g set-titles on
     set -g set-titles-string "#{pane_title}"
+
+    # Bell forwarding — tmux normally consumes BEL and signals via the status line
+    # (which we have off), so it never reaches Ghostty. Configure tmux to pass the
+    # bell through so Ghostty's bell handler fires the worktree notification badge
+    # and any OSC 9 / OSC 777 desktop notifications also flow through unmodified.
+    set -g bell-action any
+    set -g visual-bell off
+    set -g monitor-bell on
     """
   }
 }
