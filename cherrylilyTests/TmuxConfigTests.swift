@@ -19,6 +19,17 @@ struct TmuxConfigTests {
     #expect(conf.contains("set -g mouse on"))
   }
 
+  @Test func bindsMouseDragSelectionToPbcopy() {
+    let conf = TmuxConfig.generate(scrollbackLimit: 50_000, userShell: "/bin/zsh")
+    // Drag-select-end must route through pbcopy so the macOS clipboard fills
+    // reliably (without depending on OSC 52 round-tripping through the host
+    // terminal). Both copy-mode and copy-mode-vi tables get the override
+    // because users can switch mode-keys.
+    #expect(conf.contains("MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel \"pbcopy\""))
+    #expect(conf.contains("bind-key -T copy-mode    MouseDragEnd1Pane"))
+    #expect(conf.contains("bind-key -T copy-mode-vi MouseDragEnd1Pane"))
+  }
+
   @Test func reliesOnDefaultWheelBindings() {
     let conf = TmuxConfig.generate(scrollbackLimit: 50_000, userShell: "/bin/zsh")
     // We rely on tmux's built-in WheelUpPane/WheelDownPane bindings in the root

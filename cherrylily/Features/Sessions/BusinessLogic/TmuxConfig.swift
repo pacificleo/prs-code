@@ -26,6 +26,14 @@ nonisolated enum TmuxConfig {
     # errors on re-source.
     unbind -a -q -T prefix
 
+    # Mouse selection → macOS clipboard via pbcopy. Override the default
+    # MouseDragEnd1Pane binding (which relies on OSC 52 → terminal clipboard)
+    # to copy directly with pbcopy. More reliable than the OSC 52 path and
+    # works regardless of host-terminal OSC 52 support. -X copy-pipe-and-cancel
+    # exits copy-mode after copying so the user can keep typing immediately.
+    bind-key -T copy-mode    MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "pbcopy"
+    bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "pbcopy"
+
     # Tab title / notifications passthrough
     set -g allow-passthrough on
     set -g set-titles on
