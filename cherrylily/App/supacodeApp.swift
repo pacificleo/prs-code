@@ -33,6 +33,7 @@ final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
   var terminalManager: WorktreeTerminalManager?
   var persistence: SessionPersistence?
   var autosaveTimer: HourlyAutosaveTimer?
+  var healthMonitor: TmuxHealthMonitor?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     // Disable press-and-hold accent menu so that key repeat works in the terminal.
@@ -40,6 +41,7 @@ final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
       "ApplePressAndHoldEnabled": false
     ])
     startAutosaveTimerIfNeeded()
+    startHealthMonitorIfNeeded()
     appStore?.send(.appLaunched)
   }
 
@@ -70,6 +72,31 @@ final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
     autosaveTimer = timer
   }
 
+  /// Background-poll tmux liveness so we can log when the server has crashed.
+  /// This is observe-and-log only; the UI work to recover surviving terminals
+  /// after a crash is a separate follow-up. Guarded on persistence being
+  /// configured AND the user having opted into session restore — if they don't
+  /// care about persistence, polling tmux is pure overhead.
+  private func startHealthMonitorIfNeeded() {
+    guard healthMonitor == nil, let persistence else { return }
+    @Shared(.settingsFile) var settings
+    guard settings.global.restoreSessionsOnLaunch else { return }
+    let monitor = TmuxHealthMonitor(
+      tmuxClient: TmuxClient(
+        executableURL: TmuxBinary.bundledURL,
+        socketName: persistence.paths.tmuxSocketName
+      ),
+      onCrash: {
+        SupaLogger("Sessions").warning(
+          "tmux server appears to have crashed (2 consecutive ping failures); "
+            + "live terminals may not respond. Restart CherryLily to recover."
+        )
+      }
+    )
+    monitor.start()
+    healthMonitor = monitor
+  }
+
   func applicationDidBecomeActive(_ notification: Notification) {
     let app = NSApplication.shared
     guard !app.windows.contains(where: \.isVisible) else { return }
@@ -87,6 +114,7 @@ final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationWillTerminate(_ notification: Notification) {
     autosaveTimer?.stop()
+    healthMonitor?.stop()
     guard let persistence, let terminalManager else { return }
     @Shared(.settingsFile) var settings
     guard settings.global.restoreSessionsOnLaunch else { return }

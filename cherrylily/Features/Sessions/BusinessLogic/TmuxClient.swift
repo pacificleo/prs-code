@@ -153,6 +153,19 @@ nonisolated struct TmuxClient: Sendable {
     }
   }
 
+  /// Cheap health check — returns true when the tmux server responds to `ls`,
+  /// including the "no server running" case (which we treat as "alive-for-our-purposes"
+  /// because we lazily start the server on first `new-session`). Returns false only
+  /// when a non-tolerated error fires (process spawn failed, weird stderr, etc.).
+  func ping() async -> Bool {
+    do {
+      _ = try await listSessionNames()
+      return true
+    } catch {
+      return false
+    }
+  }
+
   // MARK: - Process plumbing
 
   private struct ProcessResult {
