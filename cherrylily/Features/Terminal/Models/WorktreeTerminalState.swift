@@ -142,6 +142,7 @@ final class WorktreeTerminalState {
         initialInput: resolvedInput,
         command: command,
         surfaceID: nil,
+        cwd: nil,
         focusing: focusing,
         inheritingFromSurfaceId: resolvedInheritanceSurfaceId,
         context: context
@@ -151,6 +152,51 @@ final class WorktreeTerminalState {
       onSetupScriptConsumed?()
     }
     return tabId
+  }
+
+  /// Recreates tabs from a persisted worktree snapshot. Each tab uses its persisted
+  /// title and its first surface's persisted ID and CWD. Multi-surface (split tree)
+  /// restoration is deferred to Phase 6.
+  ///
+  /// Safe to call only once, immediately after `WorktreeTerminalState` is constructed —
+  /// guards on `tabManager.tabs.isEmpty` so re-calls are no-ops.
+  func restoreTabs(from persisted: PersistedWorktree) {
+    guard tabManager.tabs.isEmpty else { return }
+
+    // Maps persisted tab UUIDs to newly minted TerminalTabIDs so we can restore
+    // the previously selected tab below (the new tabs get fresh IDs).
+    var persistedToNewTabID: [UUID: TerminalTabID] = [:]
+
+    for persistedTab in persisted.tabs {
+      guard let firstSurface = persistedTab.surfaces.first else { continue }
+      let context: ghostty_surface_context_e =
+        tabManager.tabs.isEmpty ? GHOSTTY_SURFACE_CONTEXT_WINDOW : GHOSTTY_SURFACE_CONTEXT_TAB
+
+      // TODO Phase 6: restore the full split tree (PersistedTab.surfaces[1...]).
+      let newTabID = createTab(
+        TabCreation(
+          title: persistedTab.title,
+          icon: "terminal",
+          isTitleLocked: false,
+          initialInput: nil,
+          command: nil,
+          surfaceID: firstSurface.id,
+          cwd: firstSurface.cwd,
+          focusing: false,
+          inheritingFromSurfaceId: nil,
+          context: context
+        )
+      )
+      if let newTabID {
+        persistedToNewTabID[persistedTab.id] = newTabID
+      }
+    }
+
+    if let selectedTabID = persisted.selectedTabID,
+      let target = persistedToNewTabID[selectedTabID]
+    {
+      tabManager.selectTab(target)
+    }
   }
 
   @discardableResult
@@ -167,6 +213,7 @@ final class WorktreeTerminalState {
         initialInput: input,
         command: nil,
         surfaceID: nil,
+        cwd: nil,
         focusing: true,
         inheritingFromSurfaceId: currentFocusedSurfaceId(),
         context: GHOSTTY_SURFACE_CONTEXT_TAB
@@ -206,6 +253,7 @@ final class WorktreeTerminalState {
         initialInput: input,
         command: nil,
         surfaceID: nil,
+        cwd: nil,
         focusing: true,
         inheritingFromSurfaceId: currentFocusedSurfaceId(),
         context: GHOSTTY_SURFACE_CONTEXT_TAB
@@ -229,6 +277,10 @@ final class WorktreeTerminalState {
     let initialInput: String?
     let command: String?
     let surfaceID: SurfaceID?
+    /// Overrides the working directory used to launch the surface. When non-nil, takes
+    /// precedence over the inherited cwd and the worktree's default working directory.
+    /// Used by `restoreTabs(from:)` to bring back the persisted cwd for each surface.
+    let cwd: URL?
     let focusing: Bool
     let inheritingFromSurfaceId: UUID?
     let context: ghostty_surface_context_e
@@ -246,6 +298,7 @@ final class WorktreeTerminalState {
       initialInput: creation.initialInput,
       command: creation.command,
       surfaceID: creation.surfaceID,
+      cwd: creation.cwd,
       context: creation.context
     )
     tabIsRunningById[tabId] = false
@@ -432,6 +485,7 @@ final class WorktreeTerminalState {
     initialInput: String? = nil,
     command: String? = nil,
     surfaceID: SurfaceID? = nil,
+    cwd: URL? = nil,
     context: ghostty_surface_context_e = GHOSTTY_SURFACE_CONTEXT_TAB
   ) -> SplitTree<GhosttySurfaceView> {
     if let existing = trees[tabId] {
@@ -442,6 +496,7 @@ final class WorktreeTerminalState {
       initialInput: initialInput,
       command: command,
       surfaceID: surfaceID,
+      cwd: cwd,
       inheritingFromSurfaceId: inheritingFromSurfaceId,
       context: context
     )
@@ -735,20 +790,23 @@ final class WorktreeTerminalState {
     initialInput: String?,
     command: String? = nil,
     surfaceID: SurfaceID? = nil,
+    cwd: URL? = nil,
     inheritingFromSurfaceId: UUID?,
     context: ghostty_surface_context_e
   ) -> GhosttySurfaceView {
     let inherited = inheritedSurfaceConfig(fromSurfaceId: inheritingFromSurfaceId, context: context)
     let resolvedSurfaceID = surfaceID ?? SurfaceID()
+    // Explicit `cwd` (e.g. from session restore) wins over inheritance, which wins over worktree default.
+    let workingDirectory = cwd ?? inherited.workingDirectory ?? worktree.workingDirectory
     let effectiveCommand = resolveLaunchCommand(
       callerOverride: command,
-      inherited: inherited,
+      workingDirectory: workingDirectory,
       surfaceID: resolvedSurfaceID
     )
     let view = GhosttySurfaceView(
       id: resolvedSurfaceID.rawValue,
       runtime: runtime,
-      workingDirectory: inherited.workingDirectory ?? worktree.workingDirectory,
+      workingDirectory: workingDirectory,
       initialInput: initialInput,
       command: effectiveCommand,
       fontSize: inherited.fontSize,
@@ -856,7 +914,7 @@ final class WorktreeTerminalState {
   /// shell. Returns nil to let Ghostty spawn the default shell directly.
   private func resolveLaunchCommand(
     callerOverride command: String?,
-    inherited: InheritedSurfaceConfig,
+    workingDirectory: URL,
     surfaceID: SurfaceID
   ) -> String? {
     if let command { return command }
@@ -866,7 +924,7 @@ final class WorktreeTerminalState {
       return nil
     }
     let paths = SessionPaths()
-    let cwd = (inherited.workingDirectory ?? worktree.workingDirectory).path
+    let cwd = workingDirectory.path
     let scrollbackFile = paths.scrollbackFile(for: surfaceID)
 
     if FileManager.default.fileExists(atPath: scrollbackFile.path) {

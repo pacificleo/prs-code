@@ -10,6 +10,10 @@ final class WorktreeTerminalManager {
   let persistenceEnabled: @Sendable () -> Bool
   let persistence: SessionPersistence?
   private var states: [Worktree.ID: WorktreeTerminalState] = [:]
+  /// Layout read on app launch via `loadLayoutOnLaunch()`. Consulted whenever
+  /// `state(for:)` creates a new WTS so the restored worktree comes back with
+  /// its previous tabs. Held in-memory to avoid re-reading the disk per worktree.
+  private var cachedLayout: SessionLayout?
   private var notificationsEnabled = true
   private var lastNotificationIndicatorCount: Int?
   private var eventContinuation: AsyncStream<TerminalClient.Event>.Continuation?
@@ -24,6 +28,20 @@ final class WorktreeTerminalManager {
     self.runtime = runtime
     self.persistenceEnabled = persistenceEnabled
     self.persistence = persistence
+  }
+
+  /// Called once at app launch (from `CherryLilyApp.init`). Reads the persisted layout
+  /// into memory so per-worktree `state(for:)` calls can consult it without re-reading
+  /// the disk. A nil result (no file, corrupt file, or persistence disabled) means
+  /// "no restoration" — worktrees come back empty as before.
+  func loadLayoutOnLaunch() {
+    guard let persistence else { return }
+    do {
+      cachedLayout = try persistence.restoreLayout()
+    } catch {
+      SupaLogger("Sessions").warning("layout read on launch failed: \(error)")
+      cachedLayout = nil
+    }
   }
 
   func handleCommand(_ command: TerminalClient.Command) {
@@ -202,6 +220,11 @@ final class WorktreeTerminalManager {
       self?.emit(.setupScriptConsumed(worktreeID: worktree.id))
     }
     states[worktree.id] = state
+    if let cachedLayout,
+      let persistedWorktree = cachedLayout.worktrees.first(where: { $0.worktreeID == worktree.id })
+    {
+      state.restoreTabs(from: persistedWorktree)
+    }
     terminalLogger.info("Created terminal state for worktree \(worktree.id)")
     return state
   }

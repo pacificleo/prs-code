@@ -159,6 +159,7 @@ struct CherryLilyApp: App {
       }
     }
     _terminalManager = State(initialValue: terminalManager)
+    terminalManager.loadLayoutOnLaunch()
     let worktreeInfoWatcher = WorktreeInfoWatcherManager()
     _worktreeInfoWatcher = State(initialValue: worktreeInfoWatcher)
     let keyObserver = CommandKeyObserver()
