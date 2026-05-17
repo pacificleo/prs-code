@@ -3,6 +3,7 @@ import Testing
 
 @testable import CherryLily
 
+@MainActor
 struct TmuxHealthMonitorTests {
   private static func makeAlwaysFailingClient() -> TmuxClient {
     TmuxClient(
