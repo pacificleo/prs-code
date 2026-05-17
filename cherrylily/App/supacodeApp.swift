@@ -227,6 +227,22 @@ struct CherryLilyApp: App {
     }
   }
 
+  private static func showAboutPanel() {
+    let info = Bundle.main.infoDictionary ?? [:]
+    let marketing = info["CFBundleShortVersionString"] as? String ?? "?"
+    let build = info["CFBundleVersion"] as? String ?? "?"
+    #if DEBUG
+      let configuration = "Debug"
+    #else
+      let configuration = "Release"
+    #endif
+    NSApplication.shared.orderFrontStandardAboutPanel(options: [
+      .applicationVersion: "\(marketing) (\(build)) \(configuration)",
+      .version: "",
+    ])
+    NSApplication.shared.activate(ignoringOtherApps: true)
+  }
+
   var body: some Scene {
     Window("CherryLily", id: "main") {
       GhosttyColorSchemeSyncView(ghostty: ghostty) {
@@ -246,6 +262,11 @@ struct CherryLilyApp: App {
       SidebarCommands()
       TerminalCommands(ghosttyShortcuts: ghosttyShortcuts)
       WindowCommands(ghosttyShortcuts: ghosttyShortcuts)
+      CommandGroup(replacing: .appInfo) {
+        Button("About CherryLily") {
+          Self.showAboutPanel()
+        }
+      }
       CommandGroup(after: .textEditing) {
         let cmdPalette = AppShortcuts.commandPalette.effective(from: store.settings.shortcutOverrides)
         Button("Command Palette") {
