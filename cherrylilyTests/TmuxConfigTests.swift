@@ -19,21 +19,20 @@ struct TmuxConfigTests {
     #expect(conf.contains("set -g mouse on"))
   }
 
-  @Test func reEnablesWheelScrollBindings() {
+  @Test func reliesOnDefaultWheelBindings() {
     let conf = TmuxConfig.generate(scrollbackLimit: 50_000, userShell: "/bin/zsh")
-    // After `unbind -a`, wheel scroll must be re-bound or the user loses scrollback access.
-    #expect(conf.contains("WheelUpPane"))
-    #expect(conf.contains("WheelDownPane"))
-    #expect(conf.contains("copy-mode -e"))
-    // Escape and q must exit copy-mode (re-bound after the unbind block)
-    #expect(conf.contains("Escape send-keys -X cancel"))
-    #expect(conf.contains("q send-keys -X cancel"))
+    // We rely on tmux's built-in WheelUpPane/WheelDownPane bindings in the root
+    // table (and built-in Escape/q in copy-mode) for wheel-scroll UX. We must NOT
+    // unbind those tables, otherwise the user gets stuck in copy-mode after a
+    // wheel-up. This test guards against accidentally re-introducing the unbinds.
+    #expect(!conf.contains("unbind -a -q -T root"))
+    #expect(!conf.contains("unbind -a -q -T copy-mode"))
+    #expect(!conf.contains("unbind -a -q -T copy-mode-vi"))
   }
 
-  @Test func unbindsAllPrefixAndRootKeys() {
+  @Test func unbindsOnlyPrefixTable() {
     let conf = TmuxConfig.generate(scrollbackLimit: 50_000, userShell: "/bin/zsh")
     #expect(conf.contains("unbind -a -q -T prefix"))
-    #expect(conf.contains("unbind -a -q -T root"))
   }
 
   @Test func setsDefaultShell() {

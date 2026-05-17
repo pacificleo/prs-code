@@ -18,22 +18,13 @@ nonisolated enum TmuxConfig {
     set -g detach-on-destroy off
     set -g default-shell "\(userShell)"
 
-    # Lock down all keybindings — CherryLily handles all UX.
-    # `-q` suppresses "table doesn't exist" errors on re-source (tmux removes
-    # empty tables, so a second `source-file` would otherwise fail noisily).
+    # Disable the prefix table so Ctrl-b shortcuts (new window, split, etc.)
+    # don't fire — CherryLily owns those. We intentionally do NOT unbind the
+    # `root`, `copy-mode`, or `copy-mode-vi` tables: tmux's defaults for wheel
+    # scrolling and copy-mode exit (Escape, q) live there, and unbinding them
+    # locks the pane after a wheel-up. `-q` suppresses "table doesn't exist"
+    # errors on re-source.
     unbind -a -q -T prefix
-    unbind -a -q -T root
-    unbind -a -q -T copy-mode
-    unbind -a -q -T copy-mode-vi
-
-    # Re-enable just enough mouse-scroll bindings to scroll tmux history.
-    # In alternate-screen apps (vim, less), wheel events pass through to the app.
-    # Otherwise wheel-up enters copy-mode for scrollback navigation.
-    bind-key -T root WheelUpPane if -Ft= "#{alternate_on}" "send-keys -M" "copy-mode -e"
-    bind-key -T copy-mode WheelUpPane send-keys -X scroll-up
-    bind-key -T copy-mode WheelDownPane send-keys -X scroll-down
-    bind-key -T copy-mode Escape send-keys -X cancel
-    bind-key -T copy-mode q send-keys -X cancel
 
     # Tab title / notifications passthrough
     set -g allow-passthrough on
