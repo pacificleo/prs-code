@@ -36,7 +36,7 @@ struct SessionsSettingsView: View {
           Text("Scrollback to keep per pane")
         }
         .pickerStyle(.menu)
-        .help("How much history to capture for each pane on quit. Applies to new tabs.")
+        .help("How much history to capture for each pane on quit. Applies after relaunch.")
       }
 
       Section("Advanced") {
