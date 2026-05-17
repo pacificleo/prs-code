@@ -43,8 +43,17 @@ nonisolated struct ScrollbackStore: Sendable {
     }
   }
 
-  /// Strips dangerous OSC sequences (52 = clipboard, 8 = hyperlink, 133 = semantic prompt)
-  /// from the byte stream while preserving CSI/SGR (color/cursor) escapes.
+  /// Strips dangerous OSC sequences from the byte stream while preserving CSI/SGR
+  /// (color/cursor) escapes. Sequences we drop:
+  ///   - 8   = hyperlink
+  ///   - 9   = iTerm/legacy desktop notification
+  ///   - 52  = clipboard write
+  ///   - 133 = semantic shell-prompt markers
+  ///   - 777 = rxvt-style desktop notification
+  ///
+  /// 9 and 777 are dropped so a captured-then-replayed scrollback cannot trigger
+  /// system notifications on next launch — a replayed notification looks identical
+  /// to a real one and could be abused for phishing.
   ///
   /// OSC sequences are: ESC ] code ; payload ST  where ST = BEL (0x07) or ESC \ (0x1B 0x5C).
   static func sanitize(_ input: Data) -> Data {
@@ -78,7 +87,7 @@ nonisolated struct ScrollbackStore: Sendable {
           terminatorEnd += 1
         }
         // If this is a dangerous OSC code, drop the whole sequence; otherwise keep.
-        if [52, 8, 133].contains(code) {
+        if [8, 9, 52, 133, 777].contains(code) {
           cursor = terminatorEnd
           continue
         }

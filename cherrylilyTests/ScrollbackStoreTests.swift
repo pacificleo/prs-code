@@ -88,6 +88,25 @@ struct ScrollbackStoreTests {
     #expect(String(bytes: cleaned, encoding: .utf8) == "normalprompt")
   }
 
+  @Test func sanitizeStripsOSC9DesktopNotifications() {
+    // OSC 9 is iTerm/legacy desktop notification — a replayed scrollback must
+    // not be able to trigger a fresh system notification on next launch.
+    let input = Data("hello \u{001b}]9;evil notification\u{0007} world".utf8)
+    let result = ScrollbackStore.sanitize(input)
+    let str = String(data: result, encoding: .utf8) ?? ""
+    #expect(!str.contains("evil notification"))
+    #expect(str == "hello  world")
+  }
+
+  @Test func sanitizeStripsOSC777DesktopNotifications() {
+    // OSC 777 is rxvt-style desktop notification — same risk profile as OSC 9.
+    let input = Data("hello \u{001b}]777;notify;Title;phishy body\u{0007} world".utf8)
+    let result = ScrollbackStore.sanitize(input)
+    let str = String(data: result, encoding: .utf8) ?? ""
+    #expect(!str.contains("phishy body"))
+    #expect(str == "hello  world")
+  }
+
   @Test func sanitizePreservesColorEscapes() {
     // SGR sequence: ESC [ 31 m  (red) — this should pass through unchanged
     let safe = Data("\u{001b}[31mred\u{001b}[0m".utf8)
