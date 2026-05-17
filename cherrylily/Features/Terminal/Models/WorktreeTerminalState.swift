@@ -183,7 +183,10 @@ final class WorktreeTerminalState {
           command: nil,
           surfaceID: firstSurface.id,
           cwd: firstSurface.cwd,
-          focusing: false,
+          // Each restored tab must focus its own surface so `focusedSurfaceIdByTab`
+          // is populated — otherwise activating the worktree later shows no surface.
+          // Tab selection is overridden below with the persisted selectedTabID.
+          focusing: true,
           inheritingFromSurfaceId: nil,
           context: context
         )

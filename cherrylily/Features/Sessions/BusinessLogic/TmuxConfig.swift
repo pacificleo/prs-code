@@ -2,7 +2,8 @@ import Foundation
 
 /// Generates the text of the managed tmux configuration file.
 /// Locks down tmux so the user perceives shells as if they were running directly:
-/// no status bar, no key bindings, no mouse interception.
+/// no status bar, no key bindings, no mouse interception except for scroll-wheel
+/// access to tmux's own scrollback (Ghostty has no scrollback when tmux owns the pane).
 nonisolated enum TmuxConfig {
   /// Returns the full text of the managed `tmux.conf` for the given parameters.
   static func generate(scrollbackLimit: Int, userShell: String) -> String {
@@ -11,17 +12,26 @@ nonisolated enum TmuxConfig {
 
     set -g history-limit \(scrollbackLimit)
     set -g status off
-    set -g mouse off
+    set -g mouse on
     set -g default-terminal "xterm-256color"
     set -g destroy-unattached off
     set -g detach-on-destroy off
     set -g default-shell "\(userShell)"
 
-    # Lock down all keybindings — CherryLily handles all UX
+    # Lock down all keybindings — CherryLily handles all UX.
     unbind -a -T prefix
     unbind -a -T root
     unbind -a -T copy-mode
     unbind -a -T copy-mode-vi
+
+    # Re-enable just enough mouse-scroll bindings to scroll tmux history.
+    # In alternate-screen apps (vim, less), wheel events pass through to the app.
+    # Otherwise wheel-up enters copy-mode for scrollback navigation.
+    bind-key -T root WheelUpPane if -Ft= "#{alternate_on}" "send-keys -M" "copy-mode -e"
+    bind-key -T copy-mode WheelUpPane send-keys -X scroll-up
+    bind-key -T copy-mode WheelDownPane send-keys -X scroll-down
+    bind-key -T copy-mode Escape send-keys -X cancel
+    bind-key -T copy-mode q send-keys -X cancel
 
     # Tab title / notifications passthrough
     set -g allow-passthrough on

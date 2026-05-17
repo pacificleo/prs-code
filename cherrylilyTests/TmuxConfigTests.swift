@@ -14,9 +14,20 @@ struct TmuxConfigTests {
     #expect(conf.contains("set -g status off"))
   }
 
-  @Test func disablesMouse() {
+  @Test func enablesMouseForScrollback() {
     let conf = TmuxConfig.generate(scrollbackLimit: 50_000, userShell: "/bin/zsh")
-    #expect(conf.contains("set -g mouse off"))
+    #expect(conf.contains("set -g mouse on"))
+  }
+
+  @Test func reEnablesWheelScrollBindings() {
+    let conf = TmuxConfig.generate(scrollbackLimit: 50_000, userShell: "/bin/zsh")
+    // After `unbind -a`, wheel scroll must be re-bound or the user loses scrollback access.
+    #expect(conf.contains("WheelUpPane"))
+    #expect(conf.contains("WheelDownPane"))
+    #expect(conf.contains("copy-mode -e"))
+    // Escape and q must exit copy-mode (re-bound after the unbind block)
+    #expect(conf.contains("Escape send-keys -X cancel"))
+    #expect(conf.contains("q send-keys -X cancel"))
   }
 
   @Test func unbindsAllPrefixAndRootKeys() {
