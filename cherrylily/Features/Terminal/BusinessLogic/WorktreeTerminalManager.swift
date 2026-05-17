@@ -44,6 +44,11 @@ final class WorktreeTerminalManager {
     }
   }
 
+  /// Cached layout exposed for one-time use during app-launch reconciliation.
+  /// Returns `nil` if `loadLayoutOnLaunch()` hasn't been called yet, or if no layout
+  /// file existed, or if the load failed.
+  var loadedLayout: SessionLayout? { cachedLayout }
+
   func handleCommand(_ command: TerminalClient.Command) {
     if handleTabCommand(command) {
       return

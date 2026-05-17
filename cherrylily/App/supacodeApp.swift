@@ -160,6 +160,11 @@ struct CherryLilyApp: App {
     }
     _terminalManager = State(initialValue: terminalManager)
     terminalManager.loadLayoutOnLaunch()
+    if initialSettings.restoreSessionsOnLaunch, let layout = terminalManager.loadedLayout {
+      Task {
+        await persistence.reconcileOrphans(against: layout)
+      }
+    }
     let worktreeInfoWatcher = WorktreeInfoWatcherManager()
     _worktreeInfoWatcher = State(initialValue: worktreeInfoWatcher)
     let keyObserver = CommandKeyObserver()
