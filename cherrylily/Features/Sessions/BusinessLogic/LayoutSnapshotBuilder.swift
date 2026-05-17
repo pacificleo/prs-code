@@ -17,6 +17,24 @@ nonisolated struct WorktreeTabSnapshot: Sendable {
   let title: String
   let surfaceIDs: [UUID]
   let cwds: [URL?]
+  /// Full split shape for this tab, or nil for a single-pane tab. When non-nil,
+  /// `LayoutSnapshotBuilder` writes it through to `PersistedTab.splitTree` so
+  /// restore can rebuild the layout.
+  let splitTree: PersistedSplitTree?
+
+  init(
+    tabID: UUID,
+    title: String,
+    surfaceIDs: [UUID],
+    cwds: [URL?],
+    splitTree: PersistedSplitTree? = nil
+  ) {
+    self.tabID = tabID
+    self.title = title
+    self.surfaceIDs = surfaceIDs
+    self.cwds = cwds
+    self.splitTree = splitTree
+  }
 }
 
 /// Walks live `WorktreeTerminalState` instances and produces a `SessionLayout` DTO
@@ -41,7 +59,8 @@ enum LayoutSnapshotBuilder {
                 id: SurfaceID(rawValue: surfaceID),
                 cwd: cwd
               )
-            }
+            },
+            splitTree: tab.splitTree
           )
         }
       )

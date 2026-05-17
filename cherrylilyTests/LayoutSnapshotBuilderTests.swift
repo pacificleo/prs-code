@@ -88,6 +88,61 @@ struct LayoutSnapshotBuilderTests {
     #expect(result.worktrees[0].selectedTabID == nil)
     #expect(result.worktrees[0].tabs[0].surfaces[0].cwd == nil)
   }
+
+  @Test func snapshotWritesSplitTreeForHorizontalTwoPaneTab() {
+    let leftUUID = UUID()
+    let rightUUID = UUID()
+    let tabID = UUID()
+    let leftCwd = URL(fileURLWithPath: "/left")
+    let rightCwd = URL(fileURLWithPath: "/right")
+    let splitTree: PersistedSplitTree = .split(
+      direction: .horizontal,
+      ratio: 0.5,
+      left: .leaf(PersistedSurface(id: SurfaceID(rawValue: leftUUID), cwd: leftCwd)),
+      right: .leaf(PersistedSurface(id: SurfaceID(rawValue: rightUUID), cwd: rightCwd))
+    )
+
+    let fake = FakeSnapshottingState(
+      selectedTabID: tabID,
+      tabs: [
+        .init(
+          tabID: tabID,
+          title: "split",
+          surfaceIDs: [leftUUID, rightUUID],
+          cwds: [leftCwd, rightCwd],
+          splitTree: splitTree
+        ),
+      ]
+    )
+
+    let result = LayoutSnapshotBuilder.build(
+      worktreeStates: [("/repo", fake)],
+      now: Date()
+    )
+
+    let tab = result.worktrees[0].tabs[0]
+    #expect(tab.splitTree == splitTree)
+    // Flat surfaces list still reflects both panes for orphan reconciliation.
+    #expect(tab.surfaces.count == 2)
+    #expect(tab.surfaces.map(\.id.rawValue) == [leftUUID, rightUUID])
+  }
+
+  @Test func snapshotSplitTreeIsNilForSinglePaneTab() {
+    let surfaceUUID = UUID()
+    let tabID = UUID()
+
+    let fake = FakeSnapshottingState(
+      selectedTabID: tabID,
+      tabs: [.init(tabID: tabID, title: "solo", surfaceIDs: [surfaceUUID], cwds: [nil])]
+    )
+
+    let result = LayoutSnapshotBuilder.build(
+      worktreeStates: [("/repo", fake)],
+      now: Date()
+    )
+
+    #expect(result.worktrees[0].tabs[0].splitTree == nil)
+  }
 }
 
 @MainActor

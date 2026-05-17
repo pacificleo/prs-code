@@ -155,8 +155,14 @@ final class WorktreeTerminalState {
   }
 
   /// Recreates tabs from a persisted worktree snapshot. Each tab uses its persisted
-  /// title and its first surface's persisted ID and CWD. Multi-surface (split tree)
-  /// restoration is deferred to Phase 6.
+  /// title and its first surface's persisted ID and CWD.
+  ///
+  /// Multi-pane (split tree) restoration is partial: when `persistedTab.splitTree`
+  /// is non-nil, we walk it leftmost-leaf-first and use that leaf as the tab's
+  /// initial surface. Non-leftmost leaves are NOT yet split into the live tree —
+  /// see the split-replay note below. Their persisted SurfaceIDs are still logged
+  /// so we know what we owe the user, and the orphan reconciler will reap their
+  /// scrollback/tmux state on the next save.
   ///
   /// Safe to call only once, immediately after `WorktreeTerminalState` is constructed —
   /// guards on `tabManager.tabs.isEmpty` so re-calls are no-ops.
@@ -168,12 +174,22 @@ final class WorktreeTerminalState {
     var persistedToNewTabID: [UUID: TerminalTabID] = [:]
 
     for persistedTab in persisted.tabs {
-      guard let firstSurface = persistedTab.surfaces.first else { continue }
+      // Prefer the splitTree (Phase 6 source of truth) for the initial surface;
+      // fall back to the flat surfaces list for pre-Phase-6 layout files.
+      let leaves = persistedTab.splitTree.map(Self.leaves(in:))
+      let initialSurface = leaves?.first ?? persistedTab.surfaces.first
+      guard let initialSurface else { continue }
+
       let context: ghostty_surface_context_e =
         tabManager.tabs.isEmpty ? GHOSTTY_SURFACE_CONTEXT_WINDOW : GHOSTTY_SURFACE_CONTEXT_TAB
 
-      // Phase 6 will restore the full split tree (PersistedTab.surfaces[1...]);
-      // Phase 3 restores only the first surface per tab.
+      // Pending split-restore work: replay the rest of the split tree here.
+      // We currently create only the leftmost leaf; the other leaves carry
+      // persisted SurfaceIDs that reference live tmux sessions we never re-attach.
+      // Doing this right needs a variant of `performSplitAction` that accepts a
+      // pre-allocated SurfaceID for the new pane (so tmux session names line up),
+      // plus a tree walker that issues splits in the correct order with each
+      // Split's ratio.
       let newTabID = createTab(
         TabCreation(
           title: persistedTab.title,
@@ -181,8 +197,8 @@ final class WorktreeTerminalState {
           isTitleLocked: false,
           initialInput: nil,
           command: nil,
-          surfaceID: firstSurface.id,
-          cwd: firstSurface.cwd,
+          surfaceID: initialSurface.id,
+          cwd: initialSurface.cwd,
           // Each restored tab must focus its own surface so `focusedSurfaceIdByTab`
           // is populated — otherwise activating the worktree later shows no surface.
           // Tab selection is overridden below with the persisted selectedTabID.
@@ -193,6 +209,14 @@ final class WorktreeTerminalState {
       )
       if let newTabID {
         persistedToNewTabID[persistedTab.id] = newTabID
+        if let leaves, leaves.count > 1 {
+          let unrestored = leaves.dropFirst().map { $0.id.tmuxSessionName }.joined(separator: ", ")
+          let remaining = leaves.count - 1
+          SupaLogger("Sessions").info(
+            "Restored leftmost pane of tab \(persistedTab.title); "
+              + "\(remaining) split pane(s) not yet replayed: \(unrestored)"
+          )
+        }
       }
     }
 
@@ -200,6 +224,17 @@ final class WorktreeTerminalState {
       let target = persistedToNewTabID[selectedTabID]
     {
       tabManager.selectTab(target)
+    }
+  }
+
+  /// Depth-first, left-first walk that returns every persisted leaf in the tree
+  /// in the order a future split-replay would create them.
+  private static func leaves(in tree: PersistedSplitTree) -> [PersistedSurface] {
+    switch tree {
+    case .leaf(let surface):
+      return [surface]
+    case .split(_, _, let left, let right):
+      return leaves(in: left) + leaves(in: right)
     }
   }
 
@@ -1263,14 +1298,34 @@ extension WorktreeTerminalState: WorktreeStateSnapshotting {
     WorktreeStateSnapshot(
       selectedTabID: tabManager.selectedTabId?.rawValue,
       tabs: tabManager.tabs.map { tab in
-        let views = trees[tab.id]?.leaves() ?? []
+        let tree = trees[tab.id]
+        let views = tree?.leaves() ?? []
         return WorktreeTabSnapshot(
           tabID: tab.id.rawValue,
           title: tab.title,
           surfaceIDs: views.map(\.id),
-          cwds: views.map { $0.bridge.state.pwd.map { URL(fileURLWithPath: $0) } }
+          cwds: views.map { $0.bridge.state.pwd.map { URL(fileURLWithPath: $0) } },
+          splitTree: tree?.root.flatMap { Self.persistedTree(from: $0) }
         )
       }
     )
+  }
+
+  /// Recursively converts a runtime `SplitTree.Node` into the persistable
+  /// `PersistedSplitTree`. Each leaf carries its surface's stable `SurfaceID`
+  /// and current working directory so restore can rebuild the exact layout.
+  private static func persistedTree(from node: SplitTree<GhosttySurfaceView>.Node) -> PersistedSplitTree {
+    switch node {
+    case .leaf(let view):
+      let cwd = view.bridge.state.pwd.map { URL(fileURLWithPath: $0) }
+      return .leaf(PersistedSurface(id: SurfaceID(rawValue: view.id), cwd: cwd))
+    case .split(let split):
+      return .split(
+        direction: split.direction == .horizontal ? .horizontal : .vertical,
+        ratio: split.ratio,
+        left: persistedTree(from: split.left),
+        right: persistedTree(from: split.right)
+      )
+    }
   }
 }
