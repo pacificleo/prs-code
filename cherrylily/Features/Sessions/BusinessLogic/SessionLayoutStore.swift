@@ -12,6 +12,11 @@ nonisolated struct SessionLayoutStore: Sendable {
   /// - the file doesn't exist (first launch, or file was deleted)
   /// - the file's JSON is malformed (truncated/corrupt — logged, treated as fresh start)
   ///
+  /// When the file is malformed, it is renamed to `layout.json.corrupt-<timestamp>`
+  /// so the next save can write a fresh `layout.json` and we keep the bad bytes for
+  /// post-mortem inspection. Without the rename, the next save would silently
+  /// overwrite the only evidence we had of what went wrong.
+  ///
   /// Real I/O errors (permissions, disk failure) propagate so the caller can surface them.
   func load() throws -> SessionLayout? {
     let url = paths.layoutFile
@@ -22,7 +27,18 @@ nonisolated struct SessionLayoutStore: Sendable {
     do {
       return try decoder.decode(SessionLayout.self, from: data)
     } catch {
-      layoutLogger.warning("layout.json failed to decode, treating as empty: \(error)")
+      let timestamp = Int(Date().timeIntervalSince1970)
+      let backup = url.appendingPathExtension("corrupt-\(timestamp)")
+      do {
+        try FileManager.default.moveItem(at: url, to: backup)
+        layoutLogger.warning(
+          "layout.json failed to decode, moved aside to \(backup.lastPathComponent): \(error)"
+        )
+      } catch {
+        layoutLogger.warning(
+          "layout.json failed to decode and could not be moved aside (\(error)); treating as empty"
+        )
+      }
       return nil
     }
   }

@@ -136,38 +136,51 @@ final class SessionPersistence: Sendable {
   /// Runs orphan reconciliation: kills tmux sessions whose IDs aren't in the layout,
   /// deletes scrollback files whose IDs aren't in the layout.
   /// Errors are logged, not thrown — best-effort cleanup.
+  ///
+  /// The two lookups (live tmux sessions, stored scrollback IDs) are independent;
+  /// a failure in one must NOT skip the other. Previously both lived in the same
+  /// `do` block, so a transient tmux exec failure would also suppress orphan
+  /// scrollback cleanup (and vice versa) for the entire run.
   func reconcileOrphans(against layout: SessionLayout) async {
+    let live: [String]
     do {
-      let live = try await tmuxClient.listSessionNames()
-      let stored = try scrollbackStore.storedSurfaceIDs()
-
-      let plan = OrphanReconciler.reconcile(
-        expectedSurfaceIDs: layout.allSurfaceIDs,
-        liveTmuxSessionNames: live,
-        storedScrollbackIDs: stored
-      )
-
-      for sessionName in plan.sessionsToKill {
-        do {
-          try await tmuxClient.killSession(named: sessionName)
-        } catch {
-          sessionPersistenceLogger.warning(
-            "orphan session kill failed \(sessionName): \(error)"
-          )
-        }
-      }
-
-      for surfaceID in plan.scrollbackFilesToDelete {
-        do {
-          try scrollbackStore.delete(for: surfaceID)
-        } catch {
-          sessionPersistenceLogger.warning(
-            "orphan scrollback delete failed \(surfaceID.tmuxSessionName): \(error)"
-          )
-        }
-      }
+      live = try await tmuxClient.listSessionNames()
     } catch {
-      sessionPersistenceLogger.warning("orphan reconcile failed: \(error)")
+      sessionPersistenceLogger.warning("listSessionNames failed: \(error)")
+      live = []
+    }
+    let stored: [SurfaceID]
+    do {
+      stored = try scrollbackStore.storedSurfaceIDs()
+    } catch {
+      sessionPersistenceLogger.warning("storedSurfaceIDs failed: \(error)")
+      stored = []
+    }
+
+    let plan = OrphanReconciler.reconcile(
+      expectedSurfaceIDs: layout.allSurfaceIDs,
+      liveTmuxSessionNames: live,
+      storedScrollbackIDs: stored
+    )
+
+    for sessionName in plan.sessionsToKill {
+      do {
+        try await tmuxClient.killSession(named: sessionName)
+      } catch {
+        sessionPersistenceLogger.warning(
+          "orphan session kill failed \(sessionName): \(error)"
+        )
+      }
+    }
+
+    for surfaceID in plan.scrollbackFilesToDelete {
+      do {
+        try scrollbackStore.delete(for: surfaceID)
+      } catch {
+        sessionPersistenceLogger.warning(
+          "orphan scrollback delete failed \(surfaceID.tmuxSessionName): \(error)"
+        )
+      }
     }
   }
 }
