@@ -13,7 +13,8 @@ struct HourlyAutosaveTimerTests {
   ) -> (HourlyAutosaveTimer, SessionPaths) {
     let paths = SessionPaths(
       root: URL(fileURLWithPath: NSTemporaryDirectory())
-        .appending(path: "cl-autosave-test-\(UUID().uuidString)")
+        .appending(path: "cl-autosave-test-\(UUID().uuidString)"),
+      tmuxSocketName: "cl-test-\(UUID().uuidString.prefix(8).lowercased())"
     )
     let persistence = SessionPersistence(paths: paths)
     let wrappedSnapshot: @MainActor () -> SessionLayout? = {

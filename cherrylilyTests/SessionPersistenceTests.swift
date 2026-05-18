@@ -8,7 +8,8 @@ struct SessionPersistenceTests {
   private static func makePaths() -> SessionPaths {
     SessionPaths(
       root: URL(fileURLWithPath: NSTemporaryDirectory())
-        .appending(path: "cl-persistence-test-\(UUID().uuidString)")
+        .appending(path: "cl-persistence-test-\(UUID().uuidString)"),
+      tmuxSocketName: "cl-test-\(UUID().uuidString.prefix(8).lowercased())"
     )
   }
 
@@ -89,8 +90,13 @@ struct SessionPersistenceTests {
     // TmuxClient.killSession. We're verifying the convenience wrapper plumbs
     // through to that tolerated path.
     let paths = Self.makePaths()
-    defer { try? FileManager.default.removeItem(at: paths.root) }
     let persistence = SessionPersistence(paths: paths)
+    defer {
+      // Tear down any tmux server this test may have spawned on the isolated
+      // socket so processes don't leak between runs.
+      try? persistence.killTmuxServer()
+      try? FileManager.default.removeItem(at: paths.root)
+    }
     let id = SurfaceID()
     try await persistence.killSession(for: id)
   }

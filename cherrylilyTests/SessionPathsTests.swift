@@ -29,6 +29,18 @@ struct SessionPathsTests {
     #expect(paths.tmuxSocketName == "cherrylily")
   }
 
+  @Test func tmuxSocketNameCanBeOverriddenForTests() {
+    // Production binds to a single "cherrylily" socket so a relaunch reattaches
+    // to the same sessions. Tests override with a unique per-test name so they
+    // can safely killServer() in teardown without touching the user's running
+    // CherryLily socket.
+    let paths = SessionPaths(
+      root: URL(fileURLWithPath: "/tmp/cl-test"),
+      tmuxSocketName: "cl-test-abc123"
+    )
+    #expect(paths.tmuxSocketName == "cl-test-abc123")
+  }
+
   @Test func ensureDirectoriesExistCreatesRootAndSessionsAndIsIdempotent() throws {
     let root = FileManager.default.temporaryDirectory.appending(path: "cl-paths-test-\(UUID().uuidString)")
     defer { try? FileManager.default.removeItem(at: root) }

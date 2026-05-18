@@ -208,4 +208,12 @@ final class SessionPersistence: Sendable {
   func deleteScrollback(for surfaceID: SurfaceID) throws {
     try scrollbackStore.delete(for: surfaceID)
   }
+
+  /// Test-only escape hatch: tears down any tmux server bound to the configured
+  /// socket. Production code never needs to do this — the server outlives the app
+  /// intentionally so reattach works after a relaunch. Used in test teardown to
+  /// guarantee per-test socket isolation doesn't leak processes between runs.
+  func killTmuxServer() throws {
+    try tmuxClient.killServer()
+  }
 }
