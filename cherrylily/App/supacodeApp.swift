@@ -38,6 +38,11 @@ final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
   var healthMonitor: TmuxHealthMonitor?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
+    // Single-instance guard. Runs BEFORE we touch the tmux socket or build the
+    // terminal manager — if a second copy of CherryLily launches while one is
+    // already running, this brings the first instance to the front and calls
+    // NSApp.terminate(nil), which does not return.
+    InstanceLock.acquireOrTerminate()
     // Disable press-and-hold accent menu so that key repeat works in the terminal.
     UserDefaults.standard.register(defaults: [
       "ApplePressAndHoldEnabled": false,
