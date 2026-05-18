@@ -788,12 +788,9 @@ struct AppFeature {
         return .merge(effects)
 
       case .terminalEvent(.notificationIndicatorChanged(let count)):
+        guard state.notificationIndicatorCount != count else { return .none }
         state.notificationIndicatorCount = count
-        return .run { _ in
-          await MainActor.run {
-            NSApplication.shared.dockTile.badgeLabel = nil
-          }
-        }
+        return .none
 
       case .terminalEvent(.runScriptStatusChanged(let worktreeID, let isRunning)):
         if isRunning {

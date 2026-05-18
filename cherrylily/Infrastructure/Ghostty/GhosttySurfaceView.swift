@@ -13,34 +13,23 @@ final class GhosttySurfaceView: NSView, Identifiable {
 
   private final class CachedValue<T> {
     private var value: T?
+    private var fetchedAt: ContinuousClock.Instant?
     private let fetch: () -> T
     private let duration: Duration
-    private var expiryTask: Task<Void, Never>?
 
     init(duration: Duration, fetch: @escaping () -> T) {
       self.duration = duration
       self.fetch = fetch
     }
 
-    deinit {
-      expiryTask?.cancel()
-    }
-
     func get() -> T {
-      if let value {
+      let now = ContinuousClock.now
+      if let value, let fetchedAt, now - fetchedAt < duration {
         return value
       }
-
       let fetched = fetch()
       value = fetched
-      expiryTask?.cancel()
-      expiryTask = Task { [weak self] in
-        guard let self else { return }
-        try? await ContinuousClock().sleep(for: self.duration)
-        guard !Task.isCancelled else { return }
-        self.value = nil
-        self.expiryTask = nil
-      }
+      fetchedAt = now
       return fetched
     }
   }
@@ -66,7 +55,6 @@ final class GhosttySurfaceView: NSView, Identifiable {
   private var lastScrollbar: ScrollbarState?
   private var lastOcclusion: Bool?
   private var lastSurfaceFocus: Bool?
-  private var eventMonitor: Any?
   private var notificationObservers: [NSObjectProtocol] = []
   private var prevPressureStage: Int = 0
   private lazy var cachedScreenContents = CachedValue<String>(duration: .milliseconds(500)) {
@@ -192,10 +180,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
     }
     registerForDraggedTypes(Array(Self.dropTypes))
 
-    eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyUp, .leftMouseDown]) {
-      [weak self] event in
-      self?.localEventHandler(event)
-    }
+    Self.registerSurfaceView(self)
   }
 
   required init?(coder: NSCoder) {
@@ -203,9 +188,6 @@ final class GhosttySurfaceView: NSView, Identifiable {
   }
 
   isolated deinit {
-    if let eventMonitor {
-      NSEvent.removeMonitor(eventMonitor)
-    }
     clearNotificationObservers()
     let id = ObjectIdentifier(self)
     MainActor.assumeIsolated {
@@ -395,12 +377,18 @@ final class GhosttySurfaceView: NSView, Identifiable {
     guard self.focused != focused else { return }
     self.focused = focused
     if focused {
-      bridge.state.bellCount = 0
+      resetBellCountIfNeeded()
     }
     setSurfaceFocus(focused)
     onFocusChange?(focused)
     if passwordInput {
       SecureInput.shared.setScoped(ObjectIdentifier(self), focused: focused)
+    }
+  }
+
+  private func resetBellCountIfNeeded() {
+    if bridge.state.bellCount != 0 {
+      bridge.state.bellCount = 0
     }
   }
 
@@ -541,7 +529,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
       interpretKeyEvents([event])
       return
     }
-    bridge.state.bellCount = 0
+    resetBellCountIfNeeded()
     let (translationEvent, translationMods) = translationState(event, surface: surface)
     let action = event.isARepeat ? GHOSTTY_ACTION_REPEAT : GHOSTTY_ACTION_PRESS
     keyTextAccumulator = []
@@ -749,31 +737,58 @@ final class GhosttySurfaceView: NSView, Identifiable {
     showDefinition(for: str, at: point)
   }
 
-  private func localEventHandler(_ event: NSEvent) -> NSEvent? {
-    switch event.type {
-    case .keyUp:
-      localEventKeyUp(event)
-    case .leftMouseDown:
-      localEventLeftMouseDown(event)
-    default:
-      event
+  // MARK: - Shared app-level event monitor
+  //
+  // Previously each GhosttySurfaceView installed its own NSEvent.addLocalMonitorForEvents
+  // for .keyUp and .leftMouseDown, meaning N surfaces caused every keystroke / mouse-down
+  // to fire N closures. We register a single app-level monitor and walk a weak registry
+  // of live surfaces to dispatch the event. Per-surface logic (focused-check, hit-test) is
+  // preserved verbatim.
+
+  private static let surfaceRegistry: NSHashTable<GhosttySurfaceView> = .weakObjects()
+  private static var sharedEventMonitor: Any?
+
+  private static func registerSurfaceView(_ view: GhosttySurfaceView) {
+    surfaceRegistry.add(view)
+    if sharedEventMonitor == nil {
+      sharedEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyUp, .leftMouseDown]) {
+        event in
+        Self.dispatchSharedEvent(event)
+      }
     }
   }
 
-  private func localEventKeyUp(_ event: NSEvent) -> NSEvent? {
-    if !event.modifierFlags.contains(.command) { return event }
-    guard focused else { return event }
-    keyUp(with: event)
-    return nil
+  private static func dispatchSharedEvent(_ event: NSEvent) -> NSEvent? {
+    switch event.type {
+    case .keyUp:
+      return dispatchSharedKeyUp(event)
+    case .leftMouseDown:
+      return dispatchSharedLeftMouseDown(event)
+    default:
+      return event
+    }
   }
 
-  private func localEventLeftMouseDown(_ event: NSEvent) -> NSEvent? {
-    guard let window, event.window != nil, window == event.window else { return event }
-    let location = convert(event.locationInWindow, from: nil)
-    guard hitTest(location) == self else { return event }
+  private static func dispatchSharedKeyUp(_ event: NSEvent) -> NSEvent? {
+    if !event.modifierFlags.contains(.command) { return event }
+    for view in surfaceRegistry.allObjects where view.focused {
+      view.keyUp(with: event)
+      return nil
+    }
+    return event
+  }
+
+  private static func dispatchSharedLeftMouseDown(_ event: NSEvent) -> NSEvent? {
+    guard let window = event.window else { return event }
     guard !NSApp.isActive || !window.isKeyWindow else { return event }
-    guard !focused else { return event }
-    window.makeFirstResponder(self)
+    for view in surfaceRegistry.allObjects
+    where view.window === window && !view.focused {
+      let location = view.convert(event.locationInWindow, from: nil)
+      if view.hitTest(location) === view {
+        window.makeFirstResponder(view)
+        break
+      }
+    }
     return event
   }
 

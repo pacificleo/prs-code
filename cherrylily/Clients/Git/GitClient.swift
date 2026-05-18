@@ -1,5 +1,13 @@
 import Foundation
 
+/// Background queue used to serialize `FileManager.removeItem` calls when tearing
+/// down worktrees. Bulk-deleting fans out unbounded `Task.detached` otherwise,
+/// which can starve I/O for live terminals running in parallel.
+private nonisolated let worktreeCleanupQueue = DispatchQueue(
+  label: "app.supabit.cherrylily.git.worktreeCleanup",
+  qos: .utility
+)
+
 enum GitOperation: String {
   case repoRoot = "repo_root"
   case worktreeList = "worktree_list"
@@ -508,7 +516,7 @@ struct GitClient {
           )
         }
       }
-      Task.detached {
+      worktreeCleanupQueue.async {
         try? FileManager.default.removeItem(at: relocatedURL)
       }
       return worktree.workingDirectory

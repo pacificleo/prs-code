@@ -10,6 +10,8 @@ private let blockingScriptLogger = SupaLogger("BlockingScript")
 @MainActor
 @Observable
 final class WorktreeTerminalState {
+  static let maxNotificationsRetained = 200
+
   struct SurfaceActivity: Equatable {
     let isVisible: Bool
     let isFocused: Bool
@@ -23,6 +25,7 @@ final class WorktreeTerminalState {
   @SharedReader private var repositorySettings: RepositorySettings
   private var trees: [TerminalTabID: SplitTree<GhosttySurfaceView>] = [:]
   private var surfaces: [UUID: GhosttySurfaceView] = [:]
+  private var surfaceIdToTabId: [UUID: TerminalTabID] = [:]
   private var focusedSurfaceIdByTab: [TerminalTabID: UUID] = [:]
   var tabIsRunningById: [TerminalTabID: Bool] = [:]
   private var runScriptTabId: TerminalTabID?
@@ -584,6 +587,7 @@ final class WorktreeTerminalState {
       } catch {
         newSurface.closeSurface()
         surfaces.removeValue(forKey: newSurface.id)
+        surfaceIdToTabId.removeValue(forKey: newSurface.id)
         return false
       }
 
@@ -677,6 +681,7 @@ final class WorktreeTerminalState {
       surface.closeSurface()
     }
     surfaces.removeAll()
+    surfaceIdToTabId.removeAll()
     trees.removeAll()
     focusedSurfaceIdByTab.removeAll()
     tabIsRunningById.removeAll()
@@ -928,6 +933,7 @@ final class WorktreeTerminalState {
       self.emitTaskStatusIfChanged()
     }
     surfaces[view.id] = view
+    surfaceIdToTabId[view.id] = tabId
     return view
   }
 
@@ -1070,6 +1076,9 @@ final class WorktreeTerminalState {
         ),
         at: 0
       )
+      if notifications.count > Self.maxNotificationsRetained {
+        notifications.removeLast(notifications.count - Self.maxNotificationsRetained)
+      }
       emitNotificationIndicatorIfNeeded(previousHasUnseen: previousHasUnseen)
     }
     onNotificationReceived?(trimmedTitle, trimmedBody)
@@ -1080,16 +1089,14 @@ final class WorktreeTerminalState {
     for surface in tree.leaves() {
       surface.closeSurface()
       surfaces.removeValue(forKey: surface.id)
+      surfaceIdToTabId.removeValue(forKey: surface.id)
     }
     focusedSurfaceIdByTab.removeValue(forKey: tabId)
     tabIsRunningById.removeValue(forKey: tabId)
   }
 
   private func tabId(containing surfaceId: UUID) -> TerminalTabID? {
-    for (tabId, tree) in trees where tree.find(id: surfaceId) != nil {
-      return tabId
-    }
-    return nil
+    surfaceIdToTabId[surfaceId]
   }
 
   private func isFocusedSurface(_ surfaceId: UUID) -> Bool {
@@ -1104,6 +1111,7 @@ final class WorktreeTerminalState {
     let isRunningNow = tree.leaves().contains { surface in
       isRunningProgressState(surface.bridge.state.progressState)
     }
+    guard tabIsRunningById[tabId] != isRunningNow else { return }
     tabIsRunningById[tabId] = isRunningNow
     tabManager.updateDirty(tabId, isDirty: isRunningNow)
     emitTaskStatusIfChanged()
@@ -1205,11 +1213,13 @@ final class WorktreeTerminalState {
     guard let tabId = tabId(containing: view.id), let tree = trees[tabId] else {
       view.closeSurface()
       surfaces.removeValue(forKey: view.id)
+      surfaceIdToTabId.removeValue(forKey: view.id)
       return
     }
     guard let node = tree.find(id: view.id) else {
       view.closeSurface()
       surfaces.removeValue(forKey: view.id)
+      surfaceIdToTabId.removeValue(forKey: view.id)
       return
     }
     let nextSurface =
@@ -1219,6 +1229,7 @@ final class WorktreeTerminalState {
     let newTree = tree.removing(node)
     view.closeSurface()
     surfaces.removeValue(forKey: view.id)
+    surfaceIdToTabId.removeValue(forKey: view.id)
     if newTree.isEmpty {
       trees.removeValue(forKey: tabId)
       focusedSurfaceIdByTab.removeValue(forKey: tabId)
