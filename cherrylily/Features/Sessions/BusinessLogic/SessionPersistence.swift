@@ -193,4 +193,19 @@ final class SessionPersistence: Sendable {
       }
     }
   }
+
+  /// Kills the tmux session for a single surface. Convenience wrapper used at the
+  /// tab-close site so callers don't need to know the session-naming convention or
+  /// hold a reference to `TmuxClient`. Tolerates "session not found" — see
+  /// `TmuxClient.killSession`.
+  func killSession(for surfaceID: SurfaceID) async throws {
+    try await tmuxClient.killSession(named: surfaceID.tmuxSessionName)
+  }
+
+  /// Deletes the persisted scrollback file for a single surface. No-op if missing.
+  /// Convenience wrapper for callers that want surface-level cleanup without
+  /// reaching into `ScrollbackStore` directly.
+  func deleteScrollback(for surfaceID: SurfaceID) throws {
+    try scrollbackStore.delete(for: surfaceID)
+  }
 }

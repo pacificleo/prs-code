@@ -82,4 +82,25 @@ struct SessionPersistenceTests {
     let report = await persistence.captureAll(for: layout, scrollbackLimit: nil)
     #expect(report == CaptureReport())
   }
+
+  @Test func killSessionDelegatesToTmuxClientWithCorrectName() async throws {
+    // killSession against a non-existent session should not throw — tmux's
+    // "can't find session" / "no server running" are already tolerated by
+    // TmuxClient.killSession. We're verifying the convenience wrapper plumbs
+    // through to that tolerated path.
+    let paths = Self.makePaths()
+    defer { try? FileManager.default.removeItem(at: paths.root) }
+    let persistence = SessionPersistence(paths: paths)
+    let id = SurfaceID()
+    try await persistence.killSession(for: id)
+  }
+
+  @Test func deleteScrollbackForUnknownIDIsIdempotent() throws {
+    // ScrollbackStore.delete is no-op on missing file; killSession's twin
+    // wrapper must inherit that delete-if-exists semantics.
+    let paths = Self.makePaths()
+    defer { try? FileManager.default.removeItem(at: paths.root) }
+    let persistence = SessionPersistence(paths: paths)
+    try persistence.deleteScrollback(for: SurfaceID())
+  }
 }

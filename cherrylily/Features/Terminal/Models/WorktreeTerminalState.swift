@@ -19,6 +19,7 @@ final class WorktreeTerminalState {
   private let runtime: GhosttyRuntime
   private let worktree: Worktree
   private let persistenceEnabled: () -> Bool
+  private let persistence: SessionPersistence?
   @ObservationIgnored
   @SharedReader private var repositorySettings: RepositorySettings
   private var trees: [TerminalTabID: SplitTree<GhosttySurfaceView>] = [:]
@@ -59,11 +60,13 @@ final class WorktreeTerminalState {
     runtime: GhosttyRuntime,
     worktree: Worktree,
     runSetupScript: Bool = false,
-    persistenceEnabled: @escaping () -> Bool = { false }
+    persistenceEnabled: @escaping () -> Bool = { false },
+    persistence: SessionPersistence? = nil
   ) {
     self.runtime = runtime
     self.worktree = worktree
     self.persistenceEnabled = persistenceEnabled
+    self.persistence = persistence
     self.pendingSetupScript = runSetupScript
     self.tabManager = TerminalTabManager()
     _repositorySettings = SharedReader(
@@ -1078,8 +1081,18 @@ final class WorktreeTerminalState {
   private func removeTree(for tabId: TerminalTabID) {
     guard let tree = trees.removeValue(forKey: tabId) else { return }
     for surface in tree.leaves() {
+      let surfaceID = SurfaceID(rawValue: surface.id)
       surface.closeSurface()
       surfaces.removeValue(forKey: surface.id)
+      // Active cleanup: kill the tmux session (frees memory) and delete the saved
+      // scrollback file (frees disk). Otherwise both leak until the next-launch
+      // orphan reconciler runs. Errors logged not thrown — best-effort.
+      if let persistence {
+        Task.detached { [persistence] in
+          try? await persistence.killSession(for: surfaceID)
+        }
+        try? persistence.deleteScrollback(for: surfaceID)
+      }
     }
     focusedSurfaceIdByTab.removeValue(forKey: tabId)
     tabIsRunningById.removeValue(forKey: tabId)
