@@ -209,6 +209,18 @@ final class SessionPersistence: Sendable {
     try scrollbackStore.delete(for: surfaceID)
   }
 
+  /// Re-sources the managed `tmux.conf` into a running tmux server so options
+  /// updated by the new app version (mouse, bindings, status, set-titles, etc.)
+  /// take effect on existing live sessions without requiring a server restart.
+  /// No-op if no server is running yet. Errors logged not thrown.
+  func reloadTmuxConfig() async {
+    do {
+      try await tmuxClient.sourceFile(at: paths.tmuxConfigFile)
+    } catch {
+      sessionPersistenceLogger.warning("tmux source-file failed: \(error)")
+    }
+  }
+
   /// Test-only escape hatch: tears down any tmux server bound to the configured
   /// socket. Production code never needs to do this — the server outlives the app
   /// intentionally so reattach works after a relaunch. Used in test teardown to

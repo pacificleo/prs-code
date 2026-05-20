@@ -153,6 +153,25 @@ nonisolated struct TmuxClient: Sendable {
     }
   }
 
+  /// Re-sources the given tmux.conf into a running server so server-wide options
+  /// (mouse, bindings, status, set-titles, etc.) take effect live. No-op if the
+  /// server isn't running yet — the next `new-session` will read the file fresh.
+  /// Tolerates "no server running" / "error connecting" so it's safe to call
+  /// unconditionally at app launch right after `TmuxConfigWriter.writeIfChanged`.
+  ///
+  /// Note: window-scope options baked at window-creation time (e.g. the exact
+  /// `history-limit` value of an existing window) are NOT affected. Only newly
+  /// created windows/sessions see those.
+  func sourceFile(at url: URL) async throws {
+    let result = try await run(["source-file", url.path])
+    if !result.success {
+      if Self.isCleanupTolerated(result.stderr) {
+        return
+      }
+      throw TmuxClientError.commandFailed(stderr: result.stderr, exitCode: result.exitCode)
+    }
+  }
+
   /// Cheap health check — returns true when the tmux server responds to `ls`,
   /// including the "no server running" case (which we treat as "alive-for-our-purposes"
   /// because we lazily start the server on first `new-session`). Returns false only

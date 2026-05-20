@@ -331,6 +331,16 @@ struct CherryLilyApp: App {
     } catch {
       SupaLogger("Sessions").warning("Failed to write tmux.conf at launch: \(error)")
     }
+
+    // Propagate the (possibly updated) config to any tmux server that survived
+    // from a previous app version. No-op when no server is running — the next
+    // `new-session` call will read the file fresh anyway. Detached so it doesn't
+    // block app startup. Window-scope options on already-created windows
+    // (e.g. their exact `history-limit`) are not affected — only new windows
+    // see those.
+    Task.detached { [persistence] in
+      await persistence.reloadTmuxConfig()
+    }
   }
 
   private static func showAboutPanel() {
