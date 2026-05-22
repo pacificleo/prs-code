@@ -1,7 +1,7 @@
 import Foundation
 
 enum GitWorktreeHeadResolver {
-  static func headURL(for worktreeURL: URL, fileManager: FileManager) -> URL? {
+  nonisolated static func headURL(for worktreeURL: URL, fileManager: FileManager) -> URL? {
     let gitURL = worktreeURL.appending(path: ".git")
     var isDirectory = ObjCBool(false)
     guard

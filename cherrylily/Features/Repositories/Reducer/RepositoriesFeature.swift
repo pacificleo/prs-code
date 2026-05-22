@@ -14,6 +14,9 @@ private enum CancelID {
   static func delayedPRRefresh(_ worktreeID: Worktree.ID) -> String {
     "repositories.delayedPRRefresh.\(worktreeID)"
   }
+  static func lineChanges(_ worktreeID: Worktree.ID) -> String {
+    "repositories.lineChanges.\(worktreeID)"
+  }
 }
 
 private nonisolated let repositoriesLogger = SupaLogger("Repositories")
@@ -2017,6 +2020,7 @@ struct RepositoriesFeature {
               )
             }
           }
+          .cancellable(id: CancelID.lineChanges(worktreeID), cancelInFlight: true)
         case .repositoryPullRequestRefresh(let repositoryRootURL, let worktreeIDs):
           let worktrees = worktreeIDs.compactMap { state.worktree(for: $0) }
           guard let firstWorktree = worktrees.first,

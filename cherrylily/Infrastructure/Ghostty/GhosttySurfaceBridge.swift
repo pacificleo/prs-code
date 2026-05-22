@@ -24,6 +24,7 @@ final class GhosttySurfaceBridge {
   var onDesktopNotification: ((String, String) -> Void)?
   var onBellRang: (() -> Void)?
   private var progressResetTask: Task<Void, Never>?
+  private var progressResetDeadline: ContinuousClock.Instant?
 
   deinit {
     progressResetTask?.cancel()
@@ -172,6 +173,7 @@ final class GhosttySurfaceBridge {
     switch action.tag {
     case GHOSTTY_ACTION_SET_TITLE:
       if let title = string(from: action.action.set_title.title) {
+        guard state.title != title else { return true }
         state.title = title
         onTitleChange?(title)
         if let surfaceView {
@@ -185,7 +187,9 @@ final class GhosttySurfaceBridge {
       return true
 
     case GHOSTTY_ACTION_PWD:
-      state.pwd = string(from: action.action.pwd.pwd)
+      let newPwd = string(from: action.action.pwd.pwd)
+      guard state.pwd != newPwd else { return true }
+      state.pwd = newPwd
       if let surfaceView {
         NSAccessibility.post(element: surfaceView, notification: .valueChanged)
         // VoiceOver does not reliably re-read the label on `.valueChanged` alone.
@@ -214,20 +218,38 @@ final class GhosttySurfaceBridge {
     switch action.tag {
     case GHOSTTY_ACTION_PROGRESS_REPORT:
       let report = action.action.progress_report
-      progressResetTask?.cancel()
       state.progressValue = report.progress == -1 ? nil : Int(report.progress)
       if report.state == GHOSTTY_PROGRESS_STATE_REMOVE {
         state.progressState = nil
         state.progressValue = nil
+        progressResetDeadline = nil
+        progressResetTask?.cancel()
         progressResetTask = nil
       } else {
         state.progressState = report.state
-        progressResetTask = Task { @MainActor [weak self] in
-          try? await ContinuousClock().sleep(for: .seconds(15))
-          guard let self, !Task.isCancelled else { return }
-          self.state.progressState = nil
-          self.state.progressValue = nil
-          self.onProgressReport?(GHOSTTY_PROGRESS_STATE_REMOVE)
+        // Push the auto-clear deadline forward. A single long-lived task watches
+        // the deadline, so bursts of progress reports cost an O(1) date write
+        // instead of allocating and cancelling a fresh `Task` per report.
+        progressResetDeadline = ContinuousClock.now.advanced(by: .seconds(15))
+        if progressResetTask == nil {
+          progressResetTask = Task { @MainActor [weak self] in
+            while let self {
+              guard let deadline = self.progressResetDeadline else {
+                self.progressResetTask = nil
+                return
+              }
+              if Task.isCancelled { return }
+              if ContinuousClock.now >= deadline {
+                self.state.progressState = nil
+                self.state.progressValue = nil
+                self.progressResetDeadline = nil
+                self.progressResetTask = nil
+                self.onProgressReport?(GHOSTTY_PROGRESS_STATE_REMOVE)
+                return
+              }
+              try? await ContinuousClock().sleep(until: deadline)
+            }
+          }
         }
       }
       onProgressReport?(report.state)

@@ -168,6 +168,14 @@ nonisolated private func runProcessStream(
   currentDirectoryURL: URL?
 ) -> AsyncThrowingStream<ShellStreamEvent, Error> {
   AsyncThrowingStream { continuation in
+    let processBox = LockIsolated<Process?>(nil)
+    continuation.onTermination = { _ in
+      processBox.withValue { proc in
+        if let proc, proc.isRunning {
+          proc.terminate()
+        }
+      }
+    }
     Task.detached {
       let outputAccumulator = ShellOutputAccumulator()
       let process = Process()
@@ -182,6 +190,7 @@ nonisolated private func runProcessStream(
       let outputHandle = outputPipe.fileHandleForReading
       let errorHandle = errorPipe.fileHandleForReading
       let command = ([executableURL.path(percentEncoded: false)] + arguments).joined(separator: " ")
+      processBox.setValue(process)
       do {
         try process.run()
         let stdoutTask = Task.detached {
