@@ -42,7 +42,14 @@ final class CherryLilyAppDelegate: NSObject, NSApplicationDelegate {
     // terminal manager — if a second copy of CherryLily launches while one is
     // already running, this brings the first instance to the front and calls
     // NSApp.terminate(nil), which does not return.
-    InstanceLock.acquireOrTerminate()
+    //
+    // Skip under XCTest: the test runner hosts itself inside the app binary, so
+    // this fires during test bootstrap. Without the skip the test process loses
+    // the lock race against the user's live Release build and terminates itself
+    // before XCTest can connect.
+    if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+      InstanceLock.acquireOrTerminate()
+    }
     // Disable press-and-hold accent menu so that key repeat works in the terminal.
     UserDefaults.standard.register(defaults: [
       "ApplePressAndHoldEnabled": false,
@@ -229,24 +236,32 @@ struct CherryLilyApp: App {
     _ghostty = State(initialValue: runtime)
     let shortcuts = GhosttyShortcutManager(runtime: runtime)
     _ghosttyShortcuts = State(initialValue: shortcuts)
-    let persistence = SessionPersistence(paths: SessionPaths())
+    // Under XCTest, the test runner hosts itself inside this app binary. If we
+    // touch the production tmux socket here, reconcileOrphans below will treat
+    // the user's live `cl_*` sessions as orphans (the test-hosted state never
+    // matches reality) and kill them. Same env-var sentinel as InstanceLock.
+    let isUnderTest = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    let persistence: SessionPersistence? = isUnderTest ? nil : SessionPersistence(paths: SessionPaths())
     let terminalManager = WorktreeTerminalManager(
       runtime: runtime,
       persistenceEnabled: {
+        if isUnderTest { return false }
         @Shared(.settingsFile) var settingsFile
         return settingsFile.global.restoreSessionsOnLaunch
       },
       persistence: persistence,
     )
-    if initialSettings.restoreSessionsOnLaunch {
+    if !isUnderTest, initialSettings.restoreSessionsOnLaunch, let persistence {
       Self.bootstrapSessionPersistence(
         persistence: persistence,
         scrollbackLimit: initialSettings.sessionScrollbackLimit
       )
     }
     _terminalManager = State(initialValue: terminalManager)
-    terminalManager.loadLayoutOnLaunch()
-    if initialSettings.restoreSessionsOnLaunch {
+    if !isUnderTest {
+      terminalManager.loadLayoutOnLaunch()
+    }
+    if !isUnderTest, initialSettings.restoreSessionsOnLaunch, let persistence {
       // Always reconcile when restore is enabled — an empty/missing layout means
       // every live `cl_<uuid>` session on the socket is by definition an orphan
       // (nothing expects them anymore). Skipping reconciliation would leak those

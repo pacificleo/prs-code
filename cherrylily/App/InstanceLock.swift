@@ -30,6 +30,12 @@ enum InstanceLock {
   ///
   /// Returns normally for the first instance. Calls `NSApp.terminate(nil)` and
   /// does not return for any subsequent instance.
+  ///
+  /// Callers must skip this under XCTest — the test runner hosts itself inside
+  /// the app, so calling here during test bootstrap will fight the user's
+  /// running Release build for the lock and call `NSApp.terminate` on the test
+  /// process. See `CherryLilyAppDelegate.applicationDidFinishLaunching` for the
+  /// production call site and its XCTest guard.
   @MainActor
   static func acquireOrTerminate(paths: SessionPaths = SessionPaths()) {
     let url = paths.root.appending(path: ".instance.lock")
