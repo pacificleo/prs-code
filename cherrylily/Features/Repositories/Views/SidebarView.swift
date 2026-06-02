@@ -25,6 +25,7 @@ struct SidebarView: View {
 
     return SidebarListView(
       store: store,
+      hotkeyRows: visibleHotkeyRows,
       expandedRepoIDs: expandedRepoIDsBinding,
       sidebarSelections: $sidebarSelections,
       terminalManager: terminalManager
