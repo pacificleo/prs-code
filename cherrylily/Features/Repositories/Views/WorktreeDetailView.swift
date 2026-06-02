@@ -33,10 +33,6 @@ struct WorktreeDetailView: View {
     let openActionSelection = state.openActionSelection
     let runScriptEnabled = hasActiveWorktree
     let runScriptIsRunning = selectedWorktree.flatMap { state.runScriptStatusByWorktreeID[$0.id] } == true
-    let notificationGroups = repositories.toolbarNotificationGroups(terminalManager: terminalManager)
-    let unseenNotificationWorktreeCount = notificationGroups.reduce(0) { count, repository in
-      count + repository.unseenWorktreeCount
-    }
     let content = detailContent(
       repositories: repositories,
       loadingInfo: loadingInfo,
@@ -46,6 +42,15 @@ struct WorktreeDetailView: View {
     .toolbar(removing: .title)
     .toolbar {
       if hasActiveWorktree, let selectedWorktree {
+        // Computed inside the active-worktree branch so the (O(N)) terminalManager
+        // notifications walk — and the resulting observation dependency on every
+        // worktree's notifications — is skipped entirely on the archived /
+        // multi-select / loading / empty states (which would otherwise re-render
+        // here on a notification in any background worktree).
+        let notificationGroups = repositories.toolbarNotificationGroups(terminalManager: terminalManager)
+        let unseenNotificationWorktreeCount = notificationGroups.reduce(0) { count, repository in
+          count + repository.unseenWorktreeCount
+        }
         let pullRequest = repositories.worktreeInfo(for: selectedWorktree.id)?.pullRequest
         let matchesBranch =
           if let pullRequest {
