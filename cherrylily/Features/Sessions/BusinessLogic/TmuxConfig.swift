@@ -21,7 +21,13 @@ nonisolated enum TmuxConfig {
     set -g mouse on
     set -g default-terminal "xterm-256color"
     set -g destroy-unattached off
-    set -g detach-on-destroy off
+    # Each surface attaches to its own `cl_<uuid>` session via `new-session -A`.
+    # If that session is destroyed while the surface is still attached (external
+    # kill, crash, an errant reconcile), `on` makes the orphaned client detach
+    # so the surface terminates cleanly. With `off`, tmux instead relocates the
+    # client to another surviving session — making multiple tabs silently mirror
+    # one session. CherryLily is strictly 1-surface : 1-session, so use `on`.
+    set -g detach-on-destroy on
     set -g default-shell "\(userShell)"
 
     # Load Ghostty's shell integration in the tmux-spawned shell so OSC 133
