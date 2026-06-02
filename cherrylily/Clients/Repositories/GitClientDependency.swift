@@ -40,52 +40,58 @@ struct GitClientDependency: Sendable {
 }
 
 extension GitClientDependency: DependencyKey {
-  static let liveValue = GitClientDependency(
-    repoRoot: { try await GitClient().repoRoot(for: $0) },
-    worktrees: { try await GitClient().worktrees(for: $0) },
-    pruneWorktrees: { try await GitClient().pruneWorktrees(for: $0) },
-    localBranchNames: { try await GitClient().localBranchNames(for: $0) },
-    isValidBranchName: { branchName, repoRoot in
-      await GitClient().isValidBranchName(branchName, for: repoRoot)
-    },
-    branchRefs: { try await GitClient().branchRefs(for: $0) },
-    defaultRemoteBranchRef: { try await GitClient().defaultRemoteBranchRef(for: $0) },
-    automaticWorktreeBaseRef: { await GitClient().automaticWorktreeBaseRef(for: $0) },
-    ignoredFileCount: { try await GitClient().ignoredFileCount(for: $0) },
-    untrackedFileCount: { try await GitClient().untrackedFileCount(for: $0) },
-    createWorktree: { name, repoRoot, baseDirectory, copyIgnored, copyUntracked, baseRef in
-      try await GitClient().createWorktree(
-        named: name,
-        in: repoRoot,
-        baseDirectory: baseDirectory,
-        copyFiles: (ignored: copyIgnored, untracked: copyUntracked),
-        baseRef: baseRef
-      )
-    },
-    createWorktreeStream: { name, repoRoot, baseDirectory, copyIgnored, copyUntracked, baseRef in
-      GitClient().createWorktreeStream(
-        named: name,
-        in: repoRoot,
-        baseDirectory: baseDirectory,
-        copyFiles: (ignored: copyIgnored, untracked: copyUntracked),
-        baseRef: baseRef
-      )
-    },
-    removeWorktree: { worktree, deleteBranch in
-      try await GitClient().removeWorktree(worktree, deleteBranch: deleteBranch)
-    },
-    isBareRepository: { repoRoot in
-      try await GitClient().isBareRepository(for: repoRoot)
-    },
-    branchName: { await GitClient().branchName(for: $0) },
-    lineChanges: { await GitClient().lineChanges(at: $0) },
-    renameBranch: { worktreeURL, branchName in
-      try await GitClient().renameBranch(in: worktreeURL, to: branchName)
-    },
-    remoteInfo: { repositoryRoot in
-      await GitClient().remoteInfo(for: repositoryRoot)
-    }
-  )
+  static let liveValue: GitClientDependency = {
+    // One shared GitClient instead of allocating a fresh one per call. The struct
+    // is a thin Sendable wrapper around ShellClient; reusing it avoids per-poll
+    // allocation on the steady-state worktree-info refresh path.
+    let client = GitClient()
+    return GitClientDependency(
+      repoRoot: { try await client.repoRoot(for: $0) },
+      worktrees: { try await client.worktrees(for: $0) },
+      pruneWorktrees: { try await client.pruneWorktrees(for: $0) },
+      localBranchNames: { try await client.localBranchNames(for: $0) },
+      isValidBranchName: { branchName, repoRoot in
+        await client.isValidBranchName(branchName, for: repoRoot)
+      },
+      branchRefs: { try await client.branchRefs(for: $0) },
+      defaultRemoteBranchRef: { try await client.defaultRemoteBranchRef(for: $0) },
+      automaticWorktreeBaseRef: { await client.automaticWorktreeBaseRef(for: $0) },
+      ignoredFileCount: { try await client.ignoredFileCount(for: $0) },
+      untrackedFileCount: { try await client.untrackedFileCount(for: $0) },
+      createWorktree: { name, repoRoot, baseDirectory, copyIgnored, copyUntracked, baseRef in
+        try await client.createWorktree(
+          named: name,
+          in: repoRoot,
+          baseDirectory: baseDirectory,
+          copyFiles: (ignored: copyIgnored, untracked: copyUntracked),
+          baseRef: baseRef
+        )
+      },
+      createWorktreeStream: { name, repoRoot, baseDirectory, copyIgnored, copyUntracked, baseRef in
+        client.createWorktreeStream(
+          named: name,
+          in: repoRoot,
+          baseDirectory: baseDirectory,
+          copyFiles: (ignored: copyIgnored, untracked: copyUntracked),
+          baseRef: baseRef
+        )
+      },
+      removeWorktree: { worktree, deleteBranch in
+        try await client.removeWorktree(worktree, deleteBranch: deleteBranch)
+      },
+      isBareRepository: { repoRoot in
+        try await client.isBareRepository(for: repoRoot)
+      },
+      branchName: { client.branchName(for: $0) },
+      lineChanges: { await client.lineChanges(at: $0) },
+      renameBranch: { worktreeURL, branchName in
+        try await client.renameBranch(in: worktreeURL, to: branchName)
+      },
+      remoteInfo: { repositoryRoot in
+        await client.remoteInfo(for: repositoryRoot)
+      }
+    )
+  }()
   static let testValue = liveValue
 }
 
