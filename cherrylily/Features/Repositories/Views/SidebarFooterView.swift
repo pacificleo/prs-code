@@ -6,7 +6,6 @@ struct SidebarFooterView: View {
   let store: StoreOf<RepositoriesFeature>
   @Environment(\.surfaceBottomChromeBackgroundOpacity) private var surfaceBottomChromeBackgroundOpacity
   @Environment(\.openURL) private var openURL
-  @Environment(CommandKeyObserver.self) private var commandKeyObserver
   @Shared(.settingsFile) private var settingsFile
 
   var body: some View {
@@ -22,9 +21,7 @@ struct SidebarFooterView: View {
         HStack(spacing: 6) {
           Label("Add Repository", systemImage: "folder.badge.plus")
             .font(.callout)
-          if commandKeyObserver.isPressed {
-            ShortcutHintView(text: openRepo?.display ?? "", color: .secondary)
-          }
+          CommandKeyShortcutHint(text: openRepo?.display ?? "")
         }
       }
       .help("Add Repository (\(openRepo?.display ?? "none"))")

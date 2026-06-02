@@ -181,9 +181,7 @@ private struct WorktreeRowInfoView: View {
         .truncationMode(.tail)
         .layoutPriority(1)
       Spacer(minLength: 0)
-      if let shortcutHint {
-        ShortcutHintView(text: shortcutHint, color: .secondary)
-      }
+      CommandKeyShortcutHint(text: shortcutHint)
     }
     .font(.caption)
     .frame(minHeight: 14)

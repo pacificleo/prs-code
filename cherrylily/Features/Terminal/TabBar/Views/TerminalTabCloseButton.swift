@@ -3,17 +3,20 @@ import SwiftUI
 struct TerminalTabCloseButton: View {
   var isHoveringTab: Bool
   var isDragging: Bool
-  var isShowingShortcutHint: Bool
+  var hasShortcutHint: Bool
   var closeAction: () -> Void
   @Binding var closeButtonGestureActive: Bool
   @Binding var isHoveringClose: Bool
 
   @Environment(GhosttyShortcutManager.self)
   private var ghosttyShortcuts
+  @Environment(CommandKeyObserver.self)
+  private var commandKeyObserver
 
   @State private var isPressing = false
 
   var body: some View {
+    let isShowingShortcutHint = commandKeyObserver.isPressed && hasShortcutHint
     let showClose = (isHoveringTab || isHoveringClose) && !isDragging && !isShowingShortcutHint
     Button("Close Tab", systemImage: "xmark") {
       closeAction()

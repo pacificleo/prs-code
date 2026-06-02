@@ -6,9 +6,10 @@ struct TerminalTabLabelView: View {
   let isHoveringTab: Bool
   let isHoveringClose: Bool
   let shortcutHint: String?
-  let showsShortcutHint: Bool
+  @Environment(CommandKeyObserver.self) private var commandKeyObserver
 
   var body: some View {
+    let showsShortcutHint = commandKeyObserver.isPressed && shortcutHint != nil
     HStack(spacing: TerminalTabBarMetrics.contentSpacing) {
       if tab.isDirty || tab.icon != nil {
         ZStack {
