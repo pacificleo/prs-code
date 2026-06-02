@@ -190,11 +190,25 @@ struct WorktreeRowsView: View {
     let isSelected = selectedWorktreeIDs.contains(row.id)
     let taskStatus = terminalManager.taskStatus(for: row.id)
     let isRunScriptRunning = terminalManager.isRunScriptRunning(for: row.id)
+    // Precompute PR display + summary line here (runs once per parent render) rather than
+    // inside WorktreeRow.body (which re-runs on hover / colorScheme changes).
+    let showsPullRequestInfo = !draggingWorktreeIDs.contains(row.id)
+    let display = WorktreePullRequestDisplay(
+      worktreeName: config.displayName,
+      pullRequest: showsPullRequestInfo ? row.info?.pullRequest : nil
+    )
+    let mergeReadiness = WorktreeRow.pullRequestMergeReadiness(for: display.pullRequest)
+    let detailText = config.worktreeName.isEmpty ? config.displayName : config.worktreeName
+    let summaryText = WorktreeRow.summaryAttributedString(
+      worktreeName: detailText,
+      showsPullRequestTag: display.pullRequest != nil && display.pullRequestBadgeStyle != nil,
+      pullRequestNumber: display.pullRequest?.number,
+      pullRequestState: display.pullRequestState,
+      mergeReadiness: mergeReadiness
+    )
     return WorktreeRow(
       name: config.displayName,
-      worktreeName: config.worktreeName,
       info: row.info,
-      showsPullRequestInfo: !draggingWorktreeIDs.contains(row.id),
       isHovered: config.isHovered,
       isPinned: row.isPinned,
       isMainWorktree: row.isMainWorktree,
@@ -204,6 +218,7 @@ struct WorktreeRowsView: View {
       showsNotificationIndicator: config.showsNotificationIndicator,
       notifications: config.notifications,
       onFocusNotification: config.onFocusNotification,
+      summaryText: summaryText,
       shortcutHint: config.shortcutHint,
       pinAction: config.pinAction,
       isSelected: isSelected,
