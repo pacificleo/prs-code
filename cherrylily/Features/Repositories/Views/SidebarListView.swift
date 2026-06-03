@@ -3,6 +3,9 @@ import SwiftUI
 
 struct SidebarListView: View {
   @Bindable var store: StoreOf<RepositoriesFeature>
+  // Computed once in SidebarView and passed down to avoid recomputing the same
+  // orderedWorktreeRows(includingRepositoryIDs:) (O(repos) dict + flatMap) here.
+  let hotkeyRows: [WorktreeRowModel]
   @Binding var expandedRepoIDs: Set<Repository.ID>
   @Binding var sidebarSelections: Set<SidebarSelection>
   let terminalManager: WorktreeTerminalManager
@@ -10,7 +13,6 @@ struct SidebarListView: View {
 
   var body: some View {
     let state = store.state
-    let hotkeyRows = state.orderedWorktreeRows(includingRepositoryIDs: expandedRepoIDs)
     let orderedRoots = state.orderedRepositoryRoots()
     let selectedWorktreeIDs = Set(sidebarSelections.compactMap(\.worktreeID))
     let selection = Binding<Set<SidebarSelection>>(

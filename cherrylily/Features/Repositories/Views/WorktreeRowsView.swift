@@ -10,7 +10,6 @@ struct WorktreeRowsView: View {
   let selectedWorktreeIDs: Set<Worktree.ID>
   @Bindable var store: StoreOf<RepositoriesFeature>
   let terminalManager: WorktreeTerminalManager
-  @Environment(CommandKeyObserver.self) private var commandKeyObserver
   @Environment(\.colorScheme) private var colorScheme
   @State private var draggingWorktreeIDs: Set<Worktree.ID> = []
   @State private var hoveredWorktreeID: Worktree.ID?
@@ -25,10 +24,12 @@ struct WorktreeRowsView: View {
     let state = store.state
     let sections = state.worktreeRowSections(in: repository)
     let isRepositoryRemoving = state.isRemovingRepository(repository)
-    let showShortcutHints = commandKeyObserver.isPressed
-    let allRows = showShortcutHints ? hotkeyRows : []
+    // Shortcut-hint strings are ⌘-independent; resolve them unconditionally so this
+    // (O(N)) view does not depend on `commandKeyObserver.isPressed`. A leaf view
+    // (RowShortcutHint) gates each hint's visibility on the ⌘ key, so a ⌘ tap only
+    // re-renders those leaves instead of rebuilding worktreeRowSections here.
     let shortcutIndexByID = Dictionary(
-      uniqueKeysWithValues: allRows.enumerated().map { ($0.element.id, $0.offset) }
+      uniqueKeysWithValues: hotkeyRows.enumerated().map { ($0.element.id, $0.offset) }
     )
     let rowIDs = sections.allRows.map(\.id)
     let isSortedAlphabetically = state.sortWorktreesAlphabetically
@@ -36,7 +37,6 @@ struct WorktreeRowsView: View {
       sections: sections,
       isRepositoryRemoving: isRepositoryRemoving,
       isSortedAlphabetically: isSortedAlphabetically,
-      showShortcutHints: showShortcutHints,
       shortcutIndexByID: shortcutIndexByID
     )
     .animation(.easeOut(duration: 0.2), value: rowIDs)
@@ -47,7 +47,6 @@ struct WorktreeRowsView: View {
     sections: WorktreeRowSections,
     isRepositoryRemoving: Bool,
     isSortedAlphabetically: Bool,
-    showShortcutHints: Bool,
     shortcutIndexByID: [Worktree.ID: Int]
   ) -> some View {
     if let row = sections.main {
@@ -55,7 +54,7 @@ struct WorktreeRowsView: View {
         row,
         isRepositoryRemoving: isRepositoryRemoving,
         moveDisabled: true,
-        shortcutHint: showShortcutHints ? worktreeShortcutHint(for: shortcutIndexByID[row.id]) : nil
+        shortcutHint: worktreeShortcutHint(for: shortcutIndexByID[row.id])
       )
     }
     ForEach(sections.pinned) { row in
@@ -63,7 +62,7 @@ struct WorktreeRowsView: View {
         row,
         isRepositoryRemoving: isRepositoryRemoving,
         moveDisabled: isSortedAlphabetically || isRepositoryRemoving || row.isLoading,
-        shortcutHint: showShortcutHints ? worktreeShortcutHint(for: shortcutIndexByID[row.id]) : nil
+        shortcutHint: worktreeShortcutHint(for: shortcutIndexByID[row.id])
       )
     }
     .onMove { offsets, destination in
@@ -74,7 +73,7 @@ struct WorktreeRowsView: View {
         row,
         isRepositoryRemoving: isRepositoryRemoving,
         moveDisabled: true,
-        shortcutHint: showShortcutHints ? worktreeShortcutHint(for: shortcutIndexByID[row.id]) : nil
+        shortcutHint: worktreeShortcutHint(for: shortcutIndexByID[row.id])
       )
     }
     ForEach(sections.unpinned) { row in
@@ -82,7 +81,7 @@ struct WorktreeRowsView: View {
         row,
         isRepositoryRemoving: isRepositoryRemoving,
         moveDisabled: isSortedAlphabetically || isRepositoryRemoving || row.isLoading,
-        shortcutHint: showShortcutHints ? worktreeShortcutHint(for: shortcutIndexByID[row.id]) : nil
+        shortcutHint: worktreeShortcutHint(for: shortcutIndexByID[row.id])
       )
     }
     .onMove { offsets, destination in
@@ -190,11 +189,25 @@ struct WorktreeRowsView: View {
     let isSelected = selectedWorktreeIDs.contains(row.id)
     let taskStatus = terminalManager.taskStatus(for: row.id)
     let isRunScriptRunning = terminalManager.isRunScriptRunning(for: row.id)
+    // Precompute PR display + summary line here (runs once per parent render) rather than
+    // inside WorktreeRow.body (which re-runs on hover / colorScheme changes).
+    let showsPullRequestInfo = !draggingWorktreeIDs.contains(row.id)
+    let display = WorktreePullRequestDisplay(
+      worktreeName: config.displayName,
+      pullRequest: showsPullRequestInfo ? row.info?.pullRequest : nil
+    )
+    let mergeReadiness = WorktreeRow.pullRequestMergeReadiness(for: display.pullRequest)
+    let detailText = config.worktreeName.isEmpty ? config.displayName : config.worktreeName
+    let summaryText = WorktreeRow.summaryAttributedString(
+      worktreeName: detailText,
+      showsPullRequestTag: display.pullRequest != nil && display.pullRequestBadgeStyle != nil,
+      pullRequestNumber: display.pullRequest?.number,
+      pullRequestState: display.pullRequestState,
+      mergeReadiness: mergeReadiness
+    )
     return WorktreeRow(
       name: config.displayName,
-      worktreeName: config.worktreeName,
       info: row.info,
-      showsPullRequestInfo: !draggingWorktreeIDs.contains(row.id),
       isHovered: config.isHovered,
       isPinned: row.isPinned,
       isMainWorktree: row.isMainWorktree,
@@ -204,6 +217,7 @@ struct WorktreeRowsView: View {
       showsNotificationIndicator: config.showsNotificationIndicator,
       notifications: config.notifications,
       onFocusNotification: config.onFocusNotification,
+      summaryText: summaryText,
       shortcutHint: config.shortcutHint,
       pinAction: config.pinAction,
       isSelected: isSelected,

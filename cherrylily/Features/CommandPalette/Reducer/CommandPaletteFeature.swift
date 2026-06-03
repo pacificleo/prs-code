@@ -977,10 +977,8 @@ private struct CommandPaletteFuzzyScorer {
   ) -> (Int, [Int]) {
     let queryLength = query.count
     let targetLength = target.count
-    let scores = Array(repeating: 0, count: queryLength * targetLength)
-    var mutableScores = scores
-    let matches = Array(repeating: 0, count: queryLength * targetLength)
-    var mutableMatches = matches
+    var mutableScores = Array(repeating: 0, count: queryLength * targetLength)
+    var mutableMatches = Array(repeating: 0, count: queryLength * targetLength)
 
     for queryIndex in 0..<queryLength {
       let queryIndexOffset = queryIndex * targetLength

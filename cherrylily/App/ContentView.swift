@@ -91,10 +91,12 @@ struct ContentView: View {
     .overlay {
       CommandPaletteOverlayView(
         store: store.scope(state: \.commandPalette, action: \.commandPalette),
-        items: CommandPaletteFeature.commandPaletteItems(
-          from: store.repositories,
-          ghosttyCommands: ghosttyShortcuts.commandPaletteEntries
-        )
+        items: store.commandPalette.isPresented
+          ? CommandPaletteFeature.commandPaletteItems(
+            from: store.repositories,
+            ghosttyCommands: ghosttyShortcuts.commandPaletteEntries
+          )
+          : []
       )
     }
     .background(WindowTabbingDisabler())

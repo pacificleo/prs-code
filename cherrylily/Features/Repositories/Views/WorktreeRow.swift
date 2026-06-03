@@ -3,9 +3,7 @@ import SwiftUI
 
 struct WorktreeRow: View {
   let name: String
-  let worktreeName: String
   let info: WorktreeInfoEntry?
-  let showsPullRequestInfo: Bool
   let isHovered: Bool
   let isPinned: Bool
   let isMainWorktree: Bool
@@ -15,28 +13,25 @@ struct WorktreeRow: View {
   let showsNotificationIndicator: Bool
   let notifications: [WorktreeTerminalNotification]
   let onFocusNotification: (WorktreeTerminalNotification) -> Void
+  let summaryText: AttributedString
   let shortcutHint: String?
   let pinAction: (() -> Void)?
   let isSelected: Bool
   let archiveAction: (() -> Void)?
   @Environment(\.colorScheme) private var colorScheme
 
+  // Hoisted out of `body` to avoid an AppKit font lookup / shortcut-string build on every render.
+  private static let bodyFontAscender = NSFont.preferredFont(forTextStyle: .body).ascender
+  private static let archiveShortcut = KeyboardShortcut(.delete, modifiers: .command).display
+
   var body: some View {
     let showsSpinner = (isLoading || taskStatus == .running) && !showsNotificationIndicator
     let branchIconName = isMainWorktree ? "star.fill" : (isPinned ? "pin.fill" : "arrow.triangle.branch")
-    let display = WorktreePullRequestDisplay(
-      worktreeName: name,
-      pullRequest: showsPullRequestInfo ? info?.pullRequest : nil
-    )
     let displayAddedLines = info?.addedLines
     let displayRemovedLines = info?.removedLines
-    let mergeReadiness = pullRequestMergeReadiness(for: display.pullRequest)
     let hasChangeCounts = displayAddedLines != nil && displayRemovedLines != nil
-    let archiveShortcut = KeyboardShortcut(.delete, modifiers: .command).display
-    let showsPullRequestTag = display.pullRequest != nil && display.pullRequestBadgeStyle != nil
     let nameColor = colorScheme == .dark ? Color.white : Color.primary
-    let detailText = worktreeName.isEmpty ? name : worktreeName
-    let bodyFontAscender = NSFont.preferredFont(forTextStyle: .body).ascender
+    let bodyFontAscender = Self.bodyFontAscender
     VStack(alignment: .leading, spacing: 2) {
       HStack(alignment: .firstTextBaseline, spacing: 6) {
         ZStack {
@@ -104,16 +99,12 @@ struct WorktreeRow: View {
               .accessibilityLabel("Archive worktree")
           }
           .buttonStyle(.plain)
-          .help("Archive Worktree (\(archiveShortcut))")
+          .help("Archive Worktree (\(Self.archiveShortcut))")
           .disabled(archiveAction == nil)
         }
       }
       WorktreeRowInfoView(
-        worktreeName: detailText,
-        showsPullRequestTag: showsPullRequestTag,
-        pullRequestNumber: display.pullRequest?.number,
-        pullRequestState: display.pullRequestState,
-        mergeReadiness: mergeReadiness,
+        summaryText: summaryText,
         shortcutHint: shortcutHint
       )
       .padding(.leading, 22)
@@ -122,7 +113,7 @@ struct WorktreeRow: View {
     .frame(maxWidth: .infinity, minHeight: worktreeRowHeight, alignment: .center)
   }
 
-  private func pullRequestMergeReadiness(
+  static func pullRequestMergeReadiness(
     for pullRequest: GithubPullRequest?
   ) -> PullRequestMergeReadiness? {
     guard let pullRequest, pullRequest.state.uppercased() == "OPEN" else {
@@ -131,35 +122,16 @@ struct WorktreeRow: View {
     return PullRequestMergeReadiness(pullRequest: pullRequest)
   }
 
-  private var worktreeRowHeight: CGFloat {
-    42
-  }
-}
-
-private struct WorktreeRowInfoView: View {
-  let worktreeName: String
-  let showsPullRequestTag: Bool
-  let pullRequestNumber: Int?
-  let pullRequestState: String?
-  let mergeReadiness: PullRequestMergeReadiness?
-  let shortcutHint: String?
-
-  var body: some View {
-    HStack(spacing: 4) {
-      summaryText
-        .lineLimit(1)
-        .truncationMode(.tail)
-        .layoutPriority(1)
-      Spacer(minLength: 0)
-      if let shortcutHint {
-        ShortcutHintView(text: shortcutHint, color: .secondary)
-      }
-    }
-    .font(.caption)
-    .frame(minHeight: 14)
-  }
-
-  private var summaryText: Text {
+  /// Builds the row's summary line. Hoisted out of the view body so it can be precomputed
+  /// once where row data is assembled rather than re-allocated on every `WorktreeRow` render
+  /// (which re-runs on hover / colorScheme changes).
+  static func summaryAttributedString(
+    worktreeName: String,
+    showsPullRequestTag: Bool,
+    pullRequestNumber: Int?,
+    pullRequestState: String?,
+    mergeReadiness: PullRequestMergeReadiness?
+  ) -> AttributedString {
     var result = AttributedString()
     func appendSeparator() {
       if !result.characters.isEmpty {
@@ -190,7 +162,29 @@ private struct WorktreeRowInfoView: View {
       segment.foregroundColor = mergeReadiness.isBlocking ? .red : .green
       result.append(segment)
     }
-    return Text(result)
+    return result
+  }
+
+  private var worktreeRowHeight: CGFloat {
+    42
+  }
+}
+
+private struct WorktreeRowInfoView: View {
+  let summaryText: AttributedString
+  let shortcutHint: String?
+
+  var body: some View {
+    HStack(spacing: 4) {
+      Text(summaryText)
+        .lineLimit(1)
+        .truncationMode(.tail)
+        .layoutPriority(1)
+      Spacer(minLength: 0)
+      CommandKeyShortcutHint(text: shortcutHint)
+    }
+    .font(.caption)
+    .frame(minHeight: 14)
   }
 }
 

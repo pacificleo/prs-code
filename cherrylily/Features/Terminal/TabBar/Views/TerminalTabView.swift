@@ -14,7 +14,6 @@ struct TerminalTabView: View {
   @State private var isHovering = false
   @State private var isHoveringClose = false
   @State private var isPressing = false
-  @Environment(CommandKeyObserver.self) private var commandKeyObserver
 
   var body: some View {
     ZStack(alignment: .trailing) {
@@ -24,8 +23,7 @@ struct TerminalTabView: View {
           isActive: isActive,
           isHoveringTab: isHovering,
           isHoveringClose: isHoveringClose,
-          shortcutHint: shortcutHint,
-          showsShortcutHint: showsShortcutHint
+          shortcutHint: shortcutHint
         )
       }
       .buttonStyle(TerminalTabButtonStyle(isPressing: $isPressing))
@@ -43,7 +41,7 @@ struct TerminalTabView: View {
       TerminalTabCloseButton(
         isHoveringTab: isHovering,
         isDragging: isDragging,
-        isShowingShortcutHint: showsShortcutHint,
+        hasShortcutHint: shortcutHint != nil,
         closeAction: onClose,
         closeButtonGestureActive: $closeButtonGestureActive,
         isHoveringClose: $isHoveringClose
@@ -76,10 +74,6 @@ struct TerminalTabView: View {
     let number = tabIndex + 1
     guard number > 0 && number <= 9 else { return nil }
     return "⌘\(number)"
-  }
-
-  private var showsShortcutHint: Bool {
-    commandKeyObserver.isPressed && shortcutHint != nil
   }
 }
 
