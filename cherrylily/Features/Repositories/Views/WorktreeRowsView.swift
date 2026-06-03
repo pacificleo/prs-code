@@ -193,6 +193,7 @@ struct WorktreeRowsView: View {
     return WorktreeRow(
       name: config.displayName,
       worktreeName: config.worktreeName,
+      tabCount: terminalManager.tabCount(worktreeID: row.id),
       info: row.info,
       showsPullRequestInfo: !draggingWorktreeIDs.contains(row.id),
       isHovered: config.isHovered,

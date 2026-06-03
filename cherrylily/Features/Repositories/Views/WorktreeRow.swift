@@ -4,6 +4,7 @@ import SwiftUI
 struct WorktreeRow: View {
   let name: String
   let worktreeName: String
+  let tabCount: Int
   let info: WorktreeInfoEntry?
   let showsPullRequestInfo: Bool
   let isHovered: Bool
@@ -72,6 +73,10 @@ struct WorktreeRow: View {
           .foregroundStyle(nameColor)
           .lineLimit(1)
         Spacer(minLength: 4)
+        if tabCount > 0 {
+          CountBadge(count: tabCount, font: .caption2, isSelected: isSelected)
+            .help("\(tabCount) open tab\(tabCount == 1 ? "" : "s")")
+        }
         if isRunScriptRunning {
           Image(systemName: "play.fill")
             .font(.caption)

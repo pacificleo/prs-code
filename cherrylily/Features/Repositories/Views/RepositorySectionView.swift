@@ -38,6 +38,7 @@ struct RepositorySectionView: View {
       HStack {
         RepoHeaderRow(
           name: repository.name,
+          worktreeCount: repository.worktrees.count,
           isRemoving: isRemovingRepository
         )
         .frame(maxWidth: .infinity, alignment: .leading)
