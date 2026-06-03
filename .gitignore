@@ -69,3 +69,6 @@ Resources/terminfo
 build/
 *.profraw
 .env
+
+# Superpowers brainstorm scratch
+.superpowers/
