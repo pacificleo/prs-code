@@ -168,6 +168,11 @@ Each is tolerable alone; combined they explain "gets slower the longer I use it 
 
 ## Section 1 — Highest impact (kill the worst hot loops)
 
+> **Status: ✅ Landed** (commit `d494ad3`, single squashed commit). All of 1.1–1.5
+> shipped. One deviation: the `GitClient` caching + `MainActor.run` removal originally
+> grouped under 1.5/S7 was deferred out of Section 1 (lint blocker) and later landed in
+> Section 2 as 2.10. Build + full test suite green.
+
 Targets the largest per-keystroke / per-tick costs and the cheapest quick-wins. Expect a clearly perceptible improvement after this section, especially during active use with several tabs.
 
 ### 1.1 — Quick-win guards (≈30 lines total, near-zero risk)
@@ -270,6 +275,35 @@ After completing 1.1–1.5, run:
 ---
 
 ## Section 2 — Medium impact (architectural — view scoping & state hygiene)
+
+> **Status: ✅ Implemented (7 of 10 sub-items landed; 1 reverted, 2 deferred).**
+>
+> A key refinement emerged during implementation: TCA `@ObservableState` observation is
+> *fine-grained* (`let s = store.state; s.foo` tracks only `foo`), so the literal "rewrite
+> views to ViewState structs" (2.1 below) delivers little — the real costs are the
+> non-TCA `@Observable` terminal/`CommandKeyObserver` reads, O(N) walks, and per-render
+> allocations. The effective work was therefore **scope re-renders to the smallest
+> subtree + precompute + gate**, not ViewState projections. The implementation was tracked
+> as sub-items 2.1–2.10 (see `~/.claude/plans/swift-strolling-kay.md`); mapping to commits:
+>
+> | Sub-item | Status | Commit | Notes |
+> |---|---|---|---|
+> | 2.1 Precompute row summary + hoist `NSFont`/shortcut constants out of `WorktreeRow.body` | ✅ Landed | `066d286` | |
+> | 2.2 Scope `CommandKeyObserver` to leaf views (rows / footer / tabs) | ✅ Landed | `5b2d042` | ⌘ tap no longer rebuilds O(N) `worktreeRowSections` / N tab bodies |
+> | 2.3 Compute sidebar `orderedWorktreeRows` once, pass into `SidebarListView` | ✅ Landed | `9d2f435` | `worktreeRowSections` left per-repo (hoisting it up would run it *more* often) |
+> | 2.4 Gate the toolbar notifications walk on `hasActiveWorktree` | ✅ Landed | `bf267ae` | Deeper per-notification isolation needed an O(1) gate from 2.7; not pursued after 2.7 reverted |
+> | 2.5 `@ObservationIgnored` on 36 non-view `GhosttySurfaceState` fields | ✅ Landed | `0ae6923` | Verified by grep: every ignored field is read only by the bridge (writer) + the NSView |
+> | 2.6 Gate command-palette item build + fuzzy-scoring on `isPresented`; drop redundant scorer copy | ✅ Landed | `5c1e272` | |
+> | 2.7 Explicit unread-notification counter | ❌ **Reverted** | — | Existing reduce already short-circuits (`hasUnseenNotification` uses `contains`) → O(worktrees), not O(N×M). Incremental `Set` counter hit a desync that tripped the DEBUG assert and crashed the test process. Reverted per the zero-regression rule. |
+> | 2.8 Shared hover debounce | ⏸️ **Deferred** | — | Each popover's hover task already self-cancels (one short-lived task per transition); consolidating 4 UX-timing-sensitive sites is imperceptible gain for real risk. |
+> | 2.9 Debounce settings persistence | ⏸️ **Deferred** | — | Settings window is a transient interaction, not the reported main-UI lag. A blanket `.binding` debounce would delay toggle/picker application; a text-field-only debounce needs fragile keypath matching. |
+> | 2.10 Cache `GitClient` + drop `MainActor.run` hop in `branchName`/`isWorktreeIndexLocked` | ✅ Landed | `ef906f1` | The S7 items deferred from Section 1. |
+>
+> Also note: the deeper `RepositoriesFeature.State` hygiene from the original 2.2 below
+> (digest short-circuit, cached `worktreesForInfoWatcher`/`recencyRetentionIDs`,
+> `worktreeIndex` reverse map, moving `withAnimation` out of the reducer) was **deferred**
+> — high regression risk for low confirmed value once fine-grained observation is accounted
+> for. Build + full test suite green after every landed sub-item.
 
 Targets the **write amplification** root cause (S1, S2) and the next tier of per-event walks. Larger changes; higher risk of regression; produces the second-biggest perceptible improvement and prevents the next worktree-count tier from re-introducing lag.
 
