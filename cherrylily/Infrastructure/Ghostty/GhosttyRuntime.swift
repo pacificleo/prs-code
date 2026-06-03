@@ -4,7 +4,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 final class GhosttyRuntime {
-  final class SurfaceReference {
+  final class SurfaceReference: Hashable {
     let surface: ghostty_surface_t
     var isValid = true
 
@@ -15,12 +15,20 @@ final class GhosttyRuntime {
     func invalidate() {
       isValid = false
     }
+
+    static func == (lhs: SurfaceReference, rhs: SurfaceReference) -> Bool {
+      lhs === rhs
+    }
+
+    func hash(into hasher: inout Hasher) {
+      hasher.combine(ObjectIdentifier(self))
+    }
   }
 
   private var config: ghostty_config_t?
   private(set) var app: ghostty_app_t?
   private var observers: [NSObjectProtocol] = []
-  private var surfaceRefs: [SurfaceReference] = []
+  private var surfaceRefs: Set<SurfaceReference> = []
   private var lastColorScheme: ghostty_color_scheme_e?
   var onConfigChange: (() -> Void)?
 
@@ -134,8 +142,7 @@ final class GhosttyRuntime {
 
   func registerSurface(_ surface: ghostty_surface_t) -> SurfaceReference {
     let ref = SurfaceReference(surface)
-    surfaceRefs.append(ref)
-    surfaceRefs = surfaceRefs.filter { $0.isValid }
+    surfaceRefs.insert(ref)
     if let lastColorScheme {
       ghostty_surface_set_color_scheme(surface, lastColorScheme)
     }
@@ -144,7 +151,7 @@ final class GhosttyRuntime {
 
   func unregisterSurface(_ ref: SurfaceReference) {
     ref.invalidate()
-    surfaceRefs = surfaceRefs.filter { $0.isValid }
+    surfaceRefs.remove(ref)
   }
 
   func reloadConfig(soft: Bool, target: ghostty_target_s) {
