@@ -20,7 +20,6 @@ private enum CancelID {
 }
 
 private nonisolated let repositoriesLogger = SupaLogger("Repositories")
-private nonisolated let githubIntegrationRecoveryInterval: Duration = .seconds(15)
 private nonisolated let worktreeCreationProgressLineLimit = 200
 private nonisolated let worktreeCreationProgressUpdateStride = 20
 
@@ -2114,12 +2113,14 @@ struct RepositoriesFeature {
           state.queuedPullRequestRefreshByRepositoryID.removeAll()
           state.inFlightPullRequestRefreshRepositoryIDs.removeAll()
           return .run { send in
+            var attempt = 0
             while !Task.isCancelled {
-              try? await ContinuousClock().sleep(for: githubIntegrationRecoveryInterval)
+              try? await ContinuousClock().sleep(for: Self.githubRecoveryDelay(attempt: attempt))
               guard !Task.isCancelled else {
                 return
               }
               await send(.refreshGithubIntegrationAvailability)
+              attempt += 1
             }
           }
           .cancellable(id: CancelID.githubIntegrationRecovery, cancelInFlight: true)
@@ -2614,8 +2615,12 @@ struct RepositoriesFeature {
   private func loadRepositories(_ roots: [URL], animated: Bool = false) -> Effect<Action> {
     let gitClient = gitClient
     return .run { [animated, roots] send in
-      for root in roots {
-        _ = try? await gitClient.pruneWorktrees(root)
+      // Prune each repo concurrently (results discarded, prune is independent per
+      // repo) instead of serially blocking the refresh on N git subprocesses.
+      await withTaskGroup(of: Void.self) { group in
+        for root in roots {
+          group.addTask { _ = try? await gitClient.pruneWorktrees(root) }
+        }
       }
       let (repositories, failures) = await loadRepositoriesData(roots)
       await send(
@@ -2628,6 +2633,15 @@ struct RepositoriesFeature {
       )
     }
     .cancellable(id: CancelID.load, cancelInFlight: true)
+  }
+
+  /// Backoff for the GitHub-integration recovery poll: 15s, 30s, 60s, 120s, 240s,
+  /// then 300s. Avoids hammering `gh` every 15s forever when the CLI is
+  /// persistently unavailable. The first delay stays 15s (attempt 0).
+  private static func githubRecoveryDelay(attempt: Int) -> Duration {
+    let cappedAttempt = min(attempt, 5)
+    let seconds = min(15 * (1 << cappedAttempt), 300)
+    return .seconds(seconds)
   }
 
   private struct WorktreesFetchResult: Sendable {
