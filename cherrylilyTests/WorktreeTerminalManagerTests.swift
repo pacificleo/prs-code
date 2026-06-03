@@ -5,6 +5,10 @@ import Testing
 
 @MainActor
 struct WorktreeTerminalManagerTests {
+  // Blocking-script tests spawn real shells; isolate $HOME so they don't write
+  // to the developer's real ~/.zsh_history. See TestHomeIsolation.
+  init() { _ = TestHomeIsolation.activate }
+
   @Test func buffersEventsUntilStreamCreated() async {
     let manager = WorktreeTerminalManager(runtime: GhosttyRuntime())
     let worktree = makeWorktree()

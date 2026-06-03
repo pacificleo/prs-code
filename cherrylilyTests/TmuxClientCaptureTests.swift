@@ -6,6 +6,10 @@ import Testing
 struct TmuxClientCaptureTests {
   private static var tmuxAvailable: Bool { TmuxBinary.isAvailable }
 
+  // Sends keystrokes into a real shell pane; isolate $HOME so the pane's shell
+  // doesn't write fixture commands to the developer's ~/.zsh_history.
+  init() { _ = TestHomeIsolation.activate }
+
   private static func makeIsolatedClient() -> TmuxClient {
     let socket = "cl-test-\(UUID().uuidString.prefix(8).lowercased())"
     return TmuxClient(executableURL: TmuxBinary.bundledURL, socketName: socket)
