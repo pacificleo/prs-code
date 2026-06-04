@@ -17,11 +17,21 @@ private enum CancelID {
   static func lineChanges(_ worktreeID: Worktree.ID) -> String {
     "repositories.lineChanges.\(worktreeID)"
   }
+  static func refsDedupe(_ repositoryRootURL: URL) -> String {
+    "repositories.refsDedupe.\(repositoryRootURL.path(percentEncoded: false))"
+  }
 }
 
 private nonisolated let repositoriesLogger = SupaLogger("Repositories")
 private nonisolated let worktreeCreationProgressLineLimit = 200
 private nonisolated let worktreeCreationProgressUpdateStride = 20
+
+/// Capped exponential backoff for GitHub-availability recovery: base * 2^attempt, clamped to max.
+func githubRecoveryBackoff(attempt: Int, base: Duration = .seconds(15), max: Duration = .seconds(300)) -> Duration {
+  let multiplier = 1 << Swift.min(attempt, 16)
+  let scaled = base * multiplier
+  return scaled < max ? scaled : max
+}
 
 nonisolated struct WorktreeCreationProgressUpdateThrottle {
   private let stride: Int
@@ -89,6 +99,7 @@ struct RepositoriesFeature {
     var pendingPullRequestRefreshByRepositoryID: [Repository.ID: PendingPullRequestRefresh] = [:]
     var inFlightPullRequestRefreshRepositoryIDs: Set<Repository.ID> = []
     var queuedPullRequestRefreshByRepositoryID: [Repository.ID: PendingPullRequestRefresh] = [:]
+    var lastFetchedHeadSHAByWorktreeID: [Worktree.ID: String] = [:]
     var sidebarSelectedWorktreeIDs: Set<Worktree.ID> = []
     @Shared(.appStorage("sidebarCollapsedRepositoryIDs")) var collapsedRepositoryIDs: [Repository.ID] = []
     @Shared(.appStorage("sidebarSortWorktreesAlphabetically")) var sortWorktreesAlphabetically = false
@@ -216,6 +227,7 @@ struct RepositoriesFeature {
     case worktreeNotificationReceived(Worktree.ID)
     case worktreeBranchNameLoaded(worktreeID: Worktree.ID, name: String)
     case worktreeLineChangesLoaded(worktreeID: Worktree.ID, added: Int, removed: Int)
+    case headSHAsUpdated([Worktree.ID: String])
     case refreshGithubIntegrationAvailability
     case githubIntegrationAvailabilityUpdated(Bool)
     case repositoryPullRequestRefreshCompleted(Repository.ID)
@@ -1991,6 +2003,29 @@ struct RepositoriesFeature {
 
       case .worktreeInfoEvent(let event):
         switch event {
+        case .repositoryRefsChanged(let repositoryRootURL, let worktreeIDs):
+          let affectedWorktrees = worktreeIDs.compactMap { state.worktree(for: $0) }
+          guard !affectedWorktrees.isEmpty else { return .none }
+          let gitClient = gitClient
+          let previousSHAs = state.lastFetchedHeadSHAByWorktreeID
+          return .run { send in
+            var moved: [Worktree.ID] = []
+            var updated: [Worktree.ID: String] = [:]
+            for worktree in affectedWorktrees {
+              guard let sha = await gitClient.headSHA(worktree.workingDirectory) else { continue }
+              updated[worktree.id] = sha
+              if previousSHAs[worktree.id] != sha {
+                moved.append(worktree.id)
+              }
+            }
+            await send(.headSHAsUpdated(updated))
+            guard !moved.isEmpty else { return }
+            await send(.worktreeInfoEvent(.repositoryPullRequestRefresh(
+              repositoryRootURL: repositoryRootURL,
+              worktreeIDs: moved
+            )))
+          }
+          .cancellable(id: CancelID.refsDedupe(repositoryRootURL), cancelInFlight: true)
         case .branchChanged(let worktreeID):
           guard let worktree = state.worktree(for: worktreeID) else {
             return .none
@@ -2115,10 +2150,11 @@ struct RepositoriesFeature {
           return .run { send in
             var attempt = 0
             while !Task.isCancelled {
-              try? await ContinuousClock().sleep(for: Self.githubRecoveryDelay(attempt: attempt))
+              try? await ContinuousClock().sleep(for: githubRecoveryBackoff(attempt: attempt))
               guard !Task.isCancelled else {
                 return
               }
+              attempt += 1
               await send(.refreshGithubIntegrationAvailability)
               attempt += 1
             }
@@ -2175,6 +2211,12 @@ struct RepositoriesFeature {
           removed: removed,
           state: &state
         )
+        return .none
+
+      case .headSHAsUpdated(let shasByWorktreeID):
+        for (worktreeID, sha) in shasByWorktreeID {
+          state.lastFetchedHeadSHAByWorktreeID[worktreeID] = sha
+        }
         return .none
 
       case .repositoryPullRequestsLoaded(let repositoryID, let pullRequestsByWorktreeID):
@@ -2638,12 +2680,6 @@ struct RepositoriesFeature {
   /// Backoff for the GitHub-integration recovery poll: 15s, 30s, 60s, 120s, 240s,
   /// then 300s. Avoids hammering `gh` every 15s forever when the CLI is
   /// persistently unavailable. The first delay stays 15s (attempt 0).
-  private static func githubRecoveryDelay(attempt: Int) -> Duration {
-    let cappedAttempt = min(attempt, 5)
-    let seconds = min(15 * (1 << cappedAttempt), 300)
-    return .seconds(seconds)
-  }
-
   private struct WorktreesFetchResult: Sendable {
     let root: URL
     let worktrees: [Worktree]?
@@ -2773,6 +2809,10 @@ struct RepositoriesFeature {
       shouldPruneArchivedWorktreeIDs
       ? pruneArchivedWorktreeIDs(availableWorktreeIDs: availableWorktreeIDs, state: &state)
       : false
+    state.lastFetchedHeadSHAByWorktreeID = pruneHeadSHAs(
+      state.lastFetchedHeadSHAByWorktreeID,
+      liveWorktreeIDs: availableWorktreeIDs
+    )
     if !state.isShowingArchivedWorktrees, !isSelectionValid(state.selectedWorktreeID, state: state) {
       state.selection = nil
     }
@@ -3727,6 +3767,13 @@ private func pruneArchivedWorktreeIDs(
     return true
   }
   return false
+}
+
+func pruneHeadSHAs(
+  _ shas: [Worktree.ID: String],
+  liveWorktreeIDs: Set<Worktree.ID>
+) -> [Worktree.ID: String] {
+  shas.filter { liveWorktreeIDs.contains($0.key) }
 }
 
 private func firstAvailableWorktreeID(

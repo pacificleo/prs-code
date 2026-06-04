@@ -26,6 +26,8 @@ enum GitOperation: String {
   case branchDelete = "branch_delete"
   case lineChanges = "line_changes"
   case remoteInfo = "remote_info"
+  case headSHA = "head_sha"
+  case gitCommonDir = "git_common_dir"
 }
 
 enum GitClientError: LocalizedError {
@@ -55,9 +57,11 @@ struct GitClient {
   }
 
   private let shell: ShellClient
+  private let capabilities: GitCapabilities
 
-  nonisolated init(shell: ShellClient = .live) {
+  nonisolated init(shell: ShellClient = .live, capabilities: GitCapabilities = .shared) {
     self.shell = shell
+    self.capabilities = capabilities
   }
 
   nonisolated func repoRoot(for path: URL) async throws -> URL {
@@ -427,16 +431,46 @@ struct GitClient {
       return nil
     }
     let path = worktreeURL.path(percentEncoded: false)
+    let fsmonitorArgs = await capabilities.supportsFsmonitor() ? ["-c", "core.fsmonitor=true"] : []
     do {
       let diff = try await runGit(
         operation: .lineChanges,
-        arguments: ["-C", path, "diff", "HEAD", "--shortstat"]
+        gitArguments: fsmonitorArgs + ["-C", path, "diff", "HEAD", "--shortstat"],
+        environment: ["GIT_OPTIONAL_LOCKS=0"]
       )
       let changes = parseShortstat(diff)
       return (added: changes.added, removed: changes.removed)
     } catch {
       return nil
     }
+  }
+
+  nonisolated func headSHA(for worktreeURL: URL) async -> String? {
+    let path = worktreeURL.path(percentEncoded: false)
+    guard
+      let output = try? await runGit(
+        operation: .headSHA,
+        arguments: ["-C", path, "rev-parse", "HEAD"]
+      )
+    else {
+      return nil
+    }
+    let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? nil : trimmed
+  }
+
+  nonisolated func gitCommonDir(for repositoryRootURL: URL) async -> URL? {
+    let path = repositoryRootURL.path(percentEncoded: false)
+    guard
+      let output = try? await runGit(
+        operation: .gitCommonDir,
+        arguments: ["-C", path, "rev-parse", "--path-format=absolute", "--git-common-dir"]
+      )
+    else {
+      return nil
+    }
+    let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? nil : URL(fileURLWithPath: trimmed)
   }
 
   nonisolated private func isWorktreeIndexLocked(_ worktreeURL: URL) -> Bool {
@@ -637,10 +671,19 @@ struct GitClient {
     operation: GitOperation,
     arguments: [String]
   ) async throws -> String {
+    try await runGit(operation: operation, gitArguments: arguments, environment: [])
+  }
+
+  nonisolated private func runGit(
+    operation: GitOperation,
+    gitArguments: [String],
+    environment: [String]
+  ) async throws -> String {
     let env = URL(fileURLWithPath: "/usr/bin/env")
-    let command = ([env.path(percentEncoded: false)] + ["git"] + arguments).joined(separator: " ")
+    let argv = environment + ["git"] + gitArguments
+    let command = ([env.path(percentEncoded: false)] + argv).joined(separator: " ")
     do {
-      return try await shell.run(env, ["git"] + arguments, nil).stdout
+      return try await shell.run(env, argv, nil).stdout
     } catch {
       throw wrapShellError(error, operation: operation, command: command)
     }

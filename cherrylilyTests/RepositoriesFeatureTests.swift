@@ -2951,6 +2951,62 @@ struct RepositoriesFeatureTests {
     await store.receive(\.delegate.selectedWorktreeChanged)
   }
 
+  @Test func refsChangedTriggersRefreshOnlyForMovedSHA() async throws {
+    let worktree = makeWorktree(id: "/tmp/repo/wt", name: "wt", repoRoot: "/tmp/repo")
+    let repository = makeRepository(id: "/tmp/repo", worktrees: [worktree])
+    var initial = makeState(repositories: [repository])
+    initial.githubIntegrationAvailability = .disabled
+    let store = TestStore(initialState: initial) {
+      RepositoriesFeature()
+    } withDependencies: {
+      $0.gitClient.headSHA = { _ in "sha-NEW" }
+    }
+    store.exhaustivity = .off
+
+    await store.send(.worktreeInfoEvent(.repositoryRefsChanged(
+      repositoryRootURL: URL(fileURLWithPath: "/tmp/repo"),
+      worktreeIDs: [worktree.id]
+    )))
+
+    await store.receive(\.headSHAsUpdated)
+    await store.receive { action in
+      if case .worktreeInfoEvent(.repositoryPullRequestRefresh) = action { return true }
+      return false
+    }
+    #expect(store.state.lastFetchedHeadSHAByWorktreeID[worktree.id] == "sha-NEW")
+  }
+
+  @Test func pruneHeadSHAsDropsMissingWorktrees() {
+    let kept = makeWorktree(id: "/tmp/repo/keep", name: "keep", repoRoot: "/tmp/repo")
+    let removed = makeWorktree(id: "/tmp/repo/gone", name: "gone", repoRoot: "/tmp/repo")
+    let result = pruneHeadSHAs(
+      [kept.id: "a", removed.id: "b"],
+      liveWorktreeIDs: [kept.id]
+    )
+    #expect(result == [kept.id: "a"])
+  }
+
+  @Test func refsChangedSkipsRefreshWhenSHAUnchanged() async throws {
+    let worktree = makeWorktree(id: "/tmp/repo/wt", name: "wt", repoRoot: "/tmp/repo")
+    let repository = makeRepository(id: "/tmp/repo", worktrees: [worktree])
+    var initial = makeState(repositories: [repository])
+    initial.githubIntegrationAvailability = .disabled
+    initial.lastFetchedHeadSHAByWorktreeID[worktree.id] = "sha-SAME"
+    let store = TestStore(initialState: initial) {
+      RepositoriesFeature()
+    } withDependencies: {
+      $0.gitClient.headSHA = { _ in "sha-SAME" }
+    }
+    // Full exhaustivity: SHA unchanged → the ONLY action is headSHAsUpdated (no state change,
+    // no PR refresh). A stray refresh would fail teardown.
+    await store.send(.worktreeInfoEvent(.repositoryRefsChanged(
+      repositoryRootURL: URL(fileURLWithPath: "/tmp/repo"),
+      worktreeIDs: [worktree.id]
+    )))
+
+    await store.receive(\.headSHAsUpdated)
+  }
+
   private func makeWorktree(
     id: String,
     name: String,
@@ -3143,5 +3199,12 @@ struct RepositoriesFeatureTests {
         isOpen = true
       }
     }
+  }
+
+  @Test func githubRecoveryBackoffDoublesThenCaps() {
+    #expect(githubRecoveryBackoff(attempt: 0) == .seconds(15))
+    #expect(githubRecoveryBackoff(attempt: 1) == .seconds(30))
+    #expect(githubRecoveryBackoff(attempt: 2) == .seconds(60))
+    #expect(githubRecoveryBackoff(attempt: 10) == .seconds(300))
   }
 }
