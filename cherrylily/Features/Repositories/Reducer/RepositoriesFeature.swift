@@ -23,9 +23,15 @@ private enum CancelID {
 }
 
 private nonisolated let repositoriesLogger = SupaLogger("Repositories")
-private nonisolated let githubIntegrationRecoveryInterval: Duration = .seconds(15)
 private nonisolated let worktreeCreationProgressLineLimit = 200
 private nonisolated let worktreeCreationProgressUpdateStride = 20
+
+/// Capped exponential backoff for GitHub-availability recovery: base * 2^attempt, clamped to max.
+func githubRecoveryBackoff(attempt: Int, base: Duration = .seconds(15), max: Duration = .seconds(300)) -> Duration {
+  let multiplier = 1 << Swift.min(attempt, 16)
+  let scaled = base * multiplier
+  return scaled < max ? scaled : max
+}
 
 nonisolated struct WorktreeCreationProgressUpdateThrottle {
   private let stride: Int
@@ -2142,11 +2148,13 @@ struct RepositoriesFeature {
           state.queuedPullRequestRefreshByRepositoryID.removeAll()
           state.inFlightPullRequestRefreshRepositoryIDs.removeAll()
           return .run { send in
+            var attempt = 0
             while !Task.isCancelled {
-              try? await ContinuousClock().sleep(for: githubIntegrationRecoveryInterval)
+              try? await ContinuousClock().sleep(for: githubRecoveryBackoff(attempt: attempt))
               guard !Task.isCancelled else {
                 return
               }
+              attempt += 1
               await send(.refreshGithubIntegrationAvailability)
             }
           }

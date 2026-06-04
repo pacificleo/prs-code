@@ -3200,4 +3200,11 @@ struct RepositoriesFeatureTests {
       }
     }
   }
+
+  @Test func githubRecoveryBackoffDoublesThenCaps() {
+    #expect(githubRecoveryBackoff(attempt: 0) == .seconds(15))
+    #expect(githubRecoveryBackoff(attempt: 1) == .seconds(30))
+    #expect(githubRecoveryBackoff(attempt: 2) == .seconds(60))
+    #expect(githubRecoveryBackoff(attempt: 10) == .seconds(300))
+  }
 }
