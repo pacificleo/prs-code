@@ -47,7 +47,6 @@ final class WorktreeInfoWatcherManager {
   private var contentSources: [Worktree.ID: WorktreeFileEventSource] = [:]
   private var ignoreMatchers: [Worktree.ID: GitIgnorePrefixMatcher] = [:]
   private var refsSources: [URL: WorktreeFileEventSource] = [:]
-  private var refsCommonDirByRepository: [URL: URL] = [:]
 
   init<C: Clock<Duration>>(
     focusedInterval: Duration = .seconds(30),
@@ -128,7 +127,6 @@ final class WorktreeInfoWatcherManager {
     for repositoryRootURL in obsoleteRepositories {
       pullRequestTasks.removeValue(forKey: repositoryRootURL)?.task.cancel()
       refsSources.removeValue(forKey: repositoryRootURL)?.stop()
-      refsCommonDirByRepository.removeValue(forKey: repositoryRootURL)
     }
     let obsoleteCooldownRepositories = pullRequestSelectionCooldownTasksByRepo.keys.filter {
       !repositoryRoots.contains($0)
@@ -343,8 +341,8 @@ final class WorktreeInfoWatcherManager {
 
   private func startRefsWatcher(repositoryRootURL: URL, commonDir: URL) {
     guard worktrees.values.contains(where: { $0.repositoryRootURL == repositoryRootURL }) else { return }
+    // Authoritative nil-check (the one in ensureRefsWatcher is best-effort); commonDir is stable so we never replace.
     guard refsSources[repositoryRootURL] == nil else { return }
-    refsCommonDirByRepository[repositoryRootURL] = commonDir
     let watchPaths = [
       commonDir.appending(path: "refs"),
       commonDir.appending(path: "packed-refs"),
@@ -392,7 +390,6 @@ final class WorktreeInfoWatcherManager {
     contentSources.removeAll()
     ignoreMatchers.removeAll()
     refsSources.removeAll()
-    refsCommonDirByRepository.removeAll()
     deferredLineChangeIDs.removeAll()
     hasCompletedInitialWorktreeLoad = false
     cancelAllPullRequestSelectionCooldownTasks()
