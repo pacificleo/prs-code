@@ -23,7 +23,7 @@ struct GitClientLineChangesTests {
       },
       runLoginImpl: { _, _, _, _ in ShellOutput(stdout: "", stderr: "", exitCode: 0) }
     )
-    let client = GitClient(shell: shell)
+    let client = GitClient(shell: shell, capabilities: stubCapabilities(versionOutput: "git version 2.39.5"))
 
     let changes = await client.lineChanges(at: URL(fileURLWithPath: "/tmp/repo"))
 
@@ -46,7 +46,7 @@ struct GitClientLineChangesTests {
       run: { _, _, _ in ShellOutput(stdout: output, stderr: "", exitCode: 0) },
       runLoginImpl: { _, _, _, _ in ShellOutput(stdout: "", stderr: "", exitCode: 0) }
     )
-    let client = GitClient(shell: shell)
+    let client = GitClient(shell: shell, capabilities: stubCapabilities(versionOutput: "git version 2.39.5"))
 
     let changes = await client.lineChanges(at: URL(fileURLWithPath: "/tmp/repo"))
 
@@ -60,7 +60,7 @@ struct GitClientLineChangesTests {
       run: { _, _, _ in ShellOutput(stdout: output, stderr: "", exitCode: 0) },
       runLoginImpl: { _, _, _, _ in ShellOutput(stdout: "", stderr: "", exitCode: 0) }
     )
-    let client = GitClient(shell: shell)
+    let client = GitClient(shell: shell, capabilities: stubCapabilities(versionOutput: "git version 2.39.5"))
 
     let changes = await client.lineChanges(at: URL(fileURLWithPath: "/tmp/repo"))
 
@@ -73,7 +73,7 @@ struct GitClientLineChangesTests {
       run: { _, _, _ in ShellOutput(stdout: "\n", stderr: "", exitCode: 0) },
       runLoginImpl: { _, _, _, _ in ShellOutput(stdout: "", stderr: "", exitCode: 0) }
     )
-    let client = GitClient(shell: shell)
+    let client = GitClient(shell: shell, capabilities: stubCapabilities(versionOutput: "git version 2.39.5"))
 
     let changes = await client.lineChanges(at: URL(fileURLWithPath: "/tmp/repo"))
 
@@ -145,7 +145,7 @@ struct GitClientLineChangesTests {
       },
       runLoginImpl: { _, _, _, _ in ShellOutput(stdout: "", stderr: "", exitCode: 0) }
     )
-    let client = GitClient(shell: shell)
+    let client = GitClient(shell: shell, capabilities: stubCapabilities(versionOutput: "git version 2.39.5"))
 
     let changes = await client.lineChanges(at: tempRoot)
 
@@ -153,4 +153,13 @@ struct GitClientLineChangesTests {
     let calls = await store.calls
     #expect(calls.isEmpty)
   }
+}
+
+private func stubCapabilities(versionOutput: String) -> GitCapabilities {
+  let shell = ShellClient(
+    run: { _, _, _ in ShellOutput(stdout: versionOutput, stderr: "", exitCode: 0) },
+    runLoginImpl: { _, _, _, _ in ShellOutput(stdout: "", stderr: "", exitCode: 0) },
+    runLoginStreamImpl: { _, _, _, _ in AsyncThrowingStream { $0.finish() } }
+  )
+  return GitCapabilities(shell: shell)
 }
