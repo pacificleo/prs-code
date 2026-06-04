@@ -72,3 +72,6 @@ build/
 
 # Removed per-repo local settings backend; never track app config
 cherrylily.json
+
+# Superpowers brainstorm scratch
+.superpowers/

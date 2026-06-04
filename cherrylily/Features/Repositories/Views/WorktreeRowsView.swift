@@ -207,6 +207,7 @@ struct WorktreeRowsView: View {
     )
     return WorktreeRow(
       name: config.displayName,
+      tabCount: terminalManager.tabCount(worktreeID: row.id),
       info: row.info,
       isHovered: config.isHovered,
       isPinned: row.isPinned,
