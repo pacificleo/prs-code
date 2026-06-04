@@ -189,7 +189,8 @@ struct WorktreeInfoWatcherManagerTests {
     try FileManager.default.removeItem(at: tempRepository.tempRoot)
   }
 
-  @Test func refsChangeEmitsRepositoryRefsChanged() async throws {    let repo = try makeTempRepository(worktreeNames: ["sparrow"])
+  @Test func refsChangeEmitsRepositoryRefsChanged() async throws {
+    let repo = try makeTempRepository(worktreeNames: ["sparrow"])
     let commonDir = repo.tempRoot.appending(path: ".git")
     let registry = FakeFileEventSourceRegistry()
     let factory: WorktreeFileEventSourceFactory = { paths, _, onBatch in

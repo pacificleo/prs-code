@@ -29,7 +29,7 @@ nonisolated final class FSEventStreamFileEventSource: WorktreeFileEventSource, @
         | kFSEventStreamCreateFlagNoDefer
         | kFSEventStreamCreateFlagIgnoreSelf
     )
-    let callback: FSEventStreamCallback = { _, info, count, eventPaths, _, _ in
+    let callback: FSEventStreamCallback = { _, info, _, eventPaths, _, _ in
       guard let info else { return }
       let source = Unmanaged<FSEventStreamFileEventSource>.fromOpaque(info).takeUnretainedValue()
       let rawPaths = unsafeBitCast(eventPaths, to: NSArray.self) as? [String] ?? []
