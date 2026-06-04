@@ -54,6 +54,7 @@ struct SettingsFeatureTests {
       $0.deleteBranchOnDeleteWorktree = false
       $0.automaticallyArchiveMergedWorktrees = true
       $0.promptForWorktreeCreation = true
+      $0.pinnedToolbarActions = []
     }
     await store.receive(\.delegate.settingsChanged)
   }
@@ -196,6 +197,7 @@ struct SettingsFeatureTests {
         rootURL: rootURL,
         settings: .default
       )
+      $0.pinnedToolbarActions = []
     }
     await store.receive(\.delegate.settingsChanged)
   }

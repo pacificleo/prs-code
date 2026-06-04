@@ -44,7 +44,6 @@ extension SettingsFeature.State: CustomDumpRepresentable {
 extension AppFeature.State: CustomDumpRepresentable {
   var customDumpValue: Any {
     (
-      openAction: openActionSelection,
       notificationCount: notificationIndicatorCount,
       hasAlert: alert != nil
     )

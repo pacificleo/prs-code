@@ -5,7 +5,6 @@ import SwiftUI
 
 struct WorktreeCommands: Commands {
   @Bindable var store: StoreOf<AppFeature>
-  @FocusedValue(\.openSelectedWorktreeAction) private var openSelectedWorktreeAction
   @FocusedValue(\.confirmWorktreeAction) private var confirmWorktreeAction
   @FocusedValue(\.archiveWorktreeAction) private var archiveWorktreeAction
   @FocusedValue(\.deleteWorktreeAction) private var deleteWorktreeAction
@@ -29,7 +28,6 @@ struct WorktreeCommands: Commands {
     let deleteWt = AppShortcuts.deleteWorktree.effective(from: overrides)
     let confirm = AppShortcuts.confirmWorktreeAction.effective(from: overrides)
     let openRepo = AppShortcuts.openRepository.effective(from: overrides)
-    let openWorktree = AppShortcuts.openFinder.effective(from: overrides)
     let openPR = AppShortcuts.openPullRequest.effective(from: overrides)
     let newWt = AppShortcuts.newWorktree.effective(from: overrides)
     let archived = AppShortcuts.archivedWorktrees.effective(from: overrides)
@@ -66,12 +64,6 @@ struct WorktreeCommands: Commands {
       }
       .appKeyboardShortcut(openRepo)
       .help("Open Repository (\(openRepo?.display ?? "none"))")
-      Button("Open Worktree") {
-        openSelectedWorktreeAction?()
-      }
-      .appKeyboardShortcut(openWorktree)
-      .help("Open Worktree (\(openWorktree?.display ?? "none"))")
-      .disabled(openSelectedWorktreeAction == nil)
       Button("Open Pull Request on GitHub") {
         if let pullRequestURL {
           NSWorkspace.shared.open(pullRequestURL)
@@ -174,10 +166,6 @@ private struct ArchiveWorktreeActionKey: FocusedValueKey {
   typealias Value = () -> Void
 }
 
-private struct OpenSelectedWorktreeActionKey: FocusedValueKey {
-  typealias Value = () -> Void
-}
-
 private struct DeleteWorktreeActionKey: FocusedValueKey {
   typealias Value = () -> Void
 }
@@ -187,11 +175,6 @@ private struct ConfirmWorktreeActionKey: FocusedValueKey {
 }
 
 extension FocusedValues {
-  var openSelectedWorktreeAction: (() -> Void)? {
-    get { self[OpenSelectedWorktreeActionKey.self] }
-    set { self[OpenSelectedWorktreeActionKey.self] = newValue }
-  }
-
   var confirmWorktreeAction: (() -> Void)? {
     get { self[ConfirmWorktreeActionKey.self] }
     set { self[ConfirmWorktreeActionKey.self] = newValue }

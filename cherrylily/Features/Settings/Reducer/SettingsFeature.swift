@@ -31,6 +31,7 @@ struct SettingsFeature {
     var defaultWorktreeBaseDirectoryPath: String
     var disabledWorktreeActions: Set<String>
     var customWorktreeActions: [CustomWorktreeAction]
+    var pinnedToolbarActions: [String]
     var shortcutOverrides: [AppShortcutID: AppShortcutOverride]
     var selection: SettingsSection? = .general
     var repositorySettings: RepositorySettingsFeature.State?
@@ -64,6 +65,7 @@ struct SettingsFeature {
         CherryLilyPaths.normalizedWorktreeBaseDirectoryPath(settings.defaultWorktreeBaseDirectoryPath) ?? ""
       disabledWorktreeActions = settings.disabledWorktreeActions
       customWorktreeActions = settings.customWorktreeActions
+      pinnedToolbarActions = settings.pinnedToolbarActions
     }
 
     var globalSettings: GlobalSettings {
@@ -94,6 +96,7 @@ struct SettingsFeature {
         ),
         disabledWorktreeActions: disabledWorktreeActions,
         customWorktreeActions: customWorktreeActions,
+        pinnedToolbarActions: pinnedToolbarActions,
         shortcutOverrides: shortcutOverrides
       )
     }
@@ -106,6 +109,8 @@ struct SettingsFeature {
     case setSystemNotificationsEnabled(Bool)
     case addCustomApplicationButtonTapped
     case removeCustomAction(String)
+    case setToolbarPin(id: String, pinned: Bool)
+    case movePinnedToolbarAction(from: IndexSet, toOffset: Int)
     case showNotificationPermissionAlert(errorMessage: String?)
     case updateShortcut(id: AppShortcutID, override: AppShortcutOverride?)
     case toggleShortcutEnabled(id: AppShortcutID, enabled: Bool)
@@ -179,6 +184,7 @@ struct SettingsFeature {
         state.defaultWorktreeBaseDirectoryPath = normalizedSettings.defaultWorktreeBaseDirectoryPath ?? ""
         state.disabledWorktreeActions = normalizedSettings.disabledWorktreeActions
         state.customWorktreeActions = normalizedSettings.customWorktreeActions
+        state.pinnedToolbarActions = normalizedSettings.pinnedToolbarActions
         state.repositorySettings?.globalDefaultWorktreeBaseDirectoryPath =
           normalizedSettings.defaultWorktreeBaseDirectoryPath
         return .send(.delegate(.settingsChanged(normalizedSettings)))
@@ -307,6 +313,21 @@ struct SettingsFeature {
 
       case .removeCustomAction(let id):
         state.customWorktreeActions.removeAll { $0.id == id }
+        state.pinnedToolbarActions.removeAll { $0 == id }
+        return persist(state)
+
+      case let .setToolbarPin(id, pinned):
+        if pinned {
+          if !state.pinnedToolbarActions.contains(id) {
+            state.pinnedToolbarActions.append(id)
+          }
+        } else {
+          state.pinnedToolbarActions.removeAll { $0 == id }
+        }
+        return persist(state)
+
+      case let .movePinnedToolbarAction(from, toOffset):
+        state.pinnedToolbarActions = Self.moved(state.pinnedToolbarActions, fromOffsets: from, toOffset: toOffset)
         return persist(state)
 
       case .alert(.dismiss):
@@ -332,6 +353,23 @@ struct SettingsFeature {
     .ifLet(\.repositorySettings, action: \.repositorySettings) {
       RepositorySettingsFeature()
     }
+  }
+
+  /// Reorders `array` matching SwiftUI's `move(fromOffsets:toOffset:)` semantics,
+  /// without importing SwiftUI into this reducer.
+  private static func moved<Element>(
+    _ array: [Element],
+    fromOffsets source: IndexSet,
+    toOffset destination: Int
+  ) -> [Element] {
+    var result = array
+    let moving = source.sorted().map { array[$0] }
+    for index in source.sorted(by: >) {
+      result.remove(at: index)
+    }
+    let adjustedDestination = destination - source.filter { $0 < destination }.count
+    result.insert(contentsOf: moving, at: adjustedDestination)
+    return result
   }
 
   private func persist(_ state: State) -> Effect<Action> {

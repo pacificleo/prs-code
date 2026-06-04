@@ -11,6 +11,7 @@ struct OpenWorktreeAction: Identifiable, Equatable, Hashable, Sendable {
   var bundleIdentifier: String
   var title: String
   var settingsID: String
+  var customIconData: Data?
 
   // Use Data instead of NSImage for Sendable compliance, hydrate on demand
   var labelTitle: String {
@@ -27,6 +28,10 @@ struct OpenWorktreeAction: Identifiable, Equatable, Hashable, Sendable {
     case .editor:
       return .symbol("apple.terminal")
     default:
+      if bundleIdentifier == "custom" {
+        if let customIconData { return .app(customIconData) }
+        return .symbol("app.dashed")
+      }
       return OpenWorktreeActionCache.menuIcon(forBundleIdentifier: bundleIdentifier)
     }
   }
@@ -77,6 +82,22 @@ struct OpenWorktreeAction: Identifiable, Equatable, Hashable, Sendable {
   ]
 
   static let automaticSettingsID = "auto"
+
+  /// Default toolbar pins for users upgrading from before pinning existed:
+  /// Finder + their configured default editor. Uses the always-available
+  /// `$EDITOR` action when the default editor is "auto"/empty. Install
+  /// filtering happens later in `pinnedToolbarCases`, so this stays pure.
+  nonisolated static func seededPinnedToolbarActions(defaultEditorID: String) -> [String] {
+    // Uses raw settingsID literals (not the MainActor-isolated static cases) so
+    // this stays callable from `GlobalSettings.init(from:)` (a nonisolated context).
+    let editorID =
+      (defaultEditorID.isEmpty || defaultEditorID == "auto")
+      ? "editor"
+      : defaultEditorID
+    var seed = ["finder"]
+    if editorID != "finder" { seed.append(editorID) }
+    return seed
+  }
 
   static let editorPriority: [OpenWorktreeAction] = [
     .cursor, .zed, .vscode, .windsurf, .vscodeInsiders, .vscodium, .intellij, .webstorm, .pycharm,
@@ -143,6 +164,27 @@ struct OpenWorktreeAction: Identifiable, Equatable, Hashable, Sendable {
         )
     }
     return builtIns + custom
+  }
+
+  /// Ordered, installed actions to render as toolbar icons, resolved from
+  /// `settings.pinnedToolbarActions`. Built-ins map by `settingsID` and are
+  /// dropped if not installed; custom ids map to the user's custom apps and
+  /// carry their own icon. Unknown ids are skipped.
+  static func pinnedToolbarCases(settings: GlobalSettings) -> [OpenWorktreeAction] {
+    settings.pinnedToolbarActions.compactMap { id in
+      if let builtIn = menuOrder.first(where: { $0.settingsID == id }) {
+        return builtIn.isInstalled ? builtIn : nil
+      }
+      guard let custom = settings.customWorktreeActions.first(where: { $0.id == id }) else {
+        return nil
+      }
+      return OpenWorktreeAction(
+        bundleIdentifier: "custom",
+        title: custom.name,
+        settingsID: custom.id,
+        customIconData: custom.icon
+      )
+    }
   }
 
   static func availableSelection(_ selection: OpenWorktreeAction, settings: GlobalSettings) -> OpenWorktreeAction {
