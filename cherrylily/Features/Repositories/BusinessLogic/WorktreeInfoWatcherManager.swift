@@ -29,6 +29,8 @@ final class WorktreeInfoWatcherManager {
   private let refreshTiming: RefreshTiming
   private let sleep: @Sendable (Duration) async throws -> Void
   private let fileEventSourceFactory: WorktreeFileEventSourceFactory
+  private let gitCommonDirResolver: @Sendable (URL) async -> URL?
+  private let discoveryInterval: Duration
   private let contentWatchLatency: TimeInterval
   private var worktrees: [Worktree.ID: Worktree] = [:]
   private var headWatchers: [Worktree.ID: HeadWatcher] = [:]
@@ -44,21 +46,27 @@ final class WorktreeInfoWatcherManager {
   private var eventContinuation: AsyncStream<WorktreeInfoWatcherClient.Event>.Continuation?
   private var contentSources: [Worktree.ID: WorktreeFileEventSource] = [:]
   private var ignoreMatchers: [Worktree.ID: GitIgnorePrefixMatcher] = [:]
+  private var refsSources: [URL: WorktreeFileEventSource] = [:]
+  private var refsCommonDirByRepository: [URL: URL] = [:]
 
   init<C: Clock<Duration>>(
     focusedInterval: Duration = .seconds(30),
     unfocusedInterval: Duration = .seconds(60),
     filesChangedDebounceInterval: Duration = .seconds(5),
     pullRequestSelectionRefreshCooldown: Duration = .seconds(5),
+    discoveryInterval: Duration = .seconds(150),
     contentWatchLatency: TimeInterval = 0.7,
     fileEventSourceFactory: @escaping WorktreeFileEventSourceFactory = liveWorktreeFileEventSourceFactory,
+    gitCommonDirResolver: @escaping @Sendable (URL) async -> URL? = { await GitClient().gitCommonDir(for: $0) },
     clock: C = ContinuousClock()
   ) {
     refreshTiming = RefreshTiming(focused: focusedInterval, unfocused: unfocusedInterval)
     self.filesChangedDebounceInterval = filesChangedDebounceInterval
     self.pullRequestSelectionRefreshCooldown = pullRequestSelectionRefreshCooldown
+    self.discoveryInterval = discoveryInterval
     self.contentWatchLatency = contentWatchLatency
     self.fileEventSourceFactory = fileEventSourceFactory
+    self.gitCommonDirResolver = gitCommonDirResolver
     self.sleep = { duration in
       try await clock.sleep(for: duration)
     }
@@ -113,11 +121,14 @@ final class WorktreeInfoWatcherManager {
     }
     let repositoryRoots = Set(worktrees.map(\.repositoryRootURL))
     for repositoryRootURL in repositoryRoots {
+      ensureRefsWatcher(repositoryRootURL: repositoryRootURL)
       updatePullRequestSchedule(repositoryRootURL: repositoryRootURL, immediate: true)
     }
     let obsoleteRepositories = pullRequestTasks.keys.filter { !repositoryRoots.contains($0) }
     for repositoryRootURL in obsoleteRepositories {
       pullRequestTasks.removeValue(forKey: repositoryRootURL)?.task.cancel()
+      refsSources.removeValue(forKey: repositoryRootURL)?.stop()
+      refsCommonDirByRepository.removeValue(forKey: repositoryRootURL)
     }
     let obsoleteCooldownRepositories = pullRequestSelectionCooldownTasksByRepo.keys.filter {
       !repositoryRoots.contains($0)
@@ -259,6 +270,9 @@ final class WorktreeInfoWatcherManager {
       try? await sleep(.milliseconds(200))
       await MainActor.run {
         self?.emit(.branchChanged(worktreeID: worktreeID))
+        if let repositoryRootURL = self?.worktrees[worktreeID]?.repositoryRootURL {
+          self?.emitRefsChanged(repositoryRootURL: repositoryRootURL)
+        }
       }
     }
     branchDebounceTasks[worktreeID] = task
@@ -316,6 +330,40 @@ final class WorktreeInfoWatcherManager {
     ignoreMatchers.removeValue(forKey: worktreeID)
   }
 
+  private func ensureRefsWatcher(repositoryRootURL: URL) {
+    guard refsSources[repositoryRootURL] == nil else { return }
+    let resolver = gitCommonDirResolver
+    Task { [weak self] in
+      guard let commonDir = await resolver(repositoryRootURL) else { return }
+      await MainActor.run {
+        self?.startRefsWatcher(repositoryRootURL: repositoryRootURL, commonDir: commonDir)
+      }
+    }
+  }
+
+  private func startRefsWatcher(repositoryRootURL: URL, commonDir: URL) {
+    guard worktrees.values.contains(where: { $0.repositoryRootURL == repositoryRootURL }) else { return }
+    guard refsSources[repositoryRootURL] == nil else { return }
+    refsCommonDirByRepository[repositoryRootURL] = commonDir
+    let watchPaths = [
+      commonDir.appending(path: "refs"),
+      commonDir.appending(path: "packed-refs"),
+      commonDir.appending(path: "HEAD"),
+    ]
+    let source = fileEventSourceFactory(watchPaths, contentWatchLatency) { [weak self] _ in
+      Task { @MainActor in
+        self?.emitRefsChanged(repositoryRootURL: repositoryRootURL)
+      }
+    }
+    refsSources[repositoryRootURL] = source
+  }
+
+  private func emitRefsChanged(repositoryRootURL: URL) {
+    let worktreeIDs = repositoryWorktreeIDs(for: repositoryRootURL)
+    guard !worktreeIDs.isEmpty else { return }
+    emit(.repositoryRefsChanged(repositoryRootURL: repositoryRootURL, worktreeIDs: worktreeIDs))
+  }
+
   private func stopAll() {
     for watcher in headWatchers.values {
       watcher.source.cancel()
@@ -335,6 +383,7 @@ final class WorktreeInfoWatcherManager {
     for source in contentSources.values {
       source.stop()
     }
+    for source in refsSources.values { source.stop() }
     headWatchers.removeAll()
     branchDebounceTasks.removeAll()
     filesDebounceTasks.removeAll()
@@ -342,6 +391,8 @@ final class WorktreeInfoWatcherManager {
     pullRequestTasks.removeAll()
     contentSources.removeAll()
     ignoreMatchers.removeAll()
+    refsSources.removeAll()
+    refsCommonDirByRepository.removeAll()
     deferredLineChangeIDs.removeAll()
     hasCompletedInitialWorktreeLoad = false
     cancelAllPullRequestSelectionCooldownTasks()
@@ -381,28 +432,26 @@ final class WorktreeInfoWatcherManager {
       return
     }
     let isFocused = selectedWorktreeID.map { worktreeIDs.contains($0) } ?? false
-    let interval = isFocused ? refreshTiming.focused : refreshTiming.unfocused
-    if let existing = pullRequestTasks[repositoryRootURL], existing.interval == interval, !immediate {
-      return
-    }
-    pullRequestTasks[repositoryRootURL]?.task.cancel()
     if immediate {
       emitPullRequestRefresh(repositoryRootURL: repositoryRootURL)
     }
+    // Only the focused repo runs a slow discovery poll (catches review/CI/web-created PRs
+    // with no local ref signal). Background repos refresh on ref events + focus only.
+    guard isFocused else {
+      pullRequestTasks.removeValue(forKey: repositoryRootURL)?.task.cancel()
+      return
+    }
+    if let existing = pullRequestTasks[repositoryRootURL], existing.interval == discoveryInterval, !immediate {
+      return
+    }
+    pullRequestTasks[repositoryRootURL]?.task.cancel()
+    let interval = discoveryInterval
     let sleep = self.sleep
     let task = Task { [weak self, sleep] in
       while !Task.isCancelled {
-        do {
-          try await sleep(interval)
-        } catch {
-          break
-        }
-        guard !Task.isCancelled else {
-          break
-        }
-        await MainActor.run {
-          self?.emitPullRequestRefresh(repositoryRootURL: repositoryRootURL)
-        }
+        do { try await sleep(interval) } catch { break }
+        guard !Task.isCancelled else { break }
+        await MainActor.run { self?.emitPullRequestRefresh(repositoryRootURL: repositoryRootURL) }
       }
     }
     pullRequestTasks[repositoryRootURL] = RefreshTask(interval: interval, task: task)

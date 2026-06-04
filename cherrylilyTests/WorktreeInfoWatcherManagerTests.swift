@@ -200,6 +200,37 @@ struct WorktreeInfoWatcherManagerTests {
     await task.value
     try FileManager.default.removeItem(at: tempRepository.tempRoot)
   }
+
+  @Test func refsChangeEmitsRepositoryRefsChanged() async throws {
+    let repo = try makeTempRepository(worktreeNames: ["sparrow"])
+    let commonDir = repo.tempRoot.appending(path: ".git")
+    let registry = FakeFileEventSourceRegistry()
+    let factory: WorktreeFileEventSourceFactory = { paths, _, onBatch in
+      let source = FakeFileEventSource(paths: paths, onBatch: onBatch)
+      Task { await registry.add(source) }
+      return source
+    }
+    let manager = WorktreeInfoWatcherManager(
+      focusedInterval: .seconds(3_600),
+      unfocusedInterval: .seconds(3_600),
+      fileEventSourceFactory: factory,
+      gitCommonDirResolver: { _ in commonDir }
+    )
+    let (collector, task) = startCollecting(manager.eventStream())
+    manager.handleCommand(.setWorktrees(repo.worktrees))
+    await drainAsyncEvents(200)
+    let baseline = await collector.repositoryRefsChangedCount(repositoryRootURL: repo.tempRoot)
+
+    let refsDir = commonDir.appending(path: "refs")
+    let pushed = refsDir.appending(path: "remotes/origin/sparrow").path(percentEncoded: false)
+    await registry.source(watching: refsDir)?.onBatch([pushed])
+    await drainAsyncEvents(200)
+
+    #expect(await collector.repositoryRefsChangedCount(repositoryRootURL: repo.tempRoot) == baseline + 1)
+    manager.handleCommand(.stop)
+    await task.value
+    try FileManager.default.removeItem(at: repo.tempRoot)
+  }
 }
 
 final class FakeFileEventSource: WorktreeFileEventSource, @unchecked Sendable {
@@ -239,6 +270,14 @@ actor EventCollector {
   func pullRequestRefreshCount(repositoryRootURL: URL) -> Int {
     events.reduce(into: 0) { result, event in
       if case .repositoryPullRequestRefresh(let rootURL, _) = event, rootURL == repositoryRootURL {
+        result += 1
+      }
+    }
+  }
+
+  func repositoryRefsChangedCount(repositoryRootURL: URL) -> Int {
+    events.reduce(into: 0) { result, event in
+      if case .repositoryRefsChanged(let rootURL, _) = event, rootURL == repositoryRootURL {
         result += 1
       }
     }
