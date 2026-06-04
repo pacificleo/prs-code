@@ -10,7 +10,6 @@ final class WorktreeInfoWatcherManager {
   }
 
   private struct RefreshTask {
-    let interval: Duration
     let task: Task<Void, Never>
   }
 
@@ -19,14 +18,8 @@ final class WorktreeInfoWatcherManager {
     let task: Task<Void, Never>
   }
 
-  private struct RefreshTiming: Equatable {
-    let focused: Duration
-    let unfocused: Duration
-  }
-
   private let filesChangedDebounceInterval: Duration
   private let pullRequestSelectionRefreshCooldown: Duration
-  private let refreshTiming: RefreshTiming
   private let sleep: @Sendable (Duration) async throws -> Void
   private let fileEventSourceFactory: WorktreeFileEventSourceFactory
   private let gitCommonDirResolver: @Sendable (URL) async -> URL?
@@ -49,8 +42,6 @@ final class WorktreeInfoWatcherManager {
   private var refsSources: [URL: WorktreeFileEventSource] = [:]
 
   init<C: Clock<Duration>>(
-    focusedInterval: Duration = .seconds(30),
-    unfocusedInterval: Duration = .seconds(60),
     filesChangedDebounceInterval: Duration = .seconds(5),
     pullRequestSelectionRefreshCooldown: Duration = .seconds(5),
     discoveryInterval: Duration = .seconds(150),
@@ -59,7 +50,6 @@ final class WorktreeInfoWatcherManager {
     gitCommonDirResolver: @escaping @Sendable (URL) async -> URL? = { await GitClient().gitCommonDir(for: $0) },
     clock: C = ContinuousClock()
   ) {
-    refreshTiming = RefreshTiming(focused: focusedInterval, unfocused: unfocusedInterval)
     self.filesChangedDebounceInterval = filesChangedDebounceInterval
     self.pullRequestSelectionRefreshCooldown = pullRequestSelectionRefreshCooldown
     self.discoveryInterval = discoveryInterval
@@ -438,7 +428,7 @@ final class WorktreeInfoWatcherManager {
       pullRequestTasks.removeValue(forKey: repositoryRootURL)?.task.cancel()
       return
     }
-    if let existing = pullRequestTasks[repositoryRootURL], existing.interval == discoveryInterval, !immediate {
+    if pullRequestTasks[repositoryRootURL] != nil, !immediate {
       return
     }
     pullRequestTasks[repositoryRootURL]?.task.cancel()
@@ -451,7 +441,7 @@ final class WorktreeInfoWatcherManager {
         await MainActor.run { self?.emitPullRequestRefresh(repositoryRootURL: repositoryRootURL) }
       }
     }
-    pullRequestTasks[repositoryRootURL] = RefreshTask(interval: interval, task: task)
+    pullRequestTasks[repositoryRootURL] = RefreshTask(task: task)
   }
 
   private func repositoryWorktreeIDs(for repositoryRootURL: URL) -> [Worktree.ID] {

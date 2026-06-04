@@ -9,8 +9,6 @@ struct WorktreeInfoWatcherManagerTests {
   @Test func emitsLineChangesImmediatelyOnInitialWorktreeLoad() async throws {
     let tempWorktree = try makeTempWorktree()
     let manager = WorktreeInfoWatcherManager(
-      focusedInterval: .seconds(3_600),
-      unfocusedInterval: .seconds(3_600)
     )
     let (collector, task) = startCollecting(manager.eventStream())
 
@@ -30,8 +28,6 @@ struct WorktreeInfoWatcherManagerTests {
     let firstWorktree = try #require(tempRepository.worktrees.first)
     let secondWorktree = try #require(tempRepository.worktrees.dropFirst().first)
     let manager = WorktreeInfoWatcherManager(
-      focusedInterval: .seconds(3_600),
-      unfocusedInterval: .seconds(3_600)
     )
     let (collector, task) = startCollecting(manager.eventStream())
 
@@ -57,8 +53,6 @@ struct WorktreeInfoWatcherManagerTests {
     let clock = TestClock()
     let tempRepository = try makeTempRepository(worktreeNames: ["sparrow", "swift"])
     let manager = WorktreeInfoWatcherManager(
-      focusedInterval: .seconds(3_600),
-      unfocusedInterval: .seconds(3_600),
       pullRequestSelectionRefreshCooldown: .milliseconds(500),
       clock: clock
     )
@@ -103,8 +97,6 @@ struct WorktreeInfoWatcherManagerTests {
       return source
     }
     let manager = WorktreeInfoWatcherManager(
-      focusedInterval: .seconds(3_600),
-      unfocusedInterval: .seconds(3_600),
       filesChangedDebounceInterval: .milliseconds(1),
       fileEventSourceFactory: factory
     )
@@ -133,8 +125,6 @@ struct WorktreeInfoWatcherManagerTests {
       return source
     }
     let manager = WorktreeInfoWatcherManager(
-      focusedInterval: .seconds(3_600),
-      unfocusedInterval: .seconds(3_600),
       filesChangedDebounceInterval: .milliseconds(1),
       fileEventSourceFactory: factory
     )
@@ -158,8 +148,6 @@ struct WorktreeInfoWatcherManagerTests {
     let clock = TestClock()
     let tempRepository = try makeTempRepository(worktreeNames: ["sparrow", "swift"])
     let manager = WorktreeInfoWatcherManager(
-      focusedInterval: .seconds(3_600),
-      unfocusedInterval: .seconds(3_600),
       pullRequestSelectionRefreshCooldown: .milliseconds(500),
       clock: clock
     )
@@ -201,8 +189,7 @@ struct WorktreeInfoWatcherManagerTests {
     try FileManager.default.removeItem(at: tempRepository.tempRoot)
   }
 
-  @Test func refsChangeEmitsRepositoryRefsChanged() async throws {
-    let repo = try makeTempRepository(worktreeNames: ["sparrow"])
+  @Test func refsChangeEmitsRepositoryRefsChanged() async throws {    let repo = try makeTempRepository(worktreeNames: ["sparrow"])
     let commonDir = repo.tempRoot.appending(path: ".git")
     let registry = FakeFileEventSourceRegistry()
     let factory: WorktreeFileEventSourceFactory = { paths, _, onBatch in
@@ -211,8 +198,6 @@ struct WorktreeInfoWatcherManagerTests {
       return source
     }
     let manager = WorktreeInfoWatcherManager(
-      focusedInterval: .seconds(3_600),
-      unfocusedInterval: .seconds(3_600),
       fileEventSourceFactory: factory,
       gitCommonDirResolver: { _ in commonDir }
     )
@@ -227,6 +212,31 @@ struct WorktreeInfoWatcherManagerTests {
     await drainAsyncEvents(200)
 
     #expect(await collector.repositoryRefsChangedCount(repositoryRootURL: repo.tempRoot) == baseline + 1)
+    manager.handleCommand(.stop)
+    await task.value
+    try FileManager.default.removeItem(at: repo.tempRoot)
+  }
+
+  @Test func focusedRepoDiscoveryPollFiresOnCadence() async throws {
+    let clock = TestClock()
+    let repo = try makeTempRepository(worktreeNames: ["sparrow"])
+    let manager = WorktreeInfoWatcherManager(
+      discoveryInterval: .milliseconds(100),
+      clock: clock
+    )
+    let (collector, task) = startCollecting(manager.eventStream())
+    manager.handleCommand(.setWorktrees(repo.worktrees))
+    let firstWorktree = try #require(repo.worktrees.first)
+    manager.handleCommand(.setSelectedWorktreeID(firstWorktree.id))
+    // Drain any immediate refresh(es) triggered by worktree set + selection before capturing baseline.
+    await drainAsyncEvents(200)
+    let baseline = await collector.pullRequestRefreshCount(repositoryRootURL: repo.tempRoot)
+
+    // Advance the TestClock by one discovery interval — the background loop should fire once.
+    await clock.advance(by: .milliseconds(100))
+    await drainAsyncEvents(200)
+    #expect(await collector.pullRequestRefreshCount(repositoryRootURL: repo.tempRoot) > baseline)
+
     manager.handleCommand(.stop)
     await task.value
     try FileManager.default.removeItem(at: repo.tempRoot)
