@@ -26,14 +26,12 @@ struct WorktreeInfoWatcherManagerTests {
   }
 
   @Test func defersLineChangesForWorktreesAddedAfterInitialLoad() async throws {
-    let clock = TestClock()
     let tempRepository = try makeTempRepository(worktreeNames: ["sparrow", "swift"])
     let firstWorktree = try #require(tempRepository.worktrees.first)
     let secondWorktree = try #require(tempRepository.worktrees.dropFirst().first)
     let manager = WorktreeInfoWatcherManager(
-      focusedInterval: .milliseconds(80),
-      unfocusedInterval: .milliseconds(80),
-      clock: clock
+      focusedInterval: .seconds(3_600),
+      unfocusedInterval: .seconds(3_600)
     )
     let (collector, task) = startCollecting(manager.eventStream())
 
@@ -46,11 +44,7 @@ struct WorktreeInfoWatcherManagerTests {
     await drainAsyncEvents(120)
     #expect(await collector.filesChangedCount(worktreeID: secondWorktree.id) == 0)
 
-    await clock.advance(by: .milliseconds(79))
-    await drainAsyncEvents(120)
-    #expect(await collector.filesChangedCount(worktreeID: secondWorktree.id) == 0)
-
-    await clock.advance(by: .milliseconds(1))
+    manager.handleCommand(.setSelectedWorktreeID(secondWorktree.id))
     await drainAsyncEvents(120)
     #expect(await collector.filesChangedCount(worktreeID: secondWorktree.id) == 1)
 
@@ -100,6 +94,66 @@ struct WorktreeInfoWatcherManagerTests {
     try FileManager.default.removeItem(at: tempRepository.tempRoot)
   }
 
+  @Test func filesChangedFiresOnNonIgnoredWorktreeEdit() async throws {
+    let temp = try makeTempWorktree()
+    let registry = FakeFileEventSourceRegistry()
+    let factory: WorktreeFileEventSourceFactory = { paths, _, onBatch in
+      let source = FakeFileEventSource(paths: paths, onBatch: onBatch)
+      Task { await registry.add(source) }
+      return source
+    }
+    let manager = WorktreeInfoWatcherManager(
+      focusedInterval: .seconds(3_600),
+      unfocusedInterval: .seconds(3_600),
+      filesChangedDebounceInterval: .milliseconds(1),
+      fileEventSourceFactory: factory
+    )
+    let (collector, task) = startCollecting(manager.eventStream())
+    manager.handleCommand(.setPullRequestTrackingEnabled(false))
+    manager.handleCommand(.setWorktrees([temp.worktree]))
+    await drainAsyncEvents(120)
+    let baseline = await collector.filesChangedCount(worktreeID: temp.worktree.id)
+
+    let editedFile = temp.worktree.workingDirectory.appending(path: "Sources/App.swift").path(percentEncoded: false)
+    await registry.source(watching: temp.worktree.workingDirectory)?.onBatch([editedFile])
+    await drainAsyncEvents(120)
+
+    #expect(await collector.filesChangedCount(worktreeID: temp.worktree.id) == baseline + 1)
+    manager.handleCommand(.stop)
+    await task.value
+    try FileManager.default.removeItem(at: temp.tempRoot)
+  }
+
+  @Test func filesChangedSuppressedForGitInternalEdits() async throws {
+    let temp = try makeTempWorktree()
+    let registry = FakeFileEventSourceRegistry()
+    let factory: WorktreeFileEventSourceFactory = { paths, _, onBatch in
+      let source = FakeFileEventSource(paths: paths, onBatch: onBatch)
+      Task { await registry.add(source) }
+      return source
+    }
+    let manager = WorktreeInfoWatcherManager(
+      focusedInterval: .seconds(3_600),
+      unfocusedInterval: .seconds(3_600),
+      filesChangedDebounceInterval: .milliseconds(1),
+      fileEventSourceFactory: factory
+    )
+    let (collector, task) = startCollecting(manager.eventStream())
+    manager.handleCommand(.setPullRequestTrackingEnabled(false))
+    manager.handleCommand(.setWorktrees([temp.worktree]))
+    await drainAsyncEvents(120)
+    let baseline = await collector.filesChangedCount(worktreeID: temp.worktree.id)
+
+    let gitFile = temp.worktree.workingDirectory.appending(path: ".git/index").path(percentEncoded: false)
+    await registry.source(watching: temp.worktree.workingDirectory)?.onBatch([gitFile])
+    await drainAsyncEvents(120)
+
+    #expect(await collector.filesChangedCount(worktreeID: temp.worktree.id) == baseline)
+    manager.handleCommand(.stop)
+    await task.value
+    try FileManager.default.removeItem(at: temp.tempRoot)
+  }
+
   @Test func canceledSelectionCooldownDoesNotClearReplacementCooldown() async throws {
     let clock = TestClock()
     let tempRepository = try makeTempRepository(worktreeNames: ["sparrow", "swift"])
@@ -145,6 +199,25 @@ struct WorktreeInfoWatcherManagerTests {
     manager.handleCommand(.stop)
     await task.value
     try FileManager.default.removeItem(at: tempRepository.tempRoot)
+  }
+}
+
+final class FakeFileEventSource: WorktreeFileEventSource, @unchecked Sendable {
+  let paths: [URL]
+  let onBatch: @Sendable ([String]) -> Void
+  private(set) var stopped = false
+  init(paths: [URL], onBatch: @escaping @Sendable ([String]) -> Void) {
+    self.paths = paths
+    self.onBatch = onBatch
+  }
+  func stop() { stopped = true }
+}
+
+actor FakeFileEventSourceRegistry {
+  private(set) var sources: [FakeFileEventSource] = []
+  func add(_ source: FakeFileEventSource) { sources.append(source) }
+  func source(watching url: URL) -> FakeFileEventSource? {
+    sources.first { $0.paths.contains(url) }
   }
 }
 
