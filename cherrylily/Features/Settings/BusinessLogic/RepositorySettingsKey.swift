@@ -1,4 +1,3 @@
-import Dependencies
 import Foundation
 import Sharing
 
@@ -23,20 +22,6 @@ nonisolated struct RepositorySettingsKey: SharedKey {
     context: LoadContext<RepositorySettings>,
     continuation: LoadContinuation<RepositorySettings>
   ) {
-    @Dependency(\.repositoryLocalSettingsStorage) var repositoryLocalSettingsStorage
-    let repositorySettingsURL = CherryLilyPaths.repositorySettingsURL(for: rootURL)
-    if let localData = try? repositoryLocalSettingsStorage.load(repositorySettingsURL) {
-      let decoder = JSONDecoder()
-      if let settings = try? decoder.decode(RepositorySettings.self, from: localData) {
-        continuation.resume(returning: settings)
-        return
-      }
-      let path = repositorySettingsURL.path(percentEncoded: false)
-      SupaLogger("Settings").warning(
-        "Unable to decode repository settings at \(path); falling back to global settings."
-      )
-    }
-
     @Shared(.settingsFile) var settingsFile: SettingsFile
     let settings = $settingsFile.withLock { settings in
       if let existing = settings.repositories[repositoryID] {
@@ -61,21 +46,6 @@ nonisolated struct RepositorySettingsKey: SharedKey {
     context _: SaveContext,
     continuation: SaveContinuation
   ) {
-    @Dependency(\.repositoryLocalSettingsStorage) var repositoryLocalSettingsStorage
-    let repositorySettingsURL = CherryLilyPaths.repositorySettingsURL(for: rootURL)
-    if (try? repositoryLocalSettingsStorage.load(repositorySettingsURL)) != nil {
-      do {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(value)
-        try repositoryLocalSettingsStorage.save(data, repositorySettingsURL)
-        continuation.resume()
-      } catch {
-        continuation.resume(throwing: error)
-      }
-      return
-    }
-
     @Shared(.settingsFile) var settingsFile: SettingsFile
     $settingsFile.withLock {
       $0.repositories[repositoryID] = value
