@@ -2976,6 +2976,16 @@ struct RepositoriesFeatureTests {
     #expect(store.state.lastFetchedHeadSHAByWorktreeID[worktree.id] == "sha-NEW")
   }
 
+  @Test func pruneHeadSHAsDropsMissingWorktrees() {
+    let kept = makeWorktree(id: "/tmp/repo/keep", name: "keep", repoRoot: "/tmp/repo")
+    let removed = makeWorktree(id: "/tmp/repo/gone", name: "gone", repoRoot: "/tmp/repo")
+    let result = pruneHeadSHAs(
+      [kept.id: "a", removed.id: "b"],
+      liveWorktreeIDs: [kept.id]
+    )
+    #expect(result == [kept.id: "a"])
+  }
+
   @Test func refsChangedSkipsRefreshWhenSHAUnchanged() async throws {
     let worktree = makeWorktree(id: "/tmp/repo/wt", name: "wt", repoRoot: "/tmp/repo")
     let repository = makeRepository(id: "/tmp/repo", worktrees: [worktree])

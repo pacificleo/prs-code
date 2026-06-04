@@ -2793,6 +2793,10 @@ struct RepositoriesFeature {
       shouldPruneArchivedWorktreeIDs
       ? pruneArchivedWorktreeIDs(availableWorktreeIDs: availableWorktreeIDs, state: &state)
       : false
+    state.lastFetchedHeadSHAByWorktreeID = pruneHeadSHAs(
+      state.lastFetchedHeadSHAByWorktreeID,
+      liveWorktreeIDs: availableWorktreeIDs
+    )
     if !state.isShowingArchivedWorktrees, !isSelectionValid(state.selectedWorktreeID, state: state) {
       state.selection = nil
     }
@@ -3747,6 +3751,13 @@ private func pruneArchivedWorktreeIDs(
     return true
   }
   return false
+}
+
+func pruneHeadSHAs(
+  _ shas: [Worktree.ID: String],
+  liveWorktreeIDs: Set<Worktree.ID>
+) -> [Worktree.ID: String] {
+  shas.filter { liveWorktreeIDs.contains($0.key) }
 }
 
 private func firstAvailableWorktreeID(
