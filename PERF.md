@@ -429,6 +429,34 @@ After completing 2.1–2.5, run:
 
 ## Section 3 — Lower impact (polish, hygiene, future-proofing)
 
+> **Status: ✅ Triaged & implemented (4 landed; the rest deferred with rationale).**
+> Branch rebased onto `main` first (Sections 1 & 2 were already merged via
+> `Merge pwason/PERF` commits). Each landed item: build + full test suite + swiftlint green.
+>
+> | Item | Status | Commit | Notes |
+> |---|---|---|---|
+> | B20 — `GhosttyRuntime.surfaceRefs` → `Set` (O(1) register/unregister) | ✅ Landed | `467a135` | Was O(N²) under surface churn |
+> | B13 — cache resized open-action app icon (content-keyed `NSCache`) | ✅ Landed | `b3e23c2` | Was decode+lockFocus/draw per toolbar render |
+> | M1 — parallelize `pruneWorktrees` in `loadRepositories` | ✅ Landed | `dcd7af9` | Results discarded; refresh latency drops |
+> | B14 — exponential backoff on the GitHub-integration recovery poll | ✅ Landed | `dcd7af9` | 15→30→60→120→240→300s; was fixed 15s forever |
+> | B5 — `withTaskCancellationHandler` on TmuxClient | ⏸️ Deferred | — | `capture-pane`/`run` are short-lived & self-terminating; refactor risk |
+> | B6 — bounded concurrency in `captureAll` | ⏸️ Deferred | — | Hourly/at-quit, short-lived subprocesses; modest value |
+> | B18 — cap `pendingEvents` + `.bufferingNewest` | ⏸️ Deferred | — | `.bufferingNewest` could drop semantically-important tab/focus events |
+> | B11 — cache `keyboardLayoutId` | ❌ Unsafe | — | Called twice per `keyDown` to detect a layout switch caused *by that key*; caching breaks the detection (the notification can't capture the synchronous mid-event change) |
+> | B24 — cache `SplitTree` structural identity | ⏸️ Deferred | — | Value-type caching across mutations; tree is small |
+> | B16 — drop immediate PR refresh after merge/close | ❌ Intended | — | A test asserts the immediate refresh is intended behavior |
+> | B15 — serialize PR fan-out on availability flip | ⏸️ Deferred | — | Changes replay ordering existing recovery tests depend on |
+> | B7 — dedup chatty Ghostty C-actions before the main-thread hop | ⏸️ Deferred | — | Concurrency-sensitive C bridge; high risk |
+> | B8 — drop `AnyView` in `TerminalSplitTreeAXContainer` | ⏸️ Deferred | — | Generics + NSHostingView interplay risk |
+> | B9 — GeometryReader rewrites (5 views) | ⏸️ Deferred | — | Layout-refactor risk for modest gain |
+> | B12 — consolidate per-window NotificationCenter observers | ⏸️ Deferred | — | Structural; medium risk |
+> | 3.4 Tier-C sweep (drop `Task { @MainActor }` hops, `ForEach(Array(.enumerated()))`, share `JSONDecoder`, hoist `KeyboardShortcut.display`) | ⏸️ Deferred | — | Either behavior-affecting & unverifiable without manual smoke-test (the Task-hop timing change), per-site risky (index usage), or concurrency-risky (shared decoder) — for collectively negligible gain |
+>
+> Guiding principle throughout: **zero regressions** supersedes completeness. The deferred
+> items are unverifiable-without-manual-testing or carry regression risk disproportionate to
+> their (Section-3-level "lower impact") payoff. They can be picked up individually with a
+> live smoke-test of the affected behavior.
+
 Tier B and Tier C items. Each is small; together they remove the lingering hitches and lower the floor for sessions with very large worktree/tab counts.
 
 ### 3.1 — Per-tab / per-surface micro-optimizations
