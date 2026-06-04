@@ -2951,6 +2951,52 @@ struct RepositoriesFeatureTests {
     await store.receive(\.delegate.selectedWorktreeChanged)
   }
 
+  @Test func refsChangedTriggersRefreshOnlyForMovedSHA() async throws {
+    let worktree = makeWorktree(id: "/tmp/repo/wt", name: "wt", repoRoot: "/tmp/repo")
+    let repository = makeRepository(id: "/tmp/repo", worktrees: [worktree])
+    var initial = makeState(repositories: [repository])
+    initial.githubIntegrationAvailability = .disabled
+    let store = TestStore(initialState: initial) {
+      RepositoriesFeature()
+    } withDependencies: {
+      $0.gitClient.headSHA = { _ in "sha-NEW" }
+    }
+    store.exhaustivity = .off
+
+    await store.send(.worktreeInfoEvent(.repositoryRefsChanged(
+      repositoryRootURL: URL(fileURLWithPath: "/tmp/repo"),
+      worktreeIDs: [worktree.id]
+    )))
+
+    await store.receive(\.headSHAsUpdated)
+    await store.receive { action in
+      if case .worktreeInfoEvent(.repositoryPullRequestRefresh) = action { return true }
+      return false
+    }
+    #expect(store.state.lastFetchedHeadSHAByWorktreeID[worktree.id] == "sha-NEW")
+  }
+
+  @Test func refsChangedSkipsRefreshWhenSHAUnchanged() async throws {
+    let worktree = makeWorktree(id: "/tmp/repo/wt", name: "wt", repoRoot: "/tmp/repo")
+    let repository = makeRepository(id: "/tmp/repo", worktrees: [worktree])
+    var initial = makeState(repositories: [repository])
+    initial.githubIntegrationAvailability = .disabled
+    initial.lastFetchedHeadSHAByWorktreeID[worktree.id] = "sha-SAME"
+    let store = TestStore(initialState: initial) {
+      RepositoriesFeature()
+    } withDependencies: {
+      $0.gitClient.headSHA = { _ in "sha-SAME" }
+    }
+    // Full exhaustivity: SHA unchanged → the ONLY action is headSHAsUpdated (no state change,
+    // no PR refresh). A stray refresh would fail teardown.
+    await store.send(.worktreeInfoEvent(.repositoryRefsChanged(
+      repositoryRootURL: URL(fileURLWithPath: "/tmp/repo"),
+      worktreeIDs: [worktree.id]
+    )))
+
+    await store.receive(\.headSHAsUpdated)
+  }
+
   private func makeWorktree(
     id: String,
     name: String,

@@ -17,6 +17,9 @@ private enum CancelID {
   static func lineChanges(_ worktreeID: Worktree.ID) -> String {
     "repositories.lineChanges.\(worktreeID)"
   }
+  static func refsDedupe(_ repositoryRootURL: URL) -> String {
+    "repositories.refsDedupe.\(repositoryRootURL.path(percentEncoded: false))"
+  }
 }
 
 private nonisolated let repositoriesLogger = SupaLogger("Repositories")
@@ -90,6 +93,7 @@ struct RepositoriesFeature {
     var pendingPullRequestRefreshByRepositoryID: [Repository.ID: PendingPullRequestRefresh] = [:]
     var inFlightPullRequestRefreshRepositoryIDs: Set<Repository.ID> = []
     var queuedPullRequestRefreshByRepositoryID: [Repository.ID: PendingPullRequestRefresh] = [:]
+    var lastFetchedHeadSHAByWorktreeID: [Worktree.ID: String] = [:]
     var sidebarSelectedWorktreeIDs: Set<Worktree.ID> = []
     @Shared(.appStorage("sidebarCollapsedRepositoryIDs")) var collapsedRepositoryIDs: [Repository.ID] = []
     @Shared(.appStorage("sidebarSortWorktreesAlphabetically")) var sortWorktreesAlphabetically = false
@@ -217,6 +221,7 @@ struct RepositoriesFeature {
     case worktreeNotificationReceived(Worktree.ID)
     case worktreeBranchNameLoaded(worktreeID: Worktree.ID, name: String)
     case worktreeLineChangesLoaded(worktreeID: Worktree.ID, added: Int, removed: Int)
+    case headSHAsUpdated([Worktree.ID: String])
     case refreshGithubIntegrationAvailability
     case githubIntegrationAvailabilityUpdated(Bool)
     case repositoryPullRequestRefreshCompleted(Repository.ID)
@@ -1992,8 +1997,29 @@ struct RepositoriesFeature {
 
       case .worktreeInfoEvent(let event):
         switch event {
-        case .repositoryRefsChanged:
-          return .none
+        case .repositoryRefsChanged(let repositoryRootURL, let worktreeIDs):
+          let affectedWorktrees = worktreeIDs.compactMap { state.worktree(for: $0) }
+          guard !affectedWorktrees.isEmpty else { return .none }
+          let gitClient = gitClient
+          let previousSHAs = state.lastFetchedHeadSHAByWorktreeID
+          return .run { send in
+            var moved: [Worktree.ID] = []
+            var updated: [Worktree.ID: String] = [:]
+            for worktree in affectedWorktrees {
+              guard let sha = await gitClient.headSHA(worktree.workingDirectory) else { continue }
+              updated[worktree.id] = sha
+              if previousSHAs[worktree.id] != sha {
+                moved.append(worktree.id)
+              }
+            }
+            await send(.headSHAsUpdated(updated))
+            guard !moved.isEmpty else { return }
+            await send(.worktreeInfoEvent(.repositoryPullRequestRefresh(
+              repositoryRootURL: repositoryRootURL,
+              worktreeIDs: moved
+            )))
+          }
+          .cancellable(id: CancelID.refsDedupe(repositoryRootURL), cancelInFlight: true)
         case .branchChanged(let worktreeID):
           guard let worktree = state.worktree(for: worktreeID) else {
             return .none
@@ -2176,6 +2202,12 @@ struct RepositoriesFeature {
           removed: removed,
           state: &state
         )
+        return .none
+
+      case .headSHAsUpdated(let shasByWorktreeID):
+        for (worktreeID, sha) in shasByWorktreeID {
+          state.lastFetchedHeadSHAByWorktreeID[worktreeID] = sha
+        }
         return .none
 
       case .repositoryPullRequestsLoaded(let repositoryID, let pullRequestsByWorktreeID):
