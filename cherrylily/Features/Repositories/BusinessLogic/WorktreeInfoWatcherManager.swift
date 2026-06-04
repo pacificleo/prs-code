@@ -19,14 +19,6 @@ final class WorktreeInfoWatcherManager {
     let task: Task<Void, Never>
   }
 
-  private struct RepeatingTaskRequest {
-    let worktreeID: Worktree.ID
-    let interval: Duration
-    let immediate: Bool
-    let forceReschedule: Bool
-    let makeEvent: (Worktree.ID) -> WorktreeInfoWatcherClient.Event
-  }
-
   private struct RefreshTiming: Equatable {
     let focused: Duration
     let unfocused: Duration
@@ -44,7 +36,6 @@ final class WorktreeInfoWatcherManager {
   private var filesDebounceTasks: [Worktree.ID: Task<Void, Never>] = [:]
   private var restartTasks: [Worktree.ID: Task<Void, Never>] = [:]
   private var pullRequestTasks: [URL: RefreshTask] = [:]
-  private var lineChangeTasks: [Worktree.ID: RefreshTask] = [:]
   private var deferredLineChangeIDs: Set<Worktree.ID> = []
   private var hasCompletedInitialWorktreeLoad = false
   private var selectedWorktreeID: Worktree.ID?
@@ -282,13 +273,6 @@ final class WorktreeInfoWatcherManager {
       await MainActor.run {
         guard let self else { return }
         self.emit(.filesChanged(worktreeID: worktreeID))
-        if !self.deferredLineChangeIDs.contains(worktreeID) {
-          self.updateLineChangeSchedule(
-            worktreeID: worktreeID,
-            immediate: false,
-            forceReschedule: true
-          )
-        }
       }
     }
     filesDebounceTasks[worktreeID] = task
@@ -328,7 +312,6 @@ final class WorktreeInfoWatcherManager {
     branchDebounceTasks.removeValue(forKey: worktreeID)?.cancel()
     filesDebounceTasks.removeValue(forKey: worktreeID)?.cancel()
     restartTasks.removeValue(forKey: worktreeID)?.cancel()
-    lineChangeTasks.removeValue(forKey: worktreeID)?.task.cancel()
     contentSources.removeValue(forKey: worktreeID)?.stop()
     ignoreMatchers.removeValue(forKey: worktreeID)
   }
@@ -349,9 +332,6 @@ final class WorktreeInfoWatcherManager {
     for task in pullRequestTasks.values {
       task.task.cancel()
     }
-    for task in lineChangeTasks.values {
-      task.task.cancel()
-    }
     for source in contentSources.values {
       source.stop()
     }
@@ -360,7 +340,6 @@ final class WorktreeInfoWatcherManager {
     filesDebounceTasks.removeAll()
     restartTasks.removeAll()
     pullRequestTasks.removeAll()
-    lineChangeTasks.removeAll()
     contentSources.removeAll()
     ignoreMatchers.removeAll()
     deferredLineChangeIDs.removeAll()
@@ -450,52 +429,16 @@ final class WorktreeInfoWatcherManager {
 
   private func updateLineChangeSchedule(
     worktreeID: Worktree.ID,
-    immediate: Bool,
-    forceReschedule: Bool = false
+    immediate: Bool
   ) {
     guard worktrees[worktreeID] != nil else {
       return
     }
-    lineChangeTasks.removeValue(forKey: worktreeID)?.task.cancel()
     guard immediate else {
       return
     }
     deferredLineChangeIDs.remove(worktreeID)
     emit(.filesChanged(worktreeID: worktreeID))
-  }
-
-  private func updateRepeatingTask(
-    _ request: RepeatingTaskRequest,
-    tasks: inout [Worktree.ID: RefreshTask]
-  ) {
-    let worktreeID = request.worktreeID
-    if let existing = tasks[worktreeID], existing.interval == request.interval, !request.forceReschedule {
-      if request.immediate {
-        emit(request.makeEvent(worktreeID))
-      }
-      return
-    }
-    tasks[worktreeID]?.task.cancel()
-    if request.immediate {
-      emit(request.makeEvent(worktreeID))
-    }
-    let sleep = self.sleep
-    let task = Task { [weak self, sleep] in
-      while !Task.isCancelled {
-        do {
-          try await sleep(request.interval)
-        } catch {
-          break
-        }
-        guard !Task.isCancelled else {
-          break
-        }
-        await MainActor.run {
-          self?.emit(request.makeEvent(worktreeID))
-        }
-      }
-    }
-    tasks[worktreeID] = RefreshTask(interval: request.interval, task: task)
   }
 
   private func emit(_ event: WorktreeInfoWatcherClient.Event) {
