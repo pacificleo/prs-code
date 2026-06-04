@@ -1992,6 +1992,8 @@ struct RepositoriesFeature {
 
       case .worktreeInfoEvent(let event):
         switch event {
+        case .repositoryRefsChanged:
+          return .none
         case .branchChanged(let worktreeID):
           guard let worktree = state.worktree(for: worktreeID) else {
             return .none

@@ -15,6 +15,7 @@ struct WorktreeInfoWatcherClient {
   enum Event: Equatable {
     case branchChanged(worktreeID: Worktree.ID)
     case filesChanged(worktreeID: Worktree.ID)
+    case repositoryRefsChanged(repositoryRootURL: URL, worktreeIDs: [Worktree.ID])
     case repositoryPullRequestRefresh(repositoryRootURL: URL, worktreeIDs: [Worktree.ID])
   }
 }
