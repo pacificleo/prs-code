@@ -26,6 +26,7 @@ enum GitOperation: String {
   case branchDelete = "branch_delete"
   case lineChanges = "line_changes"
   case remoteInfo = "remote_info"
+  case headSHA = "head_sha"
 }
 
 enum GitClientError: LocalizedError {
@@ -441,6 +442,20 @@ struct GitClient {
     } catch {
       return nil
     }
+  }
+
+  nonisolated func headSHA(for worktreeURL: URL) async -> String? {
+    let path = worktreeURL.path(percentEncoded: false)
+    guard
+      let output = try? await runGit(
+        operation: .headSHA,
+        arguments: ["-C", path, "rev-parse", "HEAD"]
+      )
+    else {
+      return nil
+    }
+    let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? nil : trimmed
   }
 
   nonisolated private func isWorktreeIndexLocked(_ worktreeURL: URL) -> Bool {
