@@ -36,7 +36,6 @@ struct AppFeatureDefaultEditorTests {
       $0.navigationHistory.record(NavigationEntry(worktreeID: worktree.id, tabID: nil))
     }
     await store.receive(\.worktreeSettingsLoaded)
-    #expect(store.state.openActionSelection == .finder)
     #expect(store.state.selectedRunScript == "")
     await store.finish()
   }
@@ -44,7 +43,6 @@ struct AppFeatureDefaultEditorTests {
   @Test(.dependencies) func selectedWorktreeChangedOnlyUpdatesWatcherSelection() async {
     let worktree = makeWorktree()
     let repositoriesState = makeRepositoriesState(worktree: worktree)
-    let expectedOpenActionSelection = OpenWorktreeAction.preferredDefault(settings: .default)
     let watcherCommands = LockIsolated<[WorktreeInfoWatcherClient.Command]>([])
     let storage = SettingsTestStorage()
     let settingsFileURL = URL(
@@ -70,9 +68,7 @@ struct AppFeatureDefaultEditorTests {
     await store.send(.repositories(.delegate(.selectedWorktreeChanged(worktree)))) {
       $0.navigationHistory.record(NavigationEntry(worktreeID: worktree.id, tabID: nil))
     }
-    await store.receive(\.worktreeSettingsLoaded) {
-      $0.openActionSelection = expectedOpenActionSelection
-    }
+    await store.receive(\.worktreeSettingsLoaded)
     await store.finish()
 
     #expect(watcherCommands.value == [.setSelectedWorktreeID(worktree.id)])

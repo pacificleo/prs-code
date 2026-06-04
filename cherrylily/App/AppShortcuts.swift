@@ -328,7 +328,7 @@ enum AppShortcuts {
     AppShortcutGroup(category: .worktreeSelection, shortcuts: worktreeSelection),
     AppShortcutGroup(
       category: .actions,
-      shortcuts: [openFinder, openRepository, openPullRequest, copyPath, runScript, stopRunScript]
+      shortcuts: [openRepository, openPullRequest, copyPath, runScript, stopRunScript]
     ),
   ]
 

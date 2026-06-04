@@ -15,7 +15,6 @@ struct AppFeature {
     var settings: SettingsFeature.State
     var updates = UpdatesFeature.State()
     var commandPalette = CommandPaletteFeature.State()
-    var openActionSelection: OpenWorktreeAction = .finder
     var selectedRunScript: String = ""
     var runScriptDraft: String = ""
     var isRunScriptPromptPresented = false
@@ -45,9 +44,7 @@ struct AppFeature {
     case settings(SettingsFeature.Action)
     case updates(UpdatesFeature.Action)
     case commandPalette(CommandPaletteFeature.Action)
-    case openActionSelectionChanged(OpenWorktreeAction)
     case worktreeSettingsLoaded(RepositorySettings, worktreeID: Worktree.ID)
-    case openSelectedWorktree
     case openWorktree(OpenWorktreeAction)
     case openWorktreeFailed(OpenActionError)
     case requestQuit
@@ -151,7 +148,6 @@ struct AppFeature {
           state.navigationHistory.record(entry)
         }
         guard let worktree else {
-          state.openActionSelection = .finder
           state.selectedRunScript = ""
           state.runScriptDraft = ""
           state.isRunScriptPromptPresented = false
@@ -281,16 +277,6 @@ struct AppFeature {
         let shouldCheckSystemNotificationPermission =
           settings.systemNotificationsEnabled && !state.lastKnownSystemNotificationsEnabled
         state.lastKnownSystemNotificationsEnabled = settings.systemNotificationsEnabled
-        if let selectedWorktree = state.repositories.worktree(for: state.repositories.selectedWorktreeID) {
-          let rootURL = selectedWorktree.repositoryRootURL
-          @Shared(.repositorySettings(rootURL)) var repositorySettings
-          @Shared(.settingsFile) var settingsFile
-          state.openActionSelection = OpenWorktreeAction.fromSettingsID(
-            repositorySettings.openActionID,
-            defaultEditorID: settings.defaultEditorID,
-            globalSettings: settingsFile.global
-          )
-        }
         return .merge(
           .send(.repositories(.setGithubIntegrationEnabled(settings.githubIntegrationEnabled))),
           .send(
@@ -342,21 +328,6 @@ struct AppFeature {
             }
           }
         )
-
-      case .openActionSelectionChanged(let action):
-        state.openActionSelection = action
-        guard let worktree = state.repositories.worktree(for: state.repositories.selectedWorktreeID) else {
-          return .none
-        }
-        let rootURL = worktree.repositoryRootURL
-        let actionID = action.settingsID
-        @Shared(.repositorySettings(rootURL)) var repositorySettings
-        $repositorySettings.withLock { $0.openActionID = actionID }
-        return .none
-
-      case .openSelectedWorktree:
-        @Shared(.settingsFile) var settingsFile
-        return .send(.openWorktree(OpenWorktreeAction.availableSelection(state.openActionSelection, settings: settingsFile.global)))
 
       case .openWorktree(let action):
         guard let worktree = state.repositories.worktree(for: state.repositories.selectedWorktreeID) else {
@@ -636,15 +607,6 @@ struct AppFeature {
         guard state.repositories.selectedWorktreeID == worktreeID else {
           return .none
         }
-        @Shared(.settingsFile) var settingsFile
-        let normalizedDefaultEditorID = OpenWorktreeAction.normalizedDefaultEditorID(
-          settingsFile.global.defaultEditorID
-        )
-        state.openActionSelection = OpenWorktreeAction.fromSettingsID(
-          settings.openActionID,
-          defaultEditorID: normalizedDefaultEditorID,
-          globalSettings: settingsFile.global
-        )
         state.selectedRunScript = settings.runScript
         return .none
 

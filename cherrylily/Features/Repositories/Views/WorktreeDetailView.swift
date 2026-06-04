@@ -30,7 +30,6 @@ struct WorktreeDetailView: View {
       selectedWorktree != nil
       && loadingInfo == nil
       && !showsMultiSelectionSummary
-    let openActionSelection = state.openActionSelection
     let runScriptEnabled = hasActiveWorktree
     let runScriptIsRunning = selectedWorktree.flatMap { state.runScriptStatusByWorktreeID[$0.id] } == true
     let content = detailContent(
@@ -58,13 +57,15 @@ struct WorktreeDetailView: View {
           } else {
             false
           }
+        @Shared(.settingsFile) var settingsFile
+        let pinnedActions = OpenWorktreeAction.pinnedToolbarCases(settings: settingsFile.global)
         let toolbarState = WorktreeToolbarState(
           branchName: selectedWorktree.name,
           statusToast: repositories.statusToast,
           pullRequest: matchesBranch ? pullRequest : nil,
           notificationGroups: notificationGroups,
           unseenNotificationWorktreeCount: unseenNotificationWorktreeCount,
-          openActionSelection: openActionSelection,
+          pinnedActions: pinnedActions,
           showExtras: commandKeyObserver.isPressed,
           runScriptEnabled: runScriptEnabled,
           runScriptIsRunning: runScriptIsRunning,
@@ -85,13 +86,6 @@ struct WorktreeDetailView: View {
           onNavigateForward: { store.send(.navigateForward) },
           onOpenWorktree: { action in
             store.send(.openWorktree(action))
-          },
-          onOpenActionSelectionChanged: { action in
-            store.send(.openActionSelectionChanged(action))
-          },
-          onCopyPath: {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(selectedWorktree.workingDirectory.path, forType: .string)
           },
           onSelectNotification: selectToolbarNotification,
           onDismissAllNotifications: { dismissAllToolbarNotifications(in: notificationGroups) },
@@ -251,7 +245,6 @@ struct WorktreeDetailView: View {
     actions: FocusedActions
   ) -> some View {
     content
-      .focusedSceneValue(\.openSelectedWorktreeAction, actions.openSelectedWorktree)
       .focusedSceneValue(\.newTerminalAction, actions.newTerminal)
       .focusedValue(\.closeTabAction, actions.closeTab)
       .focusedValue(\.closeSurfaceAction, actions.closeSurface)
@@ -273,7 +266,6 @@ struct WorktreeDetailView: View {
       hasActiveWorktree ? { store.send(appAction) } : nil
     }
     return FocusedActions(
-      openSelectedWorktree: action(.openSelectedWorktree),
       newTerminal: action(.newTerminal),
       closeTab: action(.closeTab),
       closeSurface: action(.closeSurface),
@@ -306,7 +298,6 @@ struct WorktreeDetailView: View {
   }
 
   private struct FocusedActions {
-    let openSelectedWorktree: (() -> Void)?
     let newTerminal: (() -> Void)?
     let closeTab: (() -> Void)?
     let closeSurface: (() -> Void)?
@@ -325,7 +316,7 @@ struct WorktreeDetailView: View {
     let pullRequest: GithubPullRequest?
     let notificationGroups: [ToolbarNotificationRepositoryGroup]
     let unseenNotificationWorktreeCount: Int
-    let openActionSelection: OpenWorktreeAction
+    let pinnedActions: [OpenWorktreeAction]
     let showExtras: Bool
     let runScriptEnabled: Bool
     let runScriptIsRunning: Bool
@@ -366,8 +357,6 @@ struct WorktreeDetailView: View {
     let onNavigateBack: () -> Void
     let onNavigateForward: () -> Void
     let onOpenWorktree: (OpenWorktreeAction) -> Void
-    let onOpenActionSelectionChanged: (OpenWorktreeAction) -> Void
-    let onCopyPath: () -> Void
     let onSelectNotification: (Worktree.ID, WorktreeTerminalNotification) -> Void
     let onDismissAllNotifications: () -> Void
     let onRunScript: () -> Void
@@ -414,13 +403,19 @@ struct WorktreeDetailView: View {
 
       ToolbarSpacer(.flexible)
 
-      ToolbarItemGroup {
-        openMenu(
-          openActionSelection: toolbarState.openActionSelection,
-          showExtras: toolbarState.showExtras
-        )
+      if !toolbarState.pinnedActions.isEmpty {
+        ToolbarItemGroup {
+          ForEach(toolbarState.pinnedActions, id: \.id) { action in
+            Button {
+              onOpenWorktree(action)
+            } label: {
+              OpenWorktreeActionToolbarIcon(action: action)
+            }
+            .help("Open in \(action.title)")
+          }
+        }
+        ToolbarSpacer(.fixed)
       }
-      ToolbarSpacer(.fixed)
 
       if toolbarState.runScriptIsRunning || toolbarState.runScriptEnabled {
         ToolbarItem {
@@ -439,58 +434,9 @@ struct WorktreeDetailView: View {
 
     }
 
-    @ViewBuilder
-    private func openMenu(openActionSelection: OpenWorktreeAction, showExtras: Bool) -> some View {
-      @Shared(.settingsFile) var settingsFile
-      let availableActions = OpenWorktreeAction.availableCases(settings: settingsFile.global)
-      let resolvedOpenActionSelection = OpenWorktreeAction.availableSelection(openActionSelection, settings: settingsFile.global)
-      Button {
-        onOpenWorktree(resolvedOpenActionSelection)
-      } label: {
-        OpenWorktreeActionMenuLabelView(
-          action: resolvedOpenActionSelection,
-          shortcutHint: showExtras ? shortcutDisplay(for: AppShortcuts.openFinder, fallback: "") : nil
-        )
-      }
-      .help(openActionHelpText(for: resolvedOpenActionSelection, isDefault: true))
-
-      Menu {
-        ForEach(availableActions) { action in
-          let isDefault = action == resolvedOpenActionSelection
-          Button {
-            onOpenActionSelectionChanged(action)
-            onOpenWorktree(action)
-          } label: {
-            OpenWorktreeActionMenuLabelView(action: action, shortcutHint: nil)
-          }
-          .buttonStyle(.plain)
-          .help(openActionHelpText(for: action, isDefault: isDefault))
-        }
-        Divider()
-        Button("Copy Path") {
-          onCopyPath()
-        }
-        .help("Copy path")
-      } label: {
-        Image(systemName: "chevron.down")
-          .font(.caption2)
-          .accessibilityLabel("Open in menu")
-      }
-      .imageScale(.small)
-      .menuIndicator(.hidden)
-      .fixedSize()
-      .help("Open in...")
-
-    }
-
     private func shortcutDisplay(for shortcut: AppShortcut, fallback: String = "none") -> String {
       @Shared(.settingsFile) var settingsFile
       return shortcut.effective(from: settingsFile.global.shortcutOverrides)?.display ?? fallback
-    }
-
-    private func openActionHelpText(for action: OpenWorktreeAction, isDefault: Bool) -> String {
-      guard isDefault else { return action.title }
-      return "\(action.title) (\(shortcutDisplay(for: AppShortcuts.openFinder)))"
     }
   }
 
@@ -659,6 +605,26 @@ private struct RunScriptToolbarButton: View {
   }
 }
 
+private struct OpenWorktreeActionToolbarIcon: View {
+  let action: OpenWorktreeAction
+
+  var body: some View {
+    Group {
+      switch action.menuIcon {
+      case .app(let data):
+        Image(nsImage: NSImage(data: data) ?? NSImage())
+          .resizable()
+          .frame(width: 16, height: 16)
+      case .symbol(let name):
+        Image(systemName: name)
+      case .none:
+        Image(systemName: "app.dashed")
+      }
+    }
+    .accessibilityLabel(action.title)
+  }
+}
+
 @MainActor
 private struct WorktreeToolbarPreview: View {
   private let toolbarState: WorktreeDetailView.WorktreeToolbarState
@@ -671,7 +637,7 @@ private struct WorktreeToolbarPreview: View {
       pullRequest: nil,
       notificationGroups: [],
       unseenNotificationWorktreeCount: 0,
-      openActionSelection: .finder,
+      pinnedActions: [.finder],
       showExtras: false,
       runScriptEnabled: true,
       runScriptIsRunning: false,
@@ -696,8 +662,6 @@ private struct WorktreeToolbarPreview: View {
         onNavigateBack: {},
         onNavigateForward: {},
         onOpenWorktree: { _ in },
-        onOpenActionSelectionChanged: { _ in },
-        onCopyPath: {},
         onSelectNotification: { _, _ in },
         onDismissAllNotifications: {},
         onRunScript: {},

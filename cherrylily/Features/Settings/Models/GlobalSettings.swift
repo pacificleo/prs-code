@@ -34,6 +34,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
 
   var disabledWorktreeActions: Set<String>
   var customWorktreeActions: [CustomWorktreeAction]
+  var pinnedToolbarActions: [String]
 
   static let `default` = GlobalSettings(
     appearanceMode: .dark,
@@ -60,6 +61,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     defaultWorktreeBaseDirectoryPath: nil,
     disabledWorktreeActions: [],
     customWorktreeActions: [],
+    pinnedToolbarActions: ["finder", "editor"],
     shortcutOverrides: [:]
   )
 
@@ -88,6 +90,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     defaultWorktreeBaseDirectoryPath: String? = nil,
     disabledWorktreeActions: Set<String> = [],
     customWorktreeActions: [CustomWorktreeAction] = [],
+    pinnedToolbarActions: [String] = [],
     shortcutOverrides: [AppShortcutID: AppShortcutOverride] = [:]
   ) {
     self.appearanceMode = appearanceMode
@@ -114,6 +117,7 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     self.defaultWorktreeBaseDirectoryPath = defaultWorktreeBaseDirectoryPath
     self.disabledWorktreeActions = disabledWorktreeActions
     self.customWorktreeActions = customWorktreeActions
+    self.pinnedToolbarActions = pinnedToolbarActions
     self.shortcutOverrides = shortcutOverrides
   }
 
@@ -187,6 +191,9 @@ nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     customWorktreeActions =
       try container.decodeIfPresent([CustomWorktreeAction].self, forKey: .customWorktreeActions)
       ?? Self.default.customWorktreeActions
+    pinnedToolbarActions =
+      try container.decodeIfPresent([String].self, forKey: .pinnedToolbarActions)
+      ?? OpenWorktreeAction.seededPinnedToolbarActions(defaultEditorID: defaultEditorID)
     shortcutOverrides =
       try container.decodeIfPresent([AppShortcutID: AppShortcutOverride].self, forKey: .shortcutOverrides)
       ?? Self.default.shortcutOverrides
