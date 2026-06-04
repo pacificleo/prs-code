@@ -27,6 +27,7 @@ enum GitOperation: String {
   case lineChanges = "line_changes"
   case remoteInfo = "remote_info"
   case headSHA = "head_sha"
+  case gitCommonDir = "git_common_dir"
 }
 
 enum GitClientError: LocalizedError {
@@ -456,6 +457,20 @@ struct GitClient {
     }
     let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
     return trimmed.isEmpty ? nil : trimmed
+  }
+
+  nonisolated func gitCommonDir(for repositoryRootURL: URL) async -> URL? {
+    let path = repositoryRootURL.path(percentEncoded: false)
+    guard
+      let output = try? await runGit(
+        operation: .gitCommonDir,
+        arguments: ["-C", path, "rev-parse", "--path-format=absolute", "--git-common-dir"]
+      )
+    else {
+      return nil
+    }
+    let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? nil : URL(fileURLWithPath: trimmed)
   }
 
   nonisolated private func isWorktreeIndexLocked(_ worktreeURL: URL) -> Bool {
