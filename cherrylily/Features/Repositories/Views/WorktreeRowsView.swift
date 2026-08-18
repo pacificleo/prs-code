@@ -50,39 +50,47 @@ struct WorktreeRowsView: View {
     shortcutIndexByID: [Worktree.ID: Int]
   ) -> some View {
     if let row = sections.main {
+      ObservationScope {
       rowView(
         row,
         isRepositoryRemoving: isRepositoryRemoving,
         moveDisabled: true,
         shortcutHint: worktreeShortcutHint(for: shortcutIndexByID[row.id])
       )
+      }
     }
     ForEach(sections.pinned) { row in
+      ObservationScope {
       rowView(
         row,
         isRepositoryRemoving: isRepositoryRemoving,
         moveDisabled: isSortedAlphabetically || isRepositoryRemoving || row.isLoading,
         shortcutHint: worktreeShortcutHint(for: shortcutIndexByID[row.id])
       )
+      }
     }
     .onMove { offsets, destination in
       store.send(.pinnedWorktreesMoved(repositoryID: repository.id, offsets, destination))
     }
     ForEach(sections.pending) { row in
+      ObservationScope {
       rowView(
         row,
         isRepositoryRemoving: isRepositoryRemoving,
         moveDisabled: true,
         shortcutHint: worktreeShortcutHint(for: shortcutIndexByID[row.id])
       )
+      }
     }
     ForEach(sections.unpinned) { row in
+      ObservationScope {
       rowView(
         row,
         isRepositoryRemoving: isRepositoryRemoving,
         moveDisabled: isSortedAlphabetically || isRepositoryRemoving || row.isLoading,
         shortcutHint: worktreeShortcutHint(for: shortcutIndexByID[row.id])
       )
+      }
     }
     .onMove { offsets, destination in
       store.send(.unpinnedWorktreesMoved(repositoryID: repository.id, offsets, destination))
@@ -368,5 +376,12 @@ struct WorktreeRowsView: View {
       }
     }
     return row.name
+  }
+}
+
+private struct ObservationScope<Content: View>: View {
+  @ViewBuilder let content: () -> Content
+  var body: some View {
+    content()
   }
 }
