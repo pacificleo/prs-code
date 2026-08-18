@@ -31,7 +31,7 @@ struct WorktreeRow: View {
     let displayAddedLines = info?.addedLines
     let displayRemovedLines = info?.removedLines
     let hasChangeCounts = displayAddedLines != nil && displayRemovedLines != nil
-    let nameColor = colorScheme == .dark ? Color.white : Color.primary
+    let nameColor: Color = isSelected ? .white : (colorScheme == .dark ? .white : .primary)
     let bodyFontAscender = Self.bodyFontAscender
     VStack(alignment: .leading, spacing: 2) {
       HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -50,7 +50,7 @@ struct WorktreeRow: View {
           } else {
             Image(systemName: branchIconName)
               .font(.caption)
-              .foregroundStyle(.secondary)
+              .foregroundStyle(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
               .opacity(showsSpinner ? 0 : 1)
               .accessibilityHidden(true)
           }
@@ -127,6 +127,7 @@ struct WorktreeRow: View {
     return PullRequestMergeReadiness(pullRequest: pullRequest)
   }
 
+  // swiftlint:disable:next function_parameter_count
   /// Builds the row's summary line. Hoisted out of the view body so it can be precomputed
   /// once where row data is assembled rather than re-allocated on every `WorktreeRow` render
   /// (which re-runs on hover / colorScheme changes).
@@ -135,25 +136,27 @@ struct WorktreeRow: View {
     showsPullRequestTag: Bool,
     pullRequestNumber: Int?,
     pullRequestState: String?,
-    mergeReadiness: PullRequestMergeReadiness?
+    mergeReadiness: PullRequestMergeReadiness?,
+    isSelected: Bool
   ) -> AttributedString {
     var result = AttributedString()
+    let secondaryColor: Color = isSelected ? .white.opacity(0.8) : .secondary
     func appendSeparator() {
       if !result.characters.isEmpty {
         var sep = AttributedString(" \u{2022} ")
-        sep.foregroundColor = .secondary
+        sep.foregroundColor = secondaryColor
         result.append(sep)
       }
     }
     if !worktreeName.isEmpty {
       var segment = AttributedString(worktreeName)
-      segment.foregroundColor = .secondary
+      segment.foregroundColor = secondaryColor
       result.append(segment)
     }
     if showsPullRequestTag, let pullRequestNumber {
       appendSeparator()
       var segment = AttributedString("PR #\(pullRequestNumber)")
-      segment.foregroundColor = .secondary
+      segment.foregroundColor = secondaryColor
       result.append(segment)
     }
     if pullRequestState == "MERGED" {

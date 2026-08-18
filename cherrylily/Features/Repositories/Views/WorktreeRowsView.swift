@@ -203,7 +203,8 @@ struct WorktreeRowsView: View {
       showsPullRequestTag: display.pullRequest != nil && display.pullRequestBadgeStyle != nil,
       pullRequestNumber: display.pullRequest?.number,
       pullRequestState: display.pullRequestState,
-      mergeReadiness: mergeReadiness
+      mergeReadiness: mergeReadiness,
+      isSelected: isSelected
     )
     return WorktreeRow(
       name: config.displayName,
@@ -228,6 +229,7 @@ struct WorktreeRowsView: View {
     .typeSelectEquivalent("")
     .listRowInsets(EdgeInsets())
     .listRowSeparator(.hidden)
+    .listRowBackground(isSelected ? Color.blue : Color.clear)
     .transition(.opacity)
     .moveDisabled(config.moveDisabled)
   }

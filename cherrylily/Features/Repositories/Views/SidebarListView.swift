@@ -157,6 +157,7 @@ struct SidebarListView: View {
       }
     }
     .listStyle(.sidebar)
+    .tint(.clear)
     .scrollIndicators(.never)
     .frame(minWidth: 220)
     .onDragSessionUpdated { session in
