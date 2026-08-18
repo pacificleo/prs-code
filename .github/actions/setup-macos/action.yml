@@ -17,6 +17,10 @@ runs:
       shell: bash
     - run: mise install
       shell: bash
+    - run: brew install zig@0.15
+      shell: bash
+    - run: brew link zig@0.15 --force
+      shell: bash
 
     - name: Ghostty cache key
       shell: bash
