@@ -112,17 +112,17 @@ jobs:
         run: |
           if [ -n "$DEVELOPER_ID_CERT_P12" ]; then
             cat > build/ExportOptions.plist <<EOF
-            <?xml version="1.0" encoding="UTF-8"?>
-            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-            <plist version="1.0">
-            <dict>
-              <key>method</key>
-              <string>developer-id</string>
-              <key>teamID</key>
-              <string>$APPLE_TEAM_ID</string>
-            </dict>
-            </plist>
-            EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+<key>method</key>
+<string>developer-id</string>
+<key>teamID</key>
+<string>$APPLE_TEAM_ID</string>
+</dict>
+</plist>
+EOF
             make export-archive
           else
             mkdir -p build/export
