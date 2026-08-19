@@ -188,6 +188,9 @@ jobs:
 
           xcrun stapler staple build/cherrylily.dmg
           xcrun stapler staple "$APP_PATH"
+      - name: Create app zip
+        run: |
+          APP_PATH="$(find build/export -name "CherryLily.app" -maxdepth 3 -print -quit)"
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" build/CherryLily.app.zip
           VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP_PATH/Contents/Info.plist")
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
