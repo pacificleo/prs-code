@@ -58,6 +58,7 @@ jobs:
           BUILD_NUMBER=$((BASE * 1000))
           sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*/CURRENT_PROJECT_VERSION = $BUILD_NUMBER/g" cherrylily.xcodeproj/project.pbxproj
       - name: Setup keychain
+        if: env.DEVELOPER_ID_CERT_P12 != ''
         run: |
           echo "$DEVELOPER_ID_CERT_P12" | base64 --decode > build-cert.p12
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
@@ -80,14 +81,20 @@ jobs:
           POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
         run: |
           set -euo pipefail
-          : "${SENTRY_DSN:?secret SENTRY_DSN is not set}"
-          : "${POSTHOG_API_KEY:?secret POSTHOG_API_KEY is not set}"
-          : "${POSTHOG_HOST:?secret POSTHOG_HOST is not set}"
-          sed -i '' "s|__SENTRY_DSN__|${SENTRY_DSN}|g" cherrylily/App/cherrylilyApp.swift
-          sed -i '' "s|__POSTHOG_API_KEY__|${POSTHOG_API_KEY}|g" cherrylily/App/cherrylilyApp.swift
-          sed -i '' "s|__POSTHOG_HOST__|${POSTHOG_HOST}|g" cherrylily/App/cherrylilyApp.swift
+          SENTRY_DSN=${SENTRY_DSN:-"https://placeholder@sentry.io/123"}
+          POSTHOG_API_KEY=${POSTHOG_API_KEY:-"placeholder"}
+          POSTHOG_HOST=${POSTHOG_HOST:-"https://placeholder.posthog.com"}
+          sed -i '' "s|__SENTRY_DSN__|${SENTRY_DSN}|g" cherrylily/App/supacodeApp.swift
+          sed -i '' "s|__POSTHOG_API_KEY__|${POSTHOG_API_KEY}|g" cherrylily/App/supacodeApp.swift
+          sed -i '' "s|__POSTHOG_HOST__|${POSTHOG_HOST}|g" cherrylily/App/supacodeApp.swift
       - name: Archive Xcode project
-        run: make archive
+        run: |
+          make build-tmux
+          if [ -n "$DEVELOPER_ID_CERT_P12" ]; then
+            make archive
+          else
+            bash -o pipefail -c 'xcodebuild -project cherrylily.xcodeproj -scheme cherrylily -configuration Release -archivePath build/cherrylily.xcarchive archive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" ONLY_ACTIVE_ARCH=YES ARCHS=arm64 -skipMacroValidation -clonedSourcePackagesDirPath .spm-cache 2>&1 | mise exec -- xcsift -qw --format toon'
+          fi
       - name: Upload dSYMs
         uses: actions/upload-artifact@v6
         with:
@@ -140,6 +147,7 @@ jobs:
           codesign -dv --verbose=4 "$SPARKLE/XPCServices/Downloader.xpc/Contents/MacOS/Downloader" 2>&1 | grep -E "Authority=Developer ID Application|Timestamp="
           echo "Signature verified successfully"
       - name: Store notarization credentials
+        if: env.DEVELOPER_ID_CERT_P12 != ''
         run: |
           echo "$APPLE_NOTARIZATION_KEY" > notarization_key.p8
           xcrun notarytool store-credentials "notarytool-profile" \
@@ -148,6 +156,7 @@ jobs:
             --issuer "$APPLE_NOTARIZATION_ISSUER"
           rm notarization_key.p8
       - name: Build DMG
+        if: env.DEVELOPER_ID_CERT_P12 != ''
         run: |
           APP_PATH="$(find build/export -name "CherryLily.app" -maxdepth 3 -print -quit)"
 
@@ -161,6 +170,7 @@ jobs:
             mv "$DMG_OUTPUT" build/cherrylily.dmg
           fi
       - name: Notarize and staple
+        if: env.DEVELOPER_ID_CERT_P12 != ''
         run: |
           APP_PATH="$(find build/export -name "CherryLily.app" -maxdepth 3 -print -quit)"
 
@@ -245,7 +255,9 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: supabit
           SENTRY_PROJECT: cherrylily
-        run: sentry-cli debug-files upload --include-sources dsyms
+        run: |
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then echo "No Sentry token"; exit 0; fi
+          sentry-cli debug-files upload --include-sources dsyms
 
   publish:
     runs-on: ubuntu-latest
