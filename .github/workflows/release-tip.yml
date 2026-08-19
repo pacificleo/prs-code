@@ -100,7 +100,7 @@ jobs:
           if [ -n "$DEVELOPER_ID_CERT_P12" ]; then
             make archive
           else
-            bash -o pipefail -c 'xcodebuild -project cherrylily.xcodeproj -scheme cherrylily -configuration Release -archivePath build/cherrylily.xcarchive archive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -skipMacroValidation -clonedSourcePackagesDirPath .spm-cache 2>&1 | mise exec -- xcsift -qw --format toon'
+            bash -o pipefail -c 'xcodebuild -project cherrylily.xcodeproj -scheme cherrylily -configuration Release -archivePath build/cherrylily.xcarchive archive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" ONLY_ACTIVE_ARCH=YES ARCHS=arm64 -skipMacroValidation -clonedSourcePackagesDirPath .spm-cache 2>&1 | mise exec -- xcsift -qw --format toon'
           fi
       - name: Upload dSYMs
         uses: actions/upload-artifact@v6
