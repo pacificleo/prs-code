@@ -200,6 +200,7 @@ jobs:
         run: |
           gh release view "$TAG" --json body --jq '.body' > build/release-notes.md
       - name: Generate appcast with history and deltas
+        if: env.SPARKLE_PRIVATE_KEY != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
