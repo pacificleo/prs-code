@@ -100,24 +100,28 @@ jobs:
         with:
           name: dsyms
           path: build/cherrylily.xcarchive/dSYMs
-      - run: |
-          cat > build/ExportOptions.plist <<EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>developer-id</string>
-            <key>signingStyle</key>
-            <string>manual</string>
-            <key>signingCertificate</key>
-          <string>$DEVELOPER_ID_IDENTITY</string>
-            <key>teamID</key>
-            <string>$APPLE_TEAM_ID</string>
-          </dict>
-          </plist>
-          EOF
-          make export-archive
+      - name: Export Archive
+        run: |
+          if [ -n "$DEVELOPER_ID_CERT_P12" ]; then
+            echo '<?xml version="1.0" encoding="UTF-8"?>' > build/ExportOptions.plist
+            echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' >> build/ExportOptions.plist
+            echo '<plist version="1.0">' >> build/ExportOptions.plist
+            echo '<dict>' >> build/ExportOptions.plist
+            echo '  <key>method</key>' >> build/ExportOptions.plist
+            echo '  <string>developer-id</string>' >> build/ExportOptions.plist
+            echo '  <key>teamID</key>' >> build/ExportOptions.plist
+            echo "  <string>$APPLE_TEAM_ID</string>" >> build/ExportOptions.plist
+            echo '  <key>signingStyle</key>' >> build/ExportOptions.plist
+            echo '  <string>manual</string>' >> build/ExportOptions.plist
+            echo '  <key>signingCertificate</key>' >> build/ExportOptions.plist
+            echo "  <string>$DEVELOPER_ID_IDENTITY</string>" >> build/ExportOptions.plist
+            echo '</dict>' >> build/ExportOptions.plist
+            echo '</plist>' >> build/ExportOptions.plist
+            make export-archive
+          else
+            mkdir -p build/export
+            cp -a build/cherrylily.xcarchive/Products/Applications/CherryLily.app build/export/
+          fi
       - name: Re-sign Sparkle framework
         run: |
           set -ex
