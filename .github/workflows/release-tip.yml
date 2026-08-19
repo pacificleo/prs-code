@@ -237,7 +237,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          token: ${{ secrets.GH_RELEASE_TOKEN }}
+          token: ${{ secrets.GH_RELEASE_TOKEN || github.token }}
       - name: Force-move tip tag
         run: |
           git config user.name "github-actions[bot]"
