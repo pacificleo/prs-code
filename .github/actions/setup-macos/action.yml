@@ -32,15 +32,23 @@ runs:
             shift 2
             output="$1"
             shift
-            tmpdir=$(mktemp -d)
+            basedir=$(mktemp -d)
             objs=()
+            idx=0
             for arg in "$@"; do
                 if [[ "$arg" == *.a ]]; then
                     cwd=$(pwd)
-                    cd "$tmpdir"
+                    mkdir "$basedir/$idx"
+                    cd "$basedir/$idx"
                     ar x "$cwd/$arg"
-                    for f in *.o; do objs+=("$tmpdir/$f"); done
+                    for f in *.o; do
+                        # Check if files exist to avoid '*' literal
+                        if [[ -e "$f" ]]; then
+                            objs+=("$basedir/$idx/$f")
+                        fi
+                    done
                     cd "$cwd"
+                    idx=$((idx+1))
                 else
                     objs+=("$arg")
                 fi
