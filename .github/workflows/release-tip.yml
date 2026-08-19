@@ -92,9 +92,9 @@ jobs:
           SENTRY_DSN=${SENTRY_DSN:-"https://placeholder@sentry.io/123"}
           POSTHOG_API_KEY=${POSTHOG_API_KEY:-"placeholder"}
           POSTHOG_HOST=${POSTHOG_HOST:-"https://placeholder.posthog.com"}
-          sed -i '' "s|__SENTRY_DSN__|${SENTRY_DSN}|g" cherrylily/App/cherrylilyApp.swift
-          sed -i '' "s|__POSTHOG_API_KEY__|${POSTHOG_API_KEY}|g" cherrylily/App/cherrylilyApp.swift
-          sed -i '' "s|__POSTHOG_HOST__|${POSTHOG_HOST}|g" cherrylily/App/cherrylilyApp.swift
+          sed -i '' "s|__SENTRY_DSN__|${SENTRY_DSN}|g" cherrylily/App/supacodeApp.swift
+          sed -i '' "s|__POSTHOG_API_KEY__|${POSTHOG_API_KEY}|g" cherrylily/App/supacodeApp.swift
+          sed -i '' "s|__POSTHOG_HOST__|${POSTHOG_HOST}|g" cherrylily/App/supacodeApp.swift
       - name: Archive Xcode project
         run: |
           if [ -n "$DEVELOPER_ID_CERT_P12" ]; then
