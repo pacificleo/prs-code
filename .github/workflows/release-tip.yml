@@ -66,6 +66,7 @@ jobs:
           sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*/CURRENT_PROJECT_VERSION = $BUILD_NUMBER/g" cherrylily.xcodeproj/project.pbxproj
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
       - name: Setup keychain
+        if: env.DEVELOPER_ID_CERT_P12 != ''
         run: |
           echo "$DEVELOPER_ID_CERT_P12" | base64 --decode > build-cert.p12
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
@@ -88,37 +89,44 @@ jobs:
           POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
         run: |
           set -euo pipefail
-          : "${SENTRY_DSN:?secret SENTRY_DSN is not set}"
-          : "${POSTHOG_API_KEY:?secret POSTHOG_API_KEY is not set}"
-          : "${POSTHOG_HOST:?secret POSTHOG_HOST is not set}"
+          SENTRY_DSN=${SENTRY_DSN:-"https://placeholder@sentry.io/123"}
+          POSTHOG_API_KEY=${POSTHOG_API_KEY:-"placeholder"}
+          POSTHOG_HOST=${POSTHOG_HOST:-"https://placeholder.posthog.com"}
           sed -i '' "s|__SENTRY_DSN__|${SENTRY_DSN}|g" cherrylily/App/cherrylilyApp.swift
           sed -i '' "s|__POSTHOG_API_KEY__|${POSTHOG_API_KEY}|g" cherrylily/App/cherrylilyApp.swift
           sed -i '' "s|__POSTHOG_HOST__|${POSTHOG_HOST}|g" cherrylily/App/cherrylilyApp.swift
       - name: Archive Xcode project
-        run: make archive
+        run: |
+          if [ -n "$DEVELOPER_ID_CERT_P12" ]; then
+            make archive
+          else
+            bash -o pipefail -c 'xcodebuild -project cherrylily.xcodeproj -scheme cherrylily -configuration Release -archivePath build/cherrylily.xcarchive archive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -skipMacroValidation -clonedSourcePackagesDirPath .spm-cache 2>&1 | mise exec -- xcsift -qw --format toon'
+          fi
       - name: Upload dSYMs
         uses: actions/upload-artifact@v6
         with:
           name: dsyms
           path: build/cherrylily.xcarchive/dSYMs
-      - run: |
-          cat > build/ExportOptions.plist <<EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>developer-id</string>
-            <key>signingStyle</key>
-            <string>manual</string>
-            <key>signingCertificate</key>
-          <string>$DEVELOPER_ID_IDENTITY</string>
-            <key>teamID</key>
-            <string>$APPLE_TEAM_ID</string>
-          </dict>
-          </plist>
-          EOF
-          make export-archive
+      - name: Export Archive
+        run: |
+          if [ -n "$DEVELOPER_ID_CERT_P12" ]; then
+            cat > build/ExportOptions.plist <<EOF
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0">
+            <dict>
+              <key>method</key>
+              <string>developer-id</string>
+              <key>teamID</key>
+              <string>$APPLE_TEAM_ID</string>
+            </dict>
+            </plist>
+            EOF
+            make export-archive
+          else
+            mkdir -p build/export
+            cp -a build/cherrylily.xcarchive/Products/Applications/CherryLily.app build/export/
+          fi
       - name: Re-sign frameworks
         run: |
           set -ex
@@ -149,6 +157,7 @@ jobs:
             --issuer "$APPLE_NOTARIZATION_ISSUER"
           rm notarization_key.p8
       - name: Build DMG
+        if: env.DEVELOPER_ID_CERT_P12 != ''
         run: |
           APP_PATH="$(find build/export -name "CherryLily.app" -maxdepth 3 -print -quit)"
 
@@ -162,6 +171,7 @@ jobs:
             mv "$DMG_OUTPUT" build/cherrylily.dmg
           fi
       - name: Notarize and staple
+        if: env.DEVELOPER_ID_CERT_P12 != ''
         run: |
           APP_PATH="$(find build/export -name "CherryLily.app" -maxdepth 3 -print -quit)"
 
@@ -179,6 +189,7 @@ jobs:
           APP_PATH="$(find build/export -name "CherryLily.app" -maxdepth 3 -print -quit)"
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" build/CherryLily.app.zip
       - name: Generate tip appcast
+        if: env.SPARKLE_PRIVATE_KEY != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -211,7 +222,7 @@ jobs:
         with:
           name: build-artifacts
           path: |
-            build/cherrylily.dmg
+            build/*.dmg
             build/CherryLily.app.zip
             build/appcast.xml
             build/*.delta
@@ -276,7 +287,9 @@ jobs:
           done
 
           DELTA_FILES=$(find build -name "*.delta" -type f 2>/dev/null | tr '\n' ' ' || true)
-          gh release upload tip build/cherrylily.dmg build/CherryLily.app.zip build/appcast.xml $DELTA_FILES --clobber -R "${{ github.repository }}"
+          DMG_FILE=$(find build -name "*.dmg" -type f 2>/dev/null || true)
+          APPCAST_FILE=$(find build -name "appcast.xml" -type f 2>/dev/null || true)
+          gh release upload tip $DMG_FILE build/CherryLily.app.zip $APPCAST_FILE $DELTA_FILES --clobber -R "${{ github.repository }}" 
 
           # Store current build as history asset for future delta generation
           MAX_DELTAS=10
@@ -293,6 +306,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          if [ ! -f "build/appcast.xml" ]; then
+            echo "No appcast.xml found, skipping merge."
+            exit 0
+          fi
           LATEST_TAG=$(gh release list --exclude-drafts --exclude-pre-releases -R "${{ github.repository }}" --json tagName --jq '.[0].tagName' 2>/dev/null || echo "")
           if [ -z "$LATEST_TAG" ]; then
             echo "No stable release found, skipping appcast merge"
