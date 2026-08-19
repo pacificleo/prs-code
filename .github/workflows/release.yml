@@ -284,7 +284,9 @@ jobs:
           path: build
       - run: |
           DELTA_FILES=$(find build -name "*.delta" -type f 2>/dev/null | tr '\n' ' ' || true)
-          gh release upload "$TAG" build/CherryLily.app.zip build/cherrylily.dmg build/appcast.xml $DELTA_FILES --clobber -R "$RELEASE_REPO"
+          DMG_FILE=$(find build -name "*.dmg" -type f 2>/dev/null || true)
+          APPCAST_FILE=$(find build -name "appcast.xml" -type f 2>/dev/null || true)
+          gh release upload "$TAG" build/CherryLily.app.zip $DMG_FILE $APPCAST_FILE $DELTA_FILES --clobber -R "$RELEASE_REPO"
         env:
           GH_TOKEN: ${{ github.token }}
 
