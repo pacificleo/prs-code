@@ -149,6 +149,7 @@ jobs:
 
           codesign -vvv --deep --strict "$APP_PATH"
       - name: Store notarization credentials
+        if: env.DEVELOPER_ID_CERT_P12 != ''
         run: |
           echo "$APPLE_NOTARIZATION_KEY" > notarization_key.p8
           xcrun notarytool store-credentials "notarytool-profile" \
@@ -256,6 +257,7 @@ jobs:
           name: dsyms
           path: dsyms
       - name: Upload dSYMs to Sentry
+        if: env.SENTRY_AUTH_TOKEN != ''
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: supabit
