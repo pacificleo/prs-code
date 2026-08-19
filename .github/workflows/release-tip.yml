@@ -127,6 +127,7 @@ jobs:
             cp -a build/cherrylily.xcarchive/Products/Applications/CherryLily.app build/export/
           fi
       - name: Re-sign frameworks
+        if: env.DEVELOPER_ID_CERT_P12 != ''
         run: |
           set -ex
           APP_PATH="$(find build/export -name "CherryLily.app" -maxdepth 3 -print -quit)"
