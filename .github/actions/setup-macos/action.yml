@@ -38,13 +38,14 @@ runs:
             for arg in "$@"; do
                 if [[ "$arg" == *.a ]]; then
                     cwd=$(pwd)
-                    mkdir "$basedir/$idx"
+                    mkdir -p "$basedir/$idx"
                     cd "$basedir/$idx"
-                    ar x "$cwd/$arg"
+                    ar x "$cwd/$arg" 2>/dev/null || true
+                    chmod -R 777 . 2>/dev/null || true
                     for f in *.o; do
-                        # Check if files exist to avoid '*' literal
                         if [[ -e "$f" ]]; then
-                            objs+=("$basedir/$idx/$f")
+                            mv "$f" "${idx}_${f}"
+                            objs+=("$basedir/$idx/${idx}_${f}")
                         fi
                     done
                     cd "$cwd"
@@ -53,6 +54,8 @@ runs:
                     objs+=("$arg")
                 fi
             done
+            chmod -R 777 "$basedir" 2>/dev/null || true
+            rm -f "$output"
             exec ar rcs "$output" "${objs[@]}"
         fi
         exec /usr/bin/libtool "$@"
