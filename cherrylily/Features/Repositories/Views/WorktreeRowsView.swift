@@ -207,12 +207,14 @@ struct WorktreeRowsView: View {
     let mergeReadiness = WorktreeRow.pullRequestMergeReadiness(for: display.pullRequest)
     let detailText = config.worktreeName.isEmpty ? config.displayName : config.worktreeName
     let summaryText = WorktreeRow.summaryAttributedString(
-      worktreeName: detailText,
-      showsPullRequestTag: display.pullRequest != nil && display.pullRequestBadgeStyle != nil,
-      pullRequestNumber: display.pullRequest?.number,
-      pullRequestState: display.pullRequestState,
-      mergeReadiness: mergeReadiness,
-      isSelected: isSelected
+      params: WorktreeRow.SummaryParams(
+        worktreeName: detailText,
+        isSelected: isSelected,
+        showsPullRequestTag: display.pullRequest != nil && display.pullRequestBadgeStyle != nil,
+        pullRequestNumber: display.pullRequest?.number,
+        pullRequestState: display.pullRequestState,
+        mergeReadiness: mergeReadiness
+      )
     )
     return WorktreeRow(
       name: config.displayName,

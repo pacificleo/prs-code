@@ -127,20 +127,21 @@ struct WorktreeRow: View {
     return PullRequestMergeReadiness(pullRequest: pullRequest)
   }
 
-  // swiftlint:disable:next function_parameter_count
+  struct SummaryParams {
+    let worktreeName: String
+    let isSelected: Bool
+    let showsPullRequestTag: Bool
+    let pullRequestNumber: Int?
+    let pullRequestState: String?
+    let mergeReadiness: PullRequestMergeReadiness?
+  }
+
   /// Builds the row's summary line. Hoisted out of the view body so it can be precomputed
   /// once where row data is assembled rather than re-allocated on every `WorktreeRow` render
   /// (which re-runs on hover / colorScheme changes).
-  static func summaryAttributedString(
-    worktreeName: String,
-    showsPullRequestTag: Bool,
-    pullRequestNumber: Int?,
-    pullRequestState: String?,
-    mergeReadiness: PullRequestMergeReadiness?,
-    isSelected: Bool
-  ) -> AttributedString {
+  static func summaryAttributedString(params: SummaryParams) -> AttributedString {
     var result = AttributedString()
-    let secondaryColor: Color = isSelected ? .white.opacity(0.8) : .secondary
+    let secondaryColor: Color = params.isSelected ? .white.opacity(0.8) : .secondary
     func appendSeparator() {
       if !result.characters.isEmpty {
         var sep = AttributedString(" \u{2022} ")
@@ -148,23 +149,23 @@ struct WorktreeRow: View {
         result.append(sep)
       }
     }
-    if !worktreeName.isEmpty {
-      var segment = AttributedString(worktreeName)
+    if !params.worktreeName.isEmpty {
+      var segment = AttributedString(params.worktreeName)
       segment.foregroundColor = secondaryColor
       result.append(segment)
     }
-    if showsPullRequestTag, let pullRequestNumber {
+    if params.showsPullRequestTag, let pullRequestNumber = params.pullRequestNumber {
       appendSeparator()
       var segment = AttributedString("PR #\(pullRequestNumber)")
       segment.foregroundColor = secondaryColor
       result.append(segment)
     }
-    if pullRequestState == "MERGED" {
+    if params.pullRequestState == "MERGED" {
       appendSeparator()
       var segment = AttributedString("Merged")
       segment.foregroundColor = PullRequestBadgeStyle.mergedColor
       result.append(segment)
-    } else if let mergeReadiness {
+    } else if let mergeReadiness = params.mergeReadiness {
       appendSeparator()
       var segment = AttributedString(mergeReadiness.label)
       segment.foregroundColor = mergeReadiness.isBlocking ? .red : .green

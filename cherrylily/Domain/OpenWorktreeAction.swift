@@ -46,30 +46,49 @@ struct OpenWorktreeAction: Identifiable, Equatable, Hashable, Sendable {
     }
   }
 
+  // swiftlint:disable:next line_length
   static let alacritty = OpenWorktreeAction(bundleIdentifier: "org.alacritty", title: "Alacritty", settingsID: "alacritty")
+  // swiftlint:disable:next line_length
   static let antigravity = OpenWorktreeAction(bundleIdentifier: "com.google.antigravity", title: "Antigravity", settingsID: "antigravity")
   static let editor = OpenWorktreeAction(bundleIdentifier: "", title: "$EDITOR", settingsID: "editor")
+  // swiftlint:disable:next line_length
   static let finder = OpenWorktreeAction(bundleIdentifier: "com.apple.finder", title: "Open Finder", settingsID: "finder")
+  // swiftlint:disable:next line_length
   static let cursor = OpenWorktreeAction(bundleIdentifier: "com.todesktop.230313mzl4w4u92", title: "Cursor", settingsID: "cursor")
+  // swiftlint:disable:next line_length
   static let githubDesktop = OpenWorktreeAction(bundleIdentifier: "com.github.GitHubClient", title: "GitHub Desktop", settingsID: "github-desktop")
   static let fork = OpenWorktreeAction(bundleIdentifier: "com.DanPristupov.Fork", title: "Fork", settingsID: "fork")
+  // swiftlint:disable:next line_length
   static let gitkraken = OpenWorktreeAction(bundleIdentifier: "com.axosoft.gitkraken", title: "GitKraken", settingsID: "gitkraken")
   static let gitup = OpenWorktreeAction(bundleIdentifier: "co.gitup.mac", title: "GitUp", settingsID: "gitup")
+  // swiftlint:disable:next line_length
   static let ghostty = OpenWorktreeAction(bundleIdentifier: "com.mitchellh.ghostty", title: "Ghostty", settingsID: "ghostty")
+  // swiftlint:disable:next line_length
   static let intellij = OpenWorktreeAction(bundleIdentifier: "com.jetbrains.intellij", title: "IntelliJ IDEA", settingsID: "intellij")
   static let kitty = OpenWorktreeAction(bundleIdentifier: "net.kovidgoyal.kitty", title: "Kitty", settingsID: "kitty")
+  // swiftlint:disable:next line_length
   static let pycharm = OpenWorktreeAction(bundleIdentifier: "com.jetbrains.pycharm", title: "PyCharm", settingsID: "pycharm")
+  // swiftlint:disable:next line_length
   static let rustrover = OpenWorktreeAction(bundleIdentifier: "com.jetbrains.rustrover", title: "RustRover", settingsID: "rustrover")
+  // swiftlint:disable:next line_length
   static let smartgit = OpenWorktreeAction(bundleIdentifier: "com.syntevo.smartgit", title: "SmartGit", settingsID: "smartgit")
+  // swiftlint:disable:next line_length
   static let sourcetree = OpenWorktreeAction(bundleIdentifier: "com.torusknot.SourceTreeNotMAS", title: "Sourcetree", settingsID: "sourcetree")
+  // swiftlint:disable:next line_length
   static let sublimeMerge = OpenWorktreeAction(bundleIdentifier: "com.sublimemerge", title: "Sublime Merge", settingsID: "sublime-merge")
+  // swiftlint:disable:next line_length
   static let terminal = OpenWorktreeAction(bundleIdentifier: "com.apple.Terminal", title: "Terminal", settingsID: "terminal")
+  // swiftlint:disable:next line_length
   static let vscode = OpenWorktreeAction(bundleIdentifier: "com.microsoft.VSCode", title: "VS Code", settingsID: "vscode")
+  // swiftlint:disable:next line_length
   static let vscodeInsiders = OpenWorktreeAction(bundleIdentifier: "com.microsoft.VSCodeInsiders", title: "VS Code Insiders", settingsID: "vscode-insiders")
   static let vscodium = OpenWorktreeAction(bundleIdentifier: "com.vscodium", title: "VSCodium", settingsID: "vscodium")
   static let warp = OpenWorktreeAction(bundleIdentifier: "dev.warp.Warp-Stable", title: "Warp", settingsID: "warp")
+  // swiftlint:disable:next line_length
   static let webstorm = OpenWorktreeAction(bundleIdentifier: "com.jetbrains.WebStorm", title: "WebStorm", settingsID: "webstorm")
+  // swiftlint:disable:next line_length
   static let wezterm = OpenWorktreeAction(bundleIdentifier: "com.github.wez.wezterm", title: "WezTerm", settingsID: "wezterm")
+  // swiftlint:disable:next line_length
   static let windsurf = OpenWorktreeAction(bundleIdentifier: "com.exafunction.windsurf", title: "Windsurf", settingsID: "windsurf")
   static let xcode = OpenWorktreeAction(bundleIdentifier: "com.apple.dt.Xcode", title: "Xcode", settingsID: "xcode")
   static let zed = OpenWorktreeAction(bundleIdentifier: "dev.zed.Zed", title: "Zed", settingsID: "zed")
@@ -78,7 +97,7 @@ struct OpenWorktreeAction: Identifiable, Equatable, Hashable, Sendable {
     .alacritty, .antigravity, .editor, .finder, .cursor, .githubDesktop, .fork, .gitkraken,
     .gitup, .ghostty, .intellij, .kitty, .pycharm, .rustrover, .smartgit, .sourcetree,
     .sublimeMerge, .terminal, .vscode, .vscodeInsiders, .vscodium, .warp, .webstorm, .wezterm,
-    .windsurf, .xcode, .zed
+    .windsurf, .xcode, .zed,
   ]
 
   static let automaticSettingsID = "auto"
@@ -101,7 +120,7 @@ struct OpenWorktreeAction: Identifiable, Equatable, Hashable, Sendable {
 
   static let editorPriority: [OpenWorktreeAction] = [
     .cursor, .zed, .vscode, .windsurf, .vscodeInsiders, .vscodium, .intellij, .webstorm, .pycharm,
-    .rustrover, .antigravity
+    .rustrover, .antigravity,
   ]
 
   static let terminalPriority: [OpenWorktreeAction] = [
@@ -215,6 +234,7 @@ struct OpenWorktreeAction: Identifiable, Equatable, Hashable, Sendable {
       configuration.arguments = [worktree.workingDirectory.path]
       NSWorkspace.shared.openApplication(at: appURL, configuration: configuration) { _, error in
         guard let error else { return }
+        // swiftlint:disable:next line_length
         Task { @MainActor in onError(OpenActionError(title: "Unable to open in \(actionTitle)", message: error.localizedDescription)) }
       }
       return
@@ -225,6 +245,7 @@ struct OpenWorktreeAction: Identifiable, Equatable, Hashable, Sendable {
     if bundleIdentifier == "custom" { // Marked custom applications
         @Shared(.settingsFile) var settingsFile
         guard let customApp = settingsFile.global.customWorktreeActions.first(where: { $0.id == settingsID }) else {
+            // swiftlint:disable:next line_length
             onError(OpenActionError(title: "\(title) not found", message: "Custom application not configured properly."))
             return
         }
@@ -238,8 +259,10 @@ struct OpenWorktreeAction: Identifiable, Equatable, Hashable, Sendable {
     }
 
     let configuration = NSWorkspace.OpenConfiguration()
+    // swiftlint:disable:next line_length
     NSWorkspace.shared.open([worktree.workingDirectory], withApplicationAt: appURL, configuration: configuration) { _, error in
       guard let error else { return }
+      // swiftlint:disable:next line_length
       Task { @MainActor in onError(OpenActionError(title: "Unable to open in \(actionTitle)", message: error.localizedDescription)) }
     }
   }

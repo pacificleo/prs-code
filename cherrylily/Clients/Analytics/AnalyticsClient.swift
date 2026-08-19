@@ -8,13 +8,13 @@ struct AnalyticsClient: Sendable {
 
 extension AnalyticsClient: DependencyKey {
   static let liveValue = AnalyticsClient(
-    capture: { event, properties in
+    capture: { _, _ in
       #if !DEBUG
         @Shared(.settingsFile) var settingsFile
         guard settingsFile.global.analyticsEnabled else { return }
       #endif
     },
-    identify: { distinctId in
+    identify: { _ in
       #if !DEBUG
         @Shared(.settingsFile) var settingsFile
         guard settingsFile.global.analyticsEnabled else { return }
