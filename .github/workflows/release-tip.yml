@@ -97,6 +97,7 @@ jobs:
           sed -i '' "s|__POSTHOG_HOST__|${POSTHOG_HOST}|g" cherrylily/App/supacodeApp.swift
       - name: Archive Xcode project
         run: |
+          make build-tmux
           if [ -n "$DEVELOPER_ID_CERT_P12" ]; then
             make archive
           else

@@ -91,13 +91,13 @@ install-release-build: build-release # install release build to /Applications
 	ditto "$$src" "$$dst"; \
 	echo "installed $$dst"
 
-archive: build-ghostty-xcframework # Archive Release build for distribution
+archive: build-ghostty-xcframework build-tmux # Archive Release build for distribution
 	bash -o pipefail -c 'xcodebuild -project cherrylily.xcodeproj -scheme cherrylily -configuration Release -archivePath build/cherrylily.xcarchive archive CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="$$APPLE_TEAM_ID" CODE_SIGN_IDENTITY="$$DEVELOPER_ID_IDENTITY_SHA" OTHER_CODE_SIGN_FLAGS="--timestamp" -skipMacroValidation -clonedSourcePackagesDirPath $(SPM_CACHE_DIR) $(XCODEBUILD_FLAGS) 2>&1 | mise exec -- xcsift -qw --format toon'
 
 export-archive: # Export xarchive
 	bash -o pipefail -c 'xcodebuild -exportArchive -archivePath build/cherrylily.xcarchive -exportPath build/export -exportOptionsPlist build/ExportOptions.plist 2>&1 | mise exec -- xcsift -qw --format toon'
 
-test: build-ghostty-xcframework
+test: build-ghostty-xcframework build-tmux
 	xcodebuild test -project cherrylily.xcodeproj -scheme cherrylily -destination "platform=macOS" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -skipMacroValidation -clonedSourcePackagesDirPath $(SPM_CACHE_DIR) 2>&1
 
 format: # Format code with swift-format (local only)
