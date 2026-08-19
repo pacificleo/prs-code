@@ -257,12 +257,16 @@ jobs:
           name: dsyms
           path: dsyms
       - name: Upload dSYMs to Sentry
-        if: env.SENTRY_AUTH_TOKEN != ''
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: supabit
           SENTRY_PROJECT: cherrylily
-        run: sentry-cli debug-files upload --include-sources dsyms
+        run: |
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
+            echo "No Sentry token, skipping dSYM upload"
+            exit 0
+          fi
+          sentry-cli debug-files upload --include-sources dsyms
 
   publish:
     runs-on: ubuntu-latest
