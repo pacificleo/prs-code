@@ -2,7 +2,7 @@ import ConcurrencyExtras
 import Foundation
 import Testing
 
-@testable import supacode
+@testable import CherryLily
 
 struct AgentHookSettingsFileInstallerTests {
   private let fileManager = FileManager.default

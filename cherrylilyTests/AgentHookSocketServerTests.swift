@@ -2,7 +2,7 @@ import Darwin
 import Foundation
 import Testing
 
-@testable import supacode
+@testable import CherryLily
 
 @MainActor
 struct AgentHookSocketServerTests {
