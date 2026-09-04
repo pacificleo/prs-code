@@ -1,5 +1,7 @@
 import ComposableArchitecture
+#if canImport(PostHog)
 import PostHog
+#endif
 import SwiftUI
 
 public nonisolated struct AnalyticsClient: Sendable {
@@ -21,14 +23,18 @@ extension AnalyticsClient: DependencyKey {
       #if !DEBUG
         @Shared(.settingsFile) var settingsFile
         guard settingsFile.global.analyticsEnabled else { return }
+        #if canImport(PostHog)
         PostHogSDK.shared.capture(event, properties: properties)
+        #endif
       #endif
     },
     identify: { distinctId in
       #if !DEBUG
         @Shared(.settingsFile) var settingsFile
         guard settingsFile.global.analyticsEnabled else { return }
+        #if canImport(PostHog)
         PostHogSDK.shared.identify(distinctId)
+        #endif
       #endif
     }
   )
