@@ -40,34 +40,23 @@ final class GhosttySurfaceView: NSView, Identifiable {
 
   private final class CachedValue<T> {
     private var value: T?
+    private var fetchedAt: ContinuousClock.Instant?
     private let fetch: () -> T
     private let duration: Duration
-    private var expiryTask: Task<Void, Never>?
 
     init(duration: Duration, fetch: @escaping () -> T) {
       self.duration = duration
       self.fetch = fetch
     }
 
-    deinit {
-      expiryTask?.cancel()
-    }
-
     func get() -> T {
-      if let value {
+      let now = ContinuousClock.now
+      if let value, let fetchedAt, now - fetchedAt < duration {
         return value
       }
-
       let fetched = fetch()
       value = fetched
-      expiryTask?.cancel()
-      expiryTask = Task { [weak self] in
-        guard let self else { return }
-        try? await ContinuousClock().sleep(for: self.duration)
-        guard !Task.isCancelled else { return }
-        self.value = nil
-        self.expiryTask = nil
-      }
+      fetchedAt = now
       return fetched
     }
   }
@@ -117,7 +106,6 @@ final class GhosttySurfaceView: NSView, Identifiable {
   private var lastScrollbar: ScrollbarState?
   private(set) var lastOcclusion: Bool?
   private var lastSurfaceFocus: Bool?
-  private var eventMonitor: Any?
   private var notificationObservers: [NSObjectProtocol] = []
   private var prevPressureStage: Int = 0
   private lazy var cachedScreenContents = CachedValue<String>(duration: .milliseconds(500)) {
@@ -287,10 +275,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
     }
     registerForDraggedTypes(Array(Self.dropTypes))
 
-    eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyUp, .leftMouseDown, .flagsChanged]) {
-      [weak self] event in
-      self?.localEventHandler(event)
-    }
+    Self.registerSurfaceView(self)
   }
 
   required init?(coder: NSCoder) {
@@ -298,9 +283,6 @@ final class GhosttySurfaceView: NSView, Identifiable {
   }
 
   isolated deinit {
-    if let eventMonitor {
-      NSEvent.removeMonitor(eventMonitor)
-    }
     clearNotificationObservers()
     let id = ObjectIdentifier(self)
     MainActor.assumeIsolated {
@@ -592,6 +574,12 @@ final class GhosttySurfaceView: NSView, Identifiable {
     }
   }
 
+  private func resetBellCountIfNeeded() {
+    if bridge.state.bellCount != 0 {
+      bridge.state.bellCount = 0
+    }
+  }
+
   func setAccessibilityPaneIndex(index: Int, total: Int) {
     guard total > 0, index > 0, index <= total else {
       accessibilityPaneIndexHelp = nil
@@ -735,6 +723,7 @@ final class GhosttySurfaceView: NSView, Identifiable {
     if bridge.state.bellCount != 0 {
       bridge.state.bellCount = 0
     }
+    resetBellCountIfNeeded()
     let (translationEvent, translationMods) = translationState(event, surface: surface)
     let action = event.isARepeat ? GHOSTTY_ACTION_REPEAT : GHOSTTY_ACTION_PRESS
     keyTextAccumulator = []
