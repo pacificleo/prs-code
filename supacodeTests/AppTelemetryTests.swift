@@ -1,9 +1,12 @@
+#if canImport(PostHog)
 import PostHog
+#endif
 import Testing
 
 @testable import SupacodeSettingsShared
 @testable import supacode
 
+#if canImport(PostHog)
 struct AppTelemetryTests {
   @Test
   func configurationReadsTrackedInfoDictionary() throws {
@@ -80,3 +83,4 @@ struct AppTelemetryTests {
     #expect(!AppTelemetry.isEnabled(settings: .default, isDebugBuild: true))
   }
 }
+#endif
