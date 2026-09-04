@@ -274,7 +274,7 @@ public nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     terminalHibernationEnabled: Bool = true,
     chromeTextSize: ChromeTextSize = .default,
     automaticRepositoryRefreshEnabled: Bool = true,
-    automaticRepositoryRefreshInterval: Int = 3600,
+    automaticRepositoryRefreshInterval: Int = 300,
     hoverFocusMode: HoverFocusMode = .never,
     globalToggleVisibilityHotkey: AppShortcutOverride? = nil
   ) {
