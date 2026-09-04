@@ -128,6 +128,7 @@ jobs:
               echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
               echo "XCODE_XCCONFIG_FILE=$PWD/build/ReleaseOverrides.xcconfig" >> "$GITHUB_ENV"
           - name: Setup keychain
+            if: env.DEVELOPER_ID_CERT_P12 != ''
             run: |
               echo "$DEVELOPER_ID_CERT_P12" | base64 --decode > build-cert.p12
               security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
@@ -144,7 +145,12 @@ jobs:
               fi
               echo "DEVELOPER_ID_IDENTITY_SHA=$DEVELOPER_ID_IDENTITY_SHA" >> "$GITHUB_ENV"
       - name: Archive workspace
-        run: make archive
+        run: |
+          if [ -n "$DEVELOPER_ID_CERT_P12" ]; then
+            make archive
+          else
+            make archive XCODEBUILD_FLAGS='CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""'
+          fi
       - name: Upload dSYMs
         uses: actions/upload-artifact@v6
         with:
@@ -167,7 +173,12 @@ jobs:
           </dict>
           </plist>
           EOF
-          make export-archive
+          if [ -n "$DEVELOPER_ID_CERT_P12" ]; then
+            make export-archive
+          else
+            mkdir -p build/export/supacode.app
+            cp -R build/supacode.xcarchive/Products/Applications/supacode.app/ build/export/supacode.app/
+          fi
       - name: Verify embedded telemetry config
         env:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
@@ -200,6 +211,7 @@ jobs:
           grep -q "com.apple.security.device.audio-input" /tmp/supacode-entitlements.txt
 
       - name: Store notarization credentials
+        if: env.DEVELOPER_ID_CERT_P12 != ''
         run: |
           echo "$APPLE_NOTARIZATION_KEY" > notarization_key.p8
           xcrun notarytool store-credentials "notarytool-profile" \
@@ -208,6 +220,7 @@ jobs:
             --issuer "$APPLE_NOTARIZATION_ISSUER"
           rm notarization_key.p8
       - name: Build DMG
+        if: env.DEVELOPER_ID_CERT_P12 != ''
         run: |
           APP_PATH="$(find build/export -name "supacode.app" -maxdepth 3 -print -quit)"
 
@@ -221,6 +234,7 @@ jobs:
             mv "$DMG_OUTPUT" build/supacode.dmg
           fi
       - name: Notarize and staple
+        if: env.DEVELOPER_ID_CERT_P12 != ''
         run: |
           set -euo pipefail
           APP_PATH="$(find build/export -name "supacode.app" -maxdepth 3 -print -quit)"
@@ -419,6 +433,7 @@ jobs:
               ;;
           esac
       - name: Generate appcast with history and deltas
+        if: env.SPARKLE_PRIVATE_KEY != ''
         run: |
           set -euo pipefail
           MAX_DELTAS=10
@@ -456,16 +471,20 @@ jobs:
         run: |
           set -euo pipefail
           DELTA_FILES=$(find build -name "*.delta" -type f | sort | tr '\n' ' ' || true)
-          python3 scripts/generate_release_checksums.py "$TAG" build/checksums.json build/supacode.dmg build/supacode.app.zip $DELTA_FILES
+          DMG_FILE=$(find build -name "*.dmg" -type f 2>/dev/null || true)
+          python3 scripts/generate_release_checksums.py "$TAG" build/checksums.json build/supacode.app.zip $DMG_FILE $DELTA_FILES
       - name: Create release and upload assets
         run: |
           set -euo pipefail
           gh release create "$TAG" --title "$TAG" --notes-file build/release-notes.md --target "${{ github.sha }}" -R "$RELEASE_REPO" 2>/dev/null || \
           gh release edit "$TAG" --target "${{ github.sha }}" -R "$RELEASE_REPO"
           DELTA_FILES=$(find build -name "*.delta" -type f 2>/dev/null | tr '\n' ' ' || true)
-          gh release upload "$TAG" build/supacode.app.zip build/supacode.dmg build/appcast.xml build/checksums.json $DELTA_FILES --clobber -R "$RELEASE_REPO"
+          DMG_FILE=$(find build -name "*.dmg" -type f 2>/dev/null || true)
+          APPCAST_FILE=$(find build -name "appcast.xml" -type f 2>/dev/null || true)
+          gh release upload "$TAG" build/supacode.app.zip build/checksums.json $DMG_FILE $APPCAST_FILE $DELTA_FILES --clobber -R "$RELEASE_REPO"
       - name: Verify download URLs
         run: |
+          if [ -z "$DEVELOPER_ID_CERT_P12" ]; then exit 0; fi
           set -euo pipefail
           curl -fsSL "https://github.com/pacificleo/prs-code/releases/download/$TAG/checksums.json" -o /dev/null
           curl -fsSL "https://github.com/pacificleo/prs-code/releases/download/$TAG/supacode.app.zip" -o /dev/null
@@ -499,8 +518,11 @@ jobs:
           done
 
           DELTA_FILES=$(find build -name "*.delta" -type f 2>/dev/null | tr '\n' ' ' || true)
-          python3 scripts/generate_release_checksums.py tip build/checksums.json build/supacode.dmg build/supacode.app.zip $DELTA_FILES
-          gh release upload tip build/supacode.dmg build/supacode.app.zip build/appcast.xml build/checksums.json $DELTA_FILES --clobber -R "${{ github.repository }}"
+          DMG_FILE=$(find build -name "*.dmg" -type f 2>/dev/null || true)
+          python3 scripts/generate_release_checksums.py tip build/checksums.json build/supacode.app.zip $DMG_FILE $DELTA_FILES
+          DMG_FILE=$(find build -name "*.dmg" -type f 2>/dev/null || true)
+          APPCAST_FILE=$(find build -name "appcast.xml" -type f 2>/dev/null || true)
+          gh release upload tip build/supacode.app.zip build/checksums.json $DMG_FILE $APPCAST_FILE $DELTA_FILES --clobber -R "${{ github.repository }}"
 
           # Store current build as history asset for future delta generation
           MAX_DELTAS=10
@@ -514,6 +536,7 @@ jobs:
             gh release delete-asset tip "$old" -R "${{ github.repository }}" -y 2>/dev/null || true
           done
       - name: Merge tip item into production appcast
+        if: env.SPARKLE_PRIVATE_KEY != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
