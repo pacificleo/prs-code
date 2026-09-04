@@ -13,6 +13,7 @@ final class CommandKeyObserver {
   private var monitor: Any?
   private var didBecomeActiveObserver: NSObjectProtocol?
   private var didResignActiveObserver: NSObjectProtocol?
+  private var holdTask: Task<Void, Never>?
 
   init() {
     isPressed = false
@@ -20,6 +21,7 @@ final class CommandKeyObserver {
     monitor = nil
     didBecomeActiveObserver = nil
     didResignActiveObserver = nil
+    holdTask = nil
     configureObservers()
   }
 
@@ -61,15 +63,23 @@ final class CommandKeyObserver {
   }
 
   private func handleCommandKeyChange(isDown: Bool) {
-    // Re-resolve on the way in only: the hints must survive the release so consumers can fade them out.
+    holdTask?.cancel()
+    holdTask = nil
+
     if isDown {
       let hints = Self.resolvedTabSelectionHints()
       if hints != tabSelectionHints {
         tabSelectionHints = hints
       }
+      
+      holdTask = Task { @MainActor [weak self] in
+        try? await Task.sleep(for: .seconds(2))
+        guard !Task.isCancelled else { return }
+        self?.isPressed = true
+      }
+    } else {
+      isPressed = false
     }
-    // Flip immediately; consumers fade the visual change in/out themselves.
-    isPressed = isDown
   }
 
   private static func resolvedTabSelectionHints() -> [String?] {
