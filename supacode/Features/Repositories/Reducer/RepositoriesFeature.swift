@@ -34,7 +34,6 @@ private enum CancelID {
 }
 
 nonisolated let repositoriesLogger = SupaLogger("Repositories")
-private nonisolated let githubIntegrationRecoveryInterval: Duration = .seconds(15)
 private nonisolated let toastAutoDismissDelay: Duration = .milliseconds(2500)
 private nonisolated let delayedPullRequestRefreshDelay: Duration = .seconds(2)
 
@@ -2499,9 +2498,11 @@ struct RepositoriesFeature {
           return .merge(
             openFetchCancels + [
               .run { send in
+                var attempt = 0
                 while !Task.isCancelled {
-                  try await clock.sleep(for: githubIntegrationRecoveryInterval)
+                  try await clock.sleep(for: Self.githubRecoveryDelay(attempt: attempt))
                   await send(.refreshGithubIntegrationAvailability)
+                  attempt += 1
                 }
               }
               .cancellable(id: CancelID.githubIntegrationRecovery, cancelInFlight: true)
@@ -5010,6 +5011,15 @@ struct RepositoriesFeature {
     let repoID: Repository.ID
     let host: RemoteHost
     let remotePath: String
+  }
+
+  /// Backoff for the GitHub-integration recovery poll: 15s, 30s, 60s, 120s, 240s,
+  /// then 300s. Avoids hammering `gh` every 15s forever when the CLI is
+  /// persistently unavailable. The first delay stays 15s (attempt 0).
+  private static func githubRecoveryDelay(attempt: Int) -> Duration {
+    let cappedAttempt = min(attempt, 5)
+    let seconds = min(15 * (1 << cappedAttempt), 300)
+    return .seconds(seconds)
   }
 
   private struct WorktreesFetchResult: Sendable {
