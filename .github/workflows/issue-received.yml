@@ -46,5 +46,5 @@ jobs:
                 '`ready`.** That label is a maintainer\'s go-ahead: a pull request opened against an ' +
                 'issue that is not yet `ready` is labeled `invalid` until then. You will get a ' +
                 'comment here the moment it is marked `ready`.\n\n' +
-                'See [CONTRIBUTING.md](https://github.com/supabitapp/supacode/blob/main/CONTRIBUTING.md) for the full flow.';
+                'See [CONTRIBUTING.md](https://github.com/pacificleo/prs-code/blob/main/CONTRIBUTING.md) for the full flow.';
             await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body });

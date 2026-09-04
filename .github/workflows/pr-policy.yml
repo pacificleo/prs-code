@@ -183,7 +183,7 @@ jobs:
                 '`invalid`. Please address the following, then push an update:\n\n' +
                 `${list}\n\n` +
                 'Nothing needs to be redone. A pull request left `invalid` is closed automatically after a few ' +
-                'days of inactivity. See [CONTRIBUTING.md](https://github.com/supabitapp/supacode/blob/main/CONTRIBUTING.md) for the full flow.';
+                'days of inactivity. See [CONTRIBUTING.md](https://github.com/pacificleo/prs-code/blob/main/CONTRIBUTING.md) for the full flow.';
               if (existing) {
                 await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
               } else {
@@ -241,7 +241,7 @@ jobs:
                       `${staleMarker}\n\n` +
                       `Closing this because it has been labeled \`invalid\` and inactive for more than ${staleDays} days. ` +
                       'Nothing is lost: address the points in the policy comment above and reopen it, and the checks ' +
-                      'will re-run. See [CONTRIBUTING.md](https://github.com/supabitapp/supacode/blob/main/CONTRIBUTING.md).',
+                      'will re-run. See [CONTRIBUTING.md](https://github.com/pacificleo/prs-code/blob/main/CONTRIBUTING.md).',
                   });
                   core.info(`Closed stale invalid pull request #${pr.number}.`);
                 } catch (error) {

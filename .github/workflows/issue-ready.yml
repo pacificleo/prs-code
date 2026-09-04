@@ -49,5 +49,5 @@ jobs:
               `${lead} If you'd like to work on it, open a pull request and link it with \`Closes #${issue.number}\` ` +
               'in the description. If the issue is assigned to someone, it is reserved for them; otherwise anyone is ' +
               'welcome to pick it up.\n\n' +
-              'See [CONTRIBUTING.md](https://github.com/supabitapp/supacode/blob/main/CONTRIBUTING.md) for the full flow.';
+              'See [CONTRIBUTING.md](https://github.com/pacificleo/prs-code/blob/main/CONTRIBUTING.md) for the full flow.';
             await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body });

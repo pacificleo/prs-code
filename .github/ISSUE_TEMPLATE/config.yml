@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: https://github.com/supabitapp/supacode/security/advisories/new
+    url: https://github.com/pacificleo/prs-code/security/advisories/new
     about: Please report security issues privately here, never in a public issue.
   - name: Website and general chat
-    url: https://supacode.sh
+    url: https://github.com/pacificleo/prs-code
     about: Learn more about Supacode. Use the forms above to report a bug, request a feature, or ask a question.

@@ -48,5 +48,5 @@ body:
       options:
         - label: I searched existing issues and the README, and did not find an answer.
           required: true
-        - label: I agree to follow this project's [Code of Conduct](https://github.com/supabitapp/supacode/blob/main/CODE_OF_CONDUCT.md).
+        - label: I agree to follow this project's [Code of Conduct](https://github.com/pacificleo/prs-code/blob/main/CODE_OF_CONDUCT.md).
           required: true

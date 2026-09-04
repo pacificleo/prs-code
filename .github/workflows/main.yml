@@ -280,7 +280,7 @@ jobs:
           done
 
           printf "%s" "$SPARKLE_PRIVATE_KEY" | tr -d '\r\n\t ' | ./bins/generate_appcast \
-            --download-url-prefix "https://supacode.sh/download/tip/" \
+            --download-url-prefix "https://github.com/pacificleo/prs-code/releases/download/tip/" \
             --maximum-versions $((MAX_DELTAS + 1)) \
             --maximum-deltas $MAX_DELTAS \
             --delta-compression lzma \
@@ -430,7 +430,7 @@ jobs:
           cp "$ARCHIVE" "$STAGING/"
           cp "$NOTES_FILE" "$STAGING/$ARCHIVE_BASE.md"
 
-          curl -fsSL "https://supacode.sh/download/latest/appcast.xml" -o "$STAGING/appcast.xml" || true
+          curl -fsSL "https://github.com/pacificleo/prs-code/releases/latest/download/appcast.xml" -o "$STAGING/appcast.xml" || true
 
           SEEN_VERSIONS=""
           for i in $(seq 1 $MAX_DELTAS); do
@@ -449,7 +449,7 @@ jobs:
             fi
           done
 
-          printf "%s" "$SPARKLE_PRIVATE_KEY" | tr -d '\r\n\t ' | ./bins/generate_appcast --download-url-prefix "https://supacode.sh/download/$TAG/" --full-release-notes-url "https://github.com/supabitapp/supacode/releases" --embed-release-notes --maximum-versions $MAX_DELTAS --maximum-deltas $MAX_DELTAS --delta-compression lzma --ed-key-file - "$STAGING"
+          printf "%s" "$SPARKLE_PRIVATE_KEY" | tr -d '\r\n\t ' | ./bins/generate_appcast --download-url-prefix "https://github.com/pacificleo/prs-code/releases/download/$TAG/" --full-release-notes-url "https://github.com/pacificleo/prs-code/releases" --embed-release-notes --maximum-versions $MAX_DELTAS --maximum-deltas $MAX_DELTAS --delta-compression lzma --ed-key-file - "$STAGING"
           cp "$STAGING/appcast.xml" build/appcast.xml
           find "$STAGING" -name "*.delta" -exec cp {} build/ \; 2>/dev/null || true
       - name: Generate checksums
@@ -467,9 +467,9 @@ jobs:
       - name: Verify download URLs
         run: |
           set -euo pipefail
-          curl -fsSL "https://supacode.sh/download/$TAG/checksums.json" -o /dev/null
-          curl -fsSL "https://supacode.sh/download/$TAG/supacode.app.zip" -o /dev/null
-          curl -fsSL "https://supacode.sh/download/$TAG/supacode.dmg" -o /dev/null
+          curl -fsSL "https://github.com/pacificleo/prs-code/releases/download/$TAG/checksums.json" -o /dev/null
+          curl -fsSL "https://github.com/pacificleo/prs-code/releases/download/$TAG/supacode.app.zip" -o /dev/null
+          curl -fsSL "https://github.com/pacificleo/prs-code/releases/download/$TAG/supacode.dmg" -o /dev/null
 
   # Ordered after publish-stable so the tip item merges into any freshly cut release. Tolerates a skip
   # (non-release commits) but blocks on its failure, so the tip merge never runs against a half-published release.
