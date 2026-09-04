@@ -1,7 +1,7 @@
 import ProjectDescription
 
 let tuist = Tuist(
-  fullHandle: "supabitapp/supacode",
+  fullHandle: "pacificleo/prs-code",
   project: .tuist(
     compatibleXcodeVersions: .upToNextMajor("26.0"),
     swiftVersion: "6.0",

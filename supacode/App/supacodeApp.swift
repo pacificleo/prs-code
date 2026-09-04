@@ -685,7 +685,7 @@ struct SupacodeApp: App {
       }
       CommandGroup(replacing: .help) {
         Button("Submit GitHub Issue") {
-          guard let url = URL(string: "https://github.com/supabitapp/supacode/issues/new") else { return }
+          guard let url = URL(string: "https://github.com/pacificleo/prs-code/issues/new") else { return }
           NSWorkspace.shared.open(url)
         }
         .help("Submit GitHub Issue")
