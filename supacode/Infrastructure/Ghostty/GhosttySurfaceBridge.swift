@@ -59,6 +59,8 @@ final class GhosttySurfaceBridge {
   var onMoveTab: ((ghostty_action_move_tab_s) -> Bool)?
   var onCommandPaletteToggle: (() -> Bool)?
   var onProgressReport: ((ghostty_action_progress_report_state_e) -> Void)?
+  var onDesktopNotification: ((String, String) -> Void)?
+  var onBellRang: (() -> Void)?
   // Fired on OSC 11 background changes only; used to re-tint window chrome
   // when the focused surface's background changes.
   var onColorChanged: (() -> Void)?
@@ -346,6 +348,7 @@ final class GhosttySurfaceBridge {
 
     case GHOSTTY_ACTION_RING_BELL:
       state.bellCount += 1
+      onBellRang?()
       return true
 
     default:

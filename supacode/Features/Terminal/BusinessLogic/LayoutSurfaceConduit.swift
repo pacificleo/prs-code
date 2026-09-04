@@ -77,6 +77,10 @@ struct LayoutSurfaceConduit {
       guard let view, isLive(view) else { return }
       host.handleAgentOSCNotification(title: title, body: body, surfaceID: surfaceID)
     }
+    view.bridge.onBellRang = { [weak view] in
+      guard let view, isLive(view) else { return }
+      host.appendNotification(title: "Bell", body: "", surfaceID: surfaceID)
+    }
     view.bridge.onContextSignal = { [weak view] _, id, metadata in
       guard let view, isLive(view) else { return }
       host.handleContextSignal(surfaceID: surfaceID, id: id, metadata: metadata)
