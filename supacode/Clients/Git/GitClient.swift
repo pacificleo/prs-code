@@ -1,6 +1,8 @@
 import ConcurrencyExtras
 import Foundation
+#if canImport(Sentry)
 import Sentry
+#endif
 import SupacodeSettingsShared
 
 enum GitOperation: String {
@@ -1675,7 +1677,7 @@ nonisolated private func wrapShellError(
     gitError = .commandFailed(command: command, message: error.localizedDescription)
   }
   gitLogger.warning("git command failed operation=\(operation.rawValue) exit_code=\(exitCode)")
-  #if !DEBUG
+  #if !DEBUG && canImport(Sentry)
     SentrySDK.logger.error(
       "git command failed",
       attributes: [

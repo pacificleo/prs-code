@@ -3,6 +3,7 @@ import Testing
 @testable import SupacodeSettingsShared
 @testable import supacode
 
+#if canImport(Sentry)
 struct AppCrashReportingTests {
   @Test
   func configurationReadsTrackedInfoDictionary() throws {
@@ -55,3 +56,4 @@ struct AppCrashReportingTests {
     #expect(!AppCrashReporting.isEnabled(settings: .default, isDebugBuild: true))
   }
 }
+#endif

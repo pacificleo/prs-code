@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(Sentry)
 import Sentry
+#endif
 import SupacodeSettingsShared
 
 enum AppCrashReporting {
@@ -29,6 +31,7 @@ enum AppCrashReporting {
     #if DEBUG
       return
     #else
+      #if canImport(Sentry)
       guard isEnabled(settings: settings, isDebugBuild: false) else { return }
       guard let configuration = Configuration(infoDictionary: infoDictionary) else { return }
       SentrySDK.start { options in
@@ -36,6 +39,7 @@ enum AppCrashReporting {
         options.tracesSampleRate = 1.0
         options.enableAppHangTracking = false
       }
+      #endif
     #endif
   }
 }

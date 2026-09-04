@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(PostHog)
 import PostHog
+#endif
 import SupacodeSettingsShared
 
 enum AppTelemetry {
@@ -30,6 +32,7 @@ enum AppTelemetry {
     settings.analyticsEnabled && !isDebugBuild
   }
 
+  #if canImport(PostHog)
   static func makeConfig(configuration: Configuration) -> PostHogConfig {
     let config = PostHogConfig(projectToken: configuration.apiKey, host: configuration.host)
     config.captureApplicationLifecycleEvents = true
@@ -39,6 +42,7 @@ enum AppTelemetry {
     }
     return config
   }
+  #endif
 
   static func shouldSend(eventName: String) -> Bool {
     switch eventName {
@@ -58,6 +62,7 @@ enum AppTelemetry {
     #if DEBUG
       return
     #else
+      #if canImport(PostHog)
       guard isEnabled(settings: settings, isDebugBuild: false) else { return }
       guard let configuration = Configuration(infoDictionary: infoDictionary) else { return }
       let config = makeConfig(configuration: configuration)
@@ -66,6 +71,7 @@ enum AppTelemetry {
         PostHogSDK.shared.identify(hardwareUUID)
       }
       PostHogSDK.shared.capture("app_launched")
+      #endif
     #endif
   }
 }
