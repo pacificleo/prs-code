@@ -41,6 +41,23 @@ struct GhosttyRuntimeBundledOverridesTests {
     #expect(light.windowTintColor().isLightColor)
   }
 
+  // Surface liveness is tracked by Set membership alone now that `isValid` is
+  // gone: distinct references over the same pointer stay distinct, and removing
+  // one drops exactly that reference. Uses a bogus pointer never dereferenced by
+  // the identity `==`/`hash` or `Set.remove`.
+  @Test func surfaceReferenceSetRemovesExactlyTheUnregisteredReference() {
+    let pointer = UnsafeMutableRawPointer(bitPattern: 0x1)!
+    let first = GhosttyRuntime.SurfaceReference(pointer)
+    let second = GhosttyRuntime.SurfaceReference(pointer)
+    var surfaces: Set<GhosttyRuntime.SurfaceReference> = [first, second]
+    #expect(surfaces.count == 2)
+    #expect(first != second)
+
+    surfaces.remove(first)
+    #expect(!surfaces.contains(first))
+    #expect(surfaces.contains(second))
+  }
+
   /// Shell integration must NOT be disabled in the bundled overrides: surfaces
   /// run the real shell with zmx injected as a `command-wrapper`, so Ghostty
   /// integrates the shell exactly as without zmx. Forcing `none` here would

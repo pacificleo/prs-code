@@ -22,14 +22,9 @@ final class GhosttyRuntime {
 
   final class SurfaceReference: Hashable {
     let surface: ghostty_surface_t
-    var isValid = true
 
     init(_ surface: ghostty_surface_t) {
       self.surface = surface
-    }
-
-    func invalidate() {
-      isValid = false
     }
 
     static func == (lhs: SurfaceReference, rhs: SurfaceReference) -> Bool {
@@ -202,7 +197,6 @@ final class GhosttyRuntime {
   }
 
   func unregisterSurface(_ ref: SurfaceReference) {
-    ref.invalidate()
     surfaceRefs.remove(ref)
     Self.liveSurfaceBits.remove(UInt(bitPattern: ref.surface))
   }
@@ -276,7 +270,7 @@ final class GhosttyRuntime {
   }
 
   private func applyColorSchemeToSurfaces(_ scheme: ghostty_color_scheme_e) {
-    for ref in surfaceRefs where ref.isValid {
+    for ref in surfaceRefs {
       ghostty_surface_set_color_scheme(ref.surface, scheme)
     }
   }

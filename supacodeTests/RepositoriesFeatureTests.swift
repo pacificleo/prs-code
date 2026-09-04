@@ -7454,6 +7454,7 @@ struct RepositoriesFeatureTests {
     }
     await store.receive(\.githubIntegrationAvailabilityUpdated) {
       $0.githubIntegrationAvailability = .unavailable
+      $0.githubIntegrationRecoveryAttempt = 1
       $0.queuedPullRequestRefreshByRepositoryID = [:]
       $0.inFlightPullRequestRefreshRepositoryIDs = []
     }
@@ -7465,10 +7466,12 @@ struct RepositoriesFeatureTests {
     }
     await store.receive(\.githubIntegrationAvailabilityUpdated) {
       $0.githubIntegrationAvailability = .unavailable
+      $0.githubIntegrationRecoveryAttempt = 2
     }
 
     await store.send(.setGithubIntegrationEnabled(false)) {
       $0.githubIntegrationAvailability = .disabled
+      $0.githubIntegrationRecoveryAttempt = 0
       $0.pendingPullRequestRefreshByRepositoryID = [:]
       $0.queuedPullRequestRefreshByRepositoryID = [:]
       $0.inFlightPullRequestRefreshRepositoryIDs = []
@@ -7495,6 +7498,7 @@ struct RepositoriesFeatureTests {
 
     await store.send(.githubIntegrationAvailabilityUpdated(false)) {
       $0.githubIntegrationAvailability = .unavailable
+      $0.githubIntegrationRecoveryAttempt = 1
     }
 
     // Still unavailable after the first interval: the loop re-arms and checks again on the next one.
@@ -7504,19 +7508,98 @@ struct RepositoriesFeatureTests {
     }
     await store.receive(\.githubIntegrationAvailabilityUpdated) {
       $0.githubIntegrationAvailability = .unavailable
+      $0.githubIntegrationRecoveryAttempt = 2
     }
 
+    // The second interval has backed off to 30s (attempt 1), so a 15s advance is
+    // not enough to re-arm the check.
     isAvailable.setValue(true)
-    await clock.advance(by: .seconds(15))
+    await clock.advance(by: .seconds(30))
     await store.receive(\.refreshGithubIntegrationAvailability) {
       $0.githubIntegrationAvailability = .checking
     }
     await store.receive(\.githubIntegrationAvailabilityUpdated) {
       $0.githubIntegrationAvailability = .available
+      $0.githubIntegrationRecoveryAttempt = 0
     }
 
     // Recovering cancels the loop: further intervals must not re-check.
-    await clock.advance(by: .seconds(60))
+    await clock.advance(by: .seconds(300))
+    await store.finish()
+  }
+
+  @Test func githubIntegrationRecoveryBacksOffWhileUnavailable() async {
+    let repoRoot = "/tmp/repo"
+    let mainWorktree = makeWorktree(id: repoRoot, name: "main", repoRoot: repoRoot)
+    let repository = makeRepository(id: repoRoot, worktrees: [mainWorktree])
+    var initialState = makeState(repositories: [repository])
+    initialState.githubIntegrationAvailability = .checking
+    initialState.reconcileSidebarForTesting()
+    let clock = TestClock()
+    let isAvailable = LockIsolated(false)
+    let store = TestStore(initialState: initialState) {
+      RepositoriesFeature()
+    } withDependencies: {
+      $0.sidebarStructureAutoRecompute = false
+      $0.continuousClock = clock
+      $0.githubIntegration.isAvailable = { isAvailable.value }
+    }
+
+    // First unavailable result arms the recovery poll at the 15s base delay.
+    await store.send(.githubIntegrationAvailabilityUpdated(false)) {
+      $0.githubIntegrationAvailability = .unavailable
+      $0.githubIntegrationRecoveryAttempt = 1
+    }
+
+    await clock.advance(by: .seconds(15))
+    await store.receive(\.refreshGithubIntegrationAvailability) {
+      $0.githubIntegrationAvailability = .checking
+    }
+    await store.receive(\.githubIntegrationAvailabilityUpdated) {
+      $0.githubIntegrationAvailability = .unavailable
+      $0.githubIntegrationRecoveryAttempt = 2
+    }
+
+    // Second interval has doubled to 30s: 29s is not enough, the last second fires it.
+    await clock.advance(by: .seconds(29))
+    await clock.advance(by: .seconds(1))
+    await store.receive(\.refreshGithubIntegrationAvailability) {
+      $0.githubIntegrationAvailability = .checking
+    }
+    await store.receive(\.githubIntegrationAvailabilityUpdated) {
+      $0.githubIntegrationAvailability = .unavailable
+      $0.githubIntegrationRecoveryAttempt = 3
+    }
+
+    // Remaining intervals keep doubling, then hold at the 300s cap.
+    let cappedDelays: [(delay: Duration, attempt: Int)] = [
+      (.seconds(60), 4),
+      (.seconds(120), 5),
+      (.seconds(240), 6),
+      (.seconds(300), 7),
+      (.seconds(300), 8),
+    ]
+    for step in cappedDelays {
+      await clock.advance(by: step.delay)
+      await store.receive(\.refreshGithubIntegrationAvailability) {
+        $0.githubIntegrationAvailability = .checking
+      }
+      await store.receive(\.githubIntegrationAvailabilityUpdated) {
+        $0.githubIntegrationAvailability = .unavailable
+        $0.githubIntegrationRecoveryAttempt = step.attempt
+      }
+    }
+
+    // Recovering resets the backoff so the next outage starts from 15s again.
+    isAvailable.setValue(true)
+    await clock.advance(by: .seconds(300))
+    await store.receive(\.refreshGithubIntegrationAvailability) {
+      $0.githubIntegrationAvailability = .checking
+    }
+    await store.receive(\.githubIntegrationAvailabilityUpdated) {
+      $0.githubIntegrationAvailability = .available
+      $0.githubIntegrationRecoveryAttempt = 0
+    }
     await store.finish()
   }
 
@@ -7625,6 +7708,7 @@ struct RepositoriesFeatureTests {
 
     await store.send(.githubIntegrationAvailabilityUpdated(false)) {
       $0.githubIntegrationAvailability = .unavailable
+      $0.githubIntegrationRecoveryAttempt = 1
       $0.pendingPullRequestRefreshByRepositoryID[repository.id] = RepositoriesFeature.PendingPullRequestRefresh(
         repositoryRootURL: URL(fileURLWithPath: repoRoot),
         worktreeIDs: [mainWorktree.id, featureWorktree.id],
@@ -7635,6 +7719,7 @@ struct RepositoriesFeatureTests {
     }
     await store.send(.setGithubIntegrationEnabled(false)) {
       $0.githubIntegrationAvailability = .disabled
+      $0.githubIntegrationRecoveryAttempt = 0
       $0.pendingPullRequestRefreshByRepositoryID = [:]
       $0.queuedPullRequestRefreshByRepositoryID = [:]
       $0.inFlightPullRequestRefreshRepositoryIDs = []

@@ -208,6 +208,9 @@ struct RepositoriesFeature {
     var inspectorPane: WorktreeInspectorPane = .git
     var fileExplorer = FileExplorerFeature.State()
     var githubIntegrationAvailability: GithubIntegrationAvailability = .unknown
+    /// Consecutive failed availability probes, indexing the recovery backoff. Held
+    /// in state so it survives the poll effect being re-created each cycle.
+    var githubIntegrationRecoveryAttempt = 0
     var pendingPullRequestRefreshByRepositoryID: [Repository.ID: PendingPullRequestRefresh] = [:]
     var inFlightPullRequestRefreshRepositoryIDs: Set<Repository.ID> = []
     /// Forge serving each repository, cached from the last refresh resolution;
@@ -2495,20 +2498,22 @@ struct RepositoriesFeature {
           state.inFlightPullRequestBranchSnapshotsByRepositoryID.removeAll()
           let openFetchCancels = Self.cancelPullRequestOpenFetches(&state)
           let clock = clock
+          // Each probe re-arms this via `refreshGithubIntegrationAvailability`, so
+          // one delayed tick per cycle is enough; the attempt lives in state so the
+          // backoff decays instead of restarting at 15s.
+          let delay = Self.githubRecoveryDelay(attempt: state.githubIntegrationRecoveryAttempt)
+          state.githubIntegrationRecoveryAttempt += 1
           return .merge(
             openFetchCancels + [
               .run { send in
-                var attempt = 0
-                while !Task.isCancelled {
-                  try await clock.sleep(for: Self.githubRecoveryDelay(attempt: attempt))
-                  await send(.refreshGithubIntegrationAvailability)
-                  attempt += 1
-                }
+                try await clock.sleep(for: delay)
+                await send(.refreshGithubIntegrationAvailability)
               }
               .cancellable(id: CancelID.githubIntegrationRecovery, cancelInFlight: true)
             ]
           )
         }
+        state.githubIntegrationRecoveryAttempt = 0
         let pendingRefreshes = state.pendingPullRequestRefreshByRepositoryID.values.sorted {
           $0.repositoryRootURL.path(percentEncoded: false)
             < $1.repositoryRootURL.path(percentEncoded: false)
@@ -3084,6 +3089,7 @@ struct RepositoriesFeature {
       case .setGithubIntegrationEnabled(let isEnabled):
         if isEnabled {
           state.githubIntegrationAvailability = .unknown
+          state.githubIntegrationRecoveryAttempt = 0
           state.pendingPullRequestRefreshByRepositoryID.removeAll()
           state.queuedPullRequestRefreshByRepositoryID.removeAll()
           state.inFlightPullRequestRefreshRepositoryIDs.removeAll()
@@ -3100,6 +3106,7 @@ struct RepositoriesFeature {
           )
         }
         state.githubIntegrationAvailability = .disabled
+        state.githubIntegrationRecoveryAttempt = 0
         state.pendingPullRequestRefreshByRepositoryID.removeAll()
         state.queuedPullRequestRefreshByRepositoryID.removeAll()
         state.inFlightPullRequestRefreshRepositoryIDs.removeAll()
