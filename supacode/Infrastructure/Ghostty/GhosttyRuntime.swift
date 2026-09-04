@@ -20,7 +20,7 @@ final class GhosttyRuntime {
   private static var liveAppBits: Set<UInt> = []
   private static var liveSurfaceBits: Set<UInt> = []
 
-  final class SurfaceReference {
+  final class SurfaceReference: Hashable {
     let surface: ghostty_surface_t
     var isValid = true
 
@@ -31,12 +31,20 @@ final class GhosttyRuntime {
     func invalidate() {
       isValid = false
     }
+
+    static func == (lhs: SurfaceReference, rhs: SurfaceReference) -> Bool {
+      lhs === rhs
+    }
+
+    func hash(into hasher: inout Hasher) {
+      hasher.combine(ObjectIdentifier(self))
+    }
   }
 
   private var config: ghostty_config_t?
   private(set) var app: ghostty_app_t?
   private var observers: [NSObjectProtocol] = []
-  private var surfaceRefs: [SurfaceReference] = []
+  private var surfaceRefs: Set<SurfaceReference> = []
   private var lastColorScheme: ghostty_color_scheme_e?
   /// Whether the user has toggled background opacity to force
   /// an opaque window, overriding the configured transparency.
@@ -185,8 +193,7 @@ final class GhosttyRuntime {
 
   func registerSurface(_ surface: ghostty_surface_t) -> SurfaceReference {
     let ref = SurfaceReference(surface)
-    surfaceRefs.append(ref)
-    surfaceRefs = surfaceRefs.filter { $0.isValid }
+    surfaceRefs.insert(ref)
     Self.liveSurfaceBits.insert(UInt(bitPattern: surface))
     if let lastColorScheme {
       ghostty_surface_set_color_scheme(surface, lastColorScheme)
@@ -196,7 +203,7 @@ final class GhosttyRuntime {
 
   func unregisterSurface(_ ref: SurfaceReference) {
     ref.invalidate()
-    surfaceRefs = surfaceRefs.filter { $0.isValid }
+    surfaceRefs.remove(ref)
     Self.liveSurfaceBits.remove(UInt(bitPattern: ref.surface))
   }
 
