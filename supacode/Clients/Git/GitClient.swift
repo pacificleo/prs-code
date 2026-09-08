@@ -1682,13 +1682,11 @@ nonisolated private func wrapShellError(
   }
   gitLogger.warning("git command failed operation=\(operation.rawValue) exit_code=\(exitCode)")
   #if !DEBUG && canImport(Sentry)
-    SentrySDK.logger.error(
-      "git command failed",
-      attributes: [
-        "operation": operation.rawValue,
-        "exit_code": Int(exitCode),
-      ]
+  if SentrySDK.isEnabled {
+    SentrySDK.captureMessage(
+      "git command failed: \(operation.rawValue) (exit \(exitCode))"
     )
+  }
   #endif
   return gitError
 }
