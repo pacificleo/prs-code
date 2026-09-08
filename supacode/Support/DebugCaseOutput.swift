@@ -50,11 +50,12 @@ struct LogActionsReducer<Base: Reducer>: Reducer where Base.State: Equatable {
       return effects
     #else
       #if canImport(Sentry)
-      let actionLabel = debugCaseOutput(action)
-      SentrySDK.logger.info("Action: \(actionLabel)")
-      let breadcrumb = Breadcrumb(level: .debug, category: "action")
-      breadcrumb.message = actionLabel
-      SentrySDK.addBreadcrumb(breadcrumb)
+      if SentrySDK.isEnabled {
+        let actionLabel = debugCaseOutput(action)
+        let breadcrumb = Breadcrumb(level: .debug, category: "action")
+        breadcrumb.message = actionLabel
+        SentrySDK.addBreadcrumb(breadcrumb)
+      }
       #endif
       return base.reduce(into: &state, action: action)
     #endif
