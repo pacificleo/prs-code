@@ -844,7 +844,7 @@ private struct PaneTabStripe: View {
     case .error: .red
     case .paused: .orange
     case .indeterminate, .determinate: tintColor?.color ?? .accentColor
-    case nil: tintColor?.color ?? .secondary
+    case nil: tintColor?.color ?? .accentColor
     }
   }
 }
