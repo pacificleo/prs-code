@@ -64,7 +64,8 @@ struct SidebarItemView: View {
           accent: resolved.accent,
           customTint: store.customTint,
           isLifecycleBusy: store.lifecycle.isBusy,
-          isTaskRunning: store.isTaskRunning
+          isTaskRunning: store.isTaskRunning,
+          isRepository: store.kind == .repository
         )
         .equatable()
         Spacer(minLength: 0)
@@ -274,6 +275,7 @@ private struct TitleView: View, Equatable {
   let customTint: RepositoryColor?
   let isLifecycleBusy: Bool
   let isTaskRunning: Bool
+  let isRepository: Bool
   // `==` ignores @Environment; SwiftUI tracks env changes separately.
   @Environment(\.backgroundProminence) private var backgroundProminence
 
@@ -284,6 +286,7 @@ private struct TitleView: View, Equatable {
       && lhs.customTint == rhs.customTint
       && lhs.isLifecycleBusy == rhs.isLifecycleBusy
       && lhs.isTaskRunning == rhs.isTaskRunning
+      && lhs.isRepository == rhs.isRepository
   }
 
   var body: some View {
@@ -292,7 +295,8 @@ private struct TitleView: View, Equatable {
     let accentStyle = accent.shapeStyle(emphasized: isEmphasized)
     VStack(alignment: .leading, spacing: 0) {
       let titleText = Text(name)
-        .appFont(.body)
+        .appFont(isRepository ? .title3 : .body)
+        .fontWeight(isRepository ? .bold : .regular)
         .lineLimit(1)
       if let customTint, !isEmphasized {
         titleText.foregroundStyle(customTint.color).shimmer(isActive: isBusy)
