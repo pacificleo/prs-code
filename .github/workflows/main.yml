@@ -58,7 +58,7 @@ jobs:
       - run: make test
 
   check:
-    runs-on: depot-ubuntu-24.04
+    runs-on: ubuntu-latest
     outputs:
       should_skip: ${{ steps.check.outputs.should_skip }}
     steps:
@@ -315,7 +315,7 @@ jobs:
   # Gated on build so a stable release is only detected when the binary exists.
   # The matching tag (pushed via --follow-tags) marks this exact commit as vX.Y.Z.
   detect:
-    runs-on: depot-ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: [build]
     permissions:
       contents: read
@@ -346,7 +346,7 @@ jobs:
           echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
 
   tag:
-    runs-on: depot-ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: [check, build]
     if: needs.check.outputs.should_skip != 'true'
     permissions:
@@ -363,7 +363,7 @@ jobs:
           git push --force origin tip
 
   sentry-dsym:
-    runs-on: depot-ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: [check, build]
     if: needs.check.outputs.should_skip != 'true'
     steps:
@@ -493,7 +493,7 @@ jobs:
   # Ordered after publish-stable so the tip item merges into any freshly cut release. Tolerates a skip
   # (non-release commits) but blocks on its failure, so the tip merge never runs against a half-published release.
   publish:
-    runs-on: depot-ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: [check, build, tag, publish-stable]
     if: ${{ !cancelled() && needs.check.outputs.should_skip != 'true' && needs.build.result == 'success' && needs.tag.result == 'success' && (needs.publish-stable.result == 'success' || needs.publish-stable.result == 'skipped') }}
     permissions:
