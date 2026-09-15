@@ -1436,10 +1436,11 @@ struct GitClient {
     let env = URL(fileURLWithPath: "/usr/bin/env")
     // Pin the C locale for the environment probe so its diagnostics stay English
     // and classify regardless of the user's system language.
-    let invocation = (localePinned ? ["LC_ALL=C", "LANG=C"] : []) + ["git"] + arguments
+    let envArgs = (environment ?? [:]).map { "\($0.key)=\($0.value)" }
+    let invocation = (localePinned ? ["LC_ALL=C", "LANG=C"] : []) + envArgs + ["git"] + arguments
     let command = ([env.path(percentEncoded: false)] + invocation).joined(separator: " ")
     do {
-      return try await shell.run(env, invocation, environment).stdout
+      return try await shell.run(env, invocation, nil).stdout
     } catch {
       throw wrapShellError(error, operation: operation, command: command)
     }
