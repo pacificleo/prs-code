@@ -1159,8 +1159,8 @@ struct GitClient {
       let fsmonitorArgs = await capabilities.supportsFsmonitor() ? ["-c", "core.fsmonitor=true"] : []
       let diff = try await runGit(
         operation: .lineChanges,
-        gitArguments: fsmonitorArgs + ["-C", path, "diff", "HEAD", "--shortstat"],
-        environment: ["GIT_OPTIONAL_LOCKS=0"]
+        arguments: fsmonitorArgs + ["-C", path, "diff", "HEAD", "--shortstat"],
+        environment: ["GIT_OPTIONAL_LOCKS": "0"]
       )
       let changes = parseShortstat(diff)
       return (added: changes.added, removed: changes.removed)
@@ -1430,6 +1430,7 @@ struct GitClient {
   nonisolated private func runGit(
     operation: GitOperation,
     arguments: [String],
+    environment: [String: String]? = nil,
     localePinned: Bool = false
   ) async throws -> String {
     let env = URL(fileURLWithPath: "/usr/bin/env")
@@ -1438,7 +1439,7 @@ struct GitClient {
     let invocation = (localePinned ? ["LC_ALL=C", "LANG=C"] : []) + ["git"] + arguments
     let command = ([env.path(percentEncoded: false)] + invocation).joined(separator: " ")
     do {
-      return try await shell.run(env, invocation, nil).stdout
+      return try await shell.run(env, invocation, environment).stdout
     } catch {
       throw wrapShellError(error, operation: operation, command: command)
     }
