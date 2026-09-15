@@ -65,7 +65,7 @@ struct SidebarItemView: View {
           customTint: store.customTint,
           isLifecycleBusy: store.lifecycle.isBusy,
           isTaskRunning: store.isTaskRunning,
-          isRepository: store.kind == .repository
+          isRepository: store.isMainWorktree
         )
         .equatable()
         Spacer(minLength: 0)
