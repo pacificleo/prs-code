@@ -1,4 +1,5 @@
 import Foundation
+import SupacodeSettingsShared
 
 /// Detects (once) whether the active `git` supports built-in `core.fsmonitor`
 /// (git >= 2.37). Older git interprets `core.fsmonitor=true` as a hook path and
