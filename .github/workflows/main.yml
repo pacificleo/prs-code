@@ -199,6 +199,7 @@ jobs:
           assert_eq PostHogAPIKey "$POSTHOG_API_KEY"
           assert_eq PostHogHost "$POSTHOG_HOST"
       - name: Re-sign frameworks
+        if: env.DEVELOPER_ID_CERT_P12 != ''
         run: |
           set -ex
           APP_PATH="$(find build/export -name "supacode.app" -maxdepth 3 -print -quit)"
@@ -272,6 +273,7 @@ jobs:
           APP_PATH="$(find build/export -name "supacode.app" -maxdepth 3 -print -quit)"
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" build/supacode.app.zip
       - name: Generate tip appcast
+        if: env.SPARKLE_PRIVATE_KEY != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CherryLily
+@testable import supacode
 
 struct GitCapabilitiesTests {
   @Test func parsesModernVersionAsSupported() {
