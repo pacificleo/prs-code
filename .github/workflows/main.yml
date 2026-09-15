@@ -110,9 +110,6 @@ jobs:
               POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
             run: |
               set -euo pipefail
-              : "${SENTRY_DSN:?secret SENTRY_DSN is not set}"
-              : "${POSTHOG_API_KEY:?secret POSTHOG_API_KEY is not set}"
-              : "${POSTHOG_HOST:?secret POSTHOG_HOST is not set}"
               # Epoch build number: monotonic, computed once here so the single binary reused by tip and stable carries one version.
               BUILD_NUMBER=$(date +%s)
               mkdir -p build

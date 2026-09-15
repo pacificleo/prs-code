@@ -1,8 +1,9 @@
 import ComposableArchitecture
-#if canImport(PostHog)
-import PostHog
-#endif
 import SwiftUI
+
+#if canImport(PostHog)
+  import PostHog
+#endif
 
 public nonisolated struct AnalyticsClient: Sendable {
   public var capture: @Sendable (_ event: String, _ properties: [String: Any]?) -> Void
@@ -24,7 +25,7 @@ extension AnalyticsClient: DependencyKey {
         @Shared(.settingsFile) var settingsFile
         guard settingsFile.global.analyticsEnabled else { return }
         #if canImport(PostHog)
-        PostHogSDK.shared.capture(event, properties: properties)
+          PostHogSDK.shared.capture(event, properties: properties)
         #endif
       #endif
     },
@@ -33,7 +34,7 @@ extension AnalyticsClient: DependencyKey {
         @Shared(.settingsFile) var settingsFile
         guard settingsFile.global.analyticsEnabled else { return }
         #if canImport(PostHog)
-        PostHogSDK.shared.identify(distinctId)
+          PostHogSDK.shared.identify(distinctId)
         #endif
       #endif
     }

@@ -1,8 +1,9 @@
 import Foundation
-#if canImport(PostHog)
-import PostHog
-#endif
 import SupacodeSettingsShared
+
+#if canImport(PostHog)
+  import PostHog
+#endif
 
 enum AppTelemetry {
   struct Configuration: Equatable {
@@ -33,15 +34,15 @@ enum AppTelemetry {
   }
 
   #if canImport(PostHog)
-  static func makeConfig(configuration: Configuration) -> PostHogConfig {
-    let config = PostHogConfig(projectToken: configuration.apiKey, host: configuration.host)
-    config.captureApplicationLifecycleEvents = true
-    config.enableSwizzling = false
-    config.setBeforeSend { event in
-      shouldSend(eventName: event.event) ? event : nil
+    static func makeConfig(configuration: Configuration) -> PostHogConfig {
+      let config = PostHogConfig(projectToken: configuration.apiKey, host: configuration.host)
+      config.captureApplicationLifecycleEvents = true
+      config.enableSwizzling = false
+      config.setBeforeSend { event in
+        shouldSend(eventName: event.event) ? event : nil
+      }
+      return config
     }
-    return config
-  }
   #endif
 
   static func shouldSend(eventName: String) -> Bool {
@@ -63,14 +64,14 @@ enum AppTelemetry {
       return
     #else
       #if canImport(PostHog)
-      guard isEnabled(settings: settings, isDebugBuild: false) else { return }
-      guard let configuration = Configuration(infoDictionary: infoDictionary) else { return }
-      let config = makeConfig(configuration: configuration)
-      PostHogSDK.shared.setup(config)
-      if let hardwareUUID {
-        PostHogSDK.shared.identify(hardwareUUID)
-      }
-      PostHogSDK.shared.capture("app_launched")
+        guard isEnabled(settings: settings, isDebugBuild: false) else { return }
+        guard let configuration = Configuration(infoDictionary: infoDictionary) else { return }
+        let config = makeConfig(configuration: configuration)
+        PostHogSDK.shared.setup(config)
+        if let hardwareUUID {
+          PostHogSDK.shared.identify(hardwareUUID)
+        }
+        PostHogSDK.shared.capture("app_launched")
       #endif
     #endif
   }
