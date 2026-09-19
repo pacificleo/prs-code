@@ -62,7 +62,7 @@ final class CommandKeyObserver {
     modifierFlags.contains(.command) || modifierFlags.contains(.control)
   }
 
-  private func handleCommandKeyChange(isDown: Bool) {
+  func handleCommandKeyChange(isDown: Bool) {
     holdTask?.cancel()
     holdTask = nil
 
@@ -73,7 +73,7 @@ final class CommandKeyObserver {
       }
 
       holdTask = Task { @MainActor [weak self] in
-        try? await Task.sleep(for: .seconds(2))
+        try? await ContinuousClock().sleep(for: .seconds(2))
         guard !Task.isCancelled else { return }
         self?.isPressed = true
       }
