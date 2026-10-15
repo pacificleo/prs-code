@@ -35,6 +35,7 @@ struct GitClientLineChangesTests {
     let args = calls[0]
     #expect(args.contains("GIT_OPTIONAL_LOCKS=0"))
     #expect(args.contains("git"))
+    #expect(args.contains("--no-optional-locks"))
     #expect(args.contains("diff"))
     #expect(args.contains("HEAD"))
     #expect(args.contains("--shortstat"))

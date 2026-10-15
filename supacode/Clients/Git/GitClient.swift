@@ -1155,7 +1155,7 @@ struct GitClient {
       let fsmonitorArgs = await capabilities.supportsFsmonitor() ? ["-c", "core.fsmonitor=true"] : []
       let diff = try await runGit(
         operation: .lineChanges,
-        arguments: fsmonitorArgs + ["-C", path, "diff", "HEAD", "--shortstat"],
+        arguments: fsmonitorArgs + ["-C", path, "--no-optional-locks", "diff", "HEAD", "--shortstat"],
         environment: ["GIT_OPTIONAL_LOCKS": "0"]
       )
       let changes = parseShortstat(diff)
