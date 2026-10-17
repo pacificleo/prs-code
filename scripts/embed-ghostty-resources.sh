@@ -12,10 +12,14 @@ mkdir -p "${ghostty_destination}" "${terminfo_destination}"
 rsync -a --delete "${ghostty_source}/" "${ghostty_destination}/"
 rsync -a --delete "${terminfo_source}/" "${terminfo_destination}/"
 
-# Create a symlink named 'ghostty' pointing to 'supacode' in the MacOS executable folder.
-# Ghostty's shell integrations hardcode "$GHOSTTY_BIN_DIR/ghostty" for features like ssh-cache.
-# Without this symlink, the shell integrations fail to find the binary.
-if [ -n "${EXECUTABLE_NAME:-}" ] && [ -n "${EXECUTABLE_FOLDER_PATH:-}" ]; then
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Install ghostty CLI shim in the MacOS executable folder for shell integrations.
+# Ghostty shell integrations call "$GHOSTTY_BIN_DIR/ghostty" +ssh-cache to manage
+# the remote terminfo cache. Symlinking 'ghostty' to 'supacode' (the GUI app) was
+# harmful because invoking 'ghostty' launched a whole new GUI instance of Supacode.
+if [ -n "${EXECUTABLE_FOLDER_PATH:-}" ]; then
   mkdir -p "${TARGET_BUILD_DIR}/${EXECUTABLE_FOLDER_PATH}"
-  ln -sf "${EXECUTABLE_NAME}" "${TARGET_BUILD_DIR}/${EXECUTABLE_FOLDER_PATH}/ghostty"
+  clang -O2 -Wall -Wextra -Werror "${script_dir}/ghostty-shim.c" -o "${TARGET_BUILD_DIR}/${EXECUTABLE_FOLDER_PATH}/ghostty"
 fi
+

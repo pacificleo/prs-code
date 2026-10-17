@@ -2,10 +2,6 @@ import ConcurrencyExtras
 import Foundation
 import SupacodeSettingsShared
 
-#if canImport(Sentry)
-  import Sentry
-#endif
-
 enum GitOperation: String {
   case version = "version"
   case repoRoot = "repo_root"
@@ -1684,13 +1680,6 @@ nonisolated private func wrapShellError(
     gitError = .commandFailed(command: command, message: error.localizedDescription)
   }
   gitLogger.warning("git command failed operation=\(operation.rawValue) exit_code=\(exitCode)")
-  #if !DEBUG && canImport(Sentry)
-    if SentrySDK.isEnabled {
-      SentrySDK.captureMessage(
-        "git command failed: \(operation.rawValue) (exit \(exitCode))"
-      )
-    }
-  #endif
   return gitError
 }
 

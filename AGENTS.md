@@ -16,8 +16,6 @@ Supacode is a macOS terminal emulator that for running multiple coding agents in
 - **GhosttyKit**: Terminal emulator (built from Zig source in ThirdParty/ghostty)
 - **Sparkle**: Auto-update framework
 - **swift-dependencies**: Dependency injection for TCA clients
-- **PostHog**: Analytics
-- **Sentry**: Error tracking
 
 ## Code Guidelines
 

@@ -1,10 +1,6 @@
 import Foundation
 import SupacodeSettingsShared
 
-#if canImport(Sentry)
-  import Sentry
-#endif
-
 enum AppCrashReporting {
   struct Configuration: Equatable {
     let dsn: String
@@ -29,18 +25,6 @@ enum AppCrashReporting {
 
   @MainActor
   static func setup(settings: GlobalSettings, infoDictionary: [String: Any]) {
-    #if DEBUG
-      return
-    #else
-      #if canImport(Sentry)
-        guard isEnabled(settings: settings, isDebugBuild: false) else { return }
-        guard let configuration = Configuration(infoDictionary: infoDictionary) else { return }
-        SentrySDK.start { options in
-          options.dsn = configuration.dsn
-          options.tracesSampleRate = 1.0
-          options.enableAppHangTracking = false
-        }
-      #endif
-    #endif
+    // Crash reporting telemetry is disabled.
   }
 }

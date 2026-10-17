@@ -3,10 +3,6 @@ import CustomDump
 import Foundation
 import SupacodeSettingsShared
 
-#if canImport(Sentry)
-  import Sentry
-#endif
-
 extension Reducer where State: Equatable {
   @ReducerBuilder<State, Action>
   func logActions() -> some Reducer<State, Action> {
@@ -50,14 +46,6 @@ struct LogActionsReducer<Base: Reducer>: Reducer where Base.State: Equatable {
       }
       return effects
     #else
-      #if canImport(Sentry)
-        if SentrySDK.isEnabled {
-          let actionLabel = debugCaseOutput(action)
-          let breadcrumb = Breadcrumb(level: .debug, category: "action")
-          breadcrumb.message = actionLabel
-          SentrySDK.addBreadcrumb(breadcrumb)
-        }
-      #endif
       return base.reduce(into: &state, action: action)
     #endif
   }

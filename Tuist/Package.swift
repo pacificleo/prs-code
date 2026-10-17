@@ -13,6 +13,11 @@ import ProjectDescription
 let packageSettings = PackageSettings(
   productTypes: [
     "Sparkle": .framework,
+  ],
+  targetSettings: [
+    "ComposableArchitecture": [
+      "SWIFT_VERSION": "5",
+    ],
   ]
 )
 #endif
