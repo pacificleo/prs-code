@@ -15,10 +15,11 @@ BUILD="${BUILD:-}"
 TITLE="${TITLE:-}"
 BODY="${BODY:-}"
 
-current="$(/usr/bin/awk -F' = ' '/^MARKETING_VERSION = [0-9.]+$/{print $2; exit}' "$config_path")"
+current="$(/usr/bin/awk -F' = ' '/^MARKETING_VERSION = [0-9A-Za-z.-]+$/{print $2; exit}' "$config_path")"
 [ -n "$current" ] || { echo "error: MARKETING_VERSION not found in $config_path" >&2; exit 1; }
-cur_major="${current%%.*}"
-cur_rest="${current#*.}"
+cur_num="${current%%-*}"
+cur_major="${cur_num%%.*}"
+cur_rest="${cur_num#*.}"
 cur_minor="${cur_rest%%.*}"
 cur_patch="${cur_rest#*.}"
 
@@ -37,7 +38,7 @@ if [ -z "$VERSION" ]; then
   exit 1
 fi
 
-if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
   echo "error: VERSION must be in x.y.z format" >&2
   exit 1
 fi
@@ -54,8 +55,9 @@ if ! git -C "$repo_root" diff --quiet -- "$config_path" || ! git -C "$repo_root"
   exit 1
 fi
 
-new_major="${VERSION%%.*}"
-new_rest="${VERSION#*.}"
+new_num="${VERSION%%-*}"
+new_major="${new_num%%.*}"
+new_rest="${new_num#*.}"
 new_minor="${new_rest%%.*}"
 
 # Same major.minor is a patch; anything else is a feature release needing a headline.
@@ -118,7 +120,7 @@ else
   build="$BUILD"
 fi
 
-sed -i '' "s/^MARKETING_VERSION = [0-9.]*/MARKETING_VERSION = $VERSION/g" "$config_path"
+sed -E -i '' "s/^MARKETING_VERSION = [0-9A-Za-z.-]+/MARKETING_VERSION = $VERSION/g" "$config_path"
 sed -i '' "s/^CURRENT_PROJECT_VERSION = [0-9]*/CURRENT_PROJECT_VERSION = $build/g" "$config_path"
 
 # sed exits 0 on no match; assert the rewrite landed.
