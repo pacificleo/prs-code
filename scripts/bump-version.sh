@@ -128,16 +128,24 @@ grep -qx "MARKETING_VERSION = $VERSION" "$config_path" || { echo "error: failed 
 grep -qx "CURRENT_PROJECT_VERSION = $build" "$config_path" || { echo "error: failed to write CURRENT_PROJECT_VERSION" >&2; exit 1; }
 
 # Commit only the config so unrelated staged changes stay out of the release.
-git -C "$repo_root" commit -S -m "bump v$VERSION" -o -- "$config_path"
+sign_commit=""
+sign_tag="-a"
+if command -v gpg >/dev/null 2>&1 && [ -n "$(git config user.signingkey 2>/dev/null || true)" ]; then
+  sign_commit="-S"
+  sign_tag="-s"
+fi
+
+git -C "$repo_root" commit $sign_commit -m "bump v$VERSION" -o -- "$config_path"
 # verbatim cleanup keeps the `## ` heading; default cleanup would strip it as a comment.
 if [ "$has_headline" -eq 1 ]; then
   # Trailing newline keeps the appended signature on its own line, else it folds into the subject and leaks into the notes.
   [ -n "$(tail -c1 "$tag_msg_file")" ] && printf '\n' >> "$tag_msg_file"
-  git -C "$repo_root" tag -s --cleanup=verbatim -F "$tag_msg_file" "v$VERSION"
+  git -C "$repo_root" tag $sign_tag --cleanup=verbatim -F "$tag_msg_file" "v$VERSION"
 else
-  git -C "$repo_root" tag -s -m "v$VERSION" "v$VERSION"
+  git -C "$repo_root" tag $sign_tag -m "v$VERSION" "v$VERSION"
 fi
 echo "version bumped to $VERSION (build $build), tagged v$VERSION"
 if [ "$has_headline" -eq 1 ]; then
   echo "release headline attached to tag v$VERSION"
 fi
+
